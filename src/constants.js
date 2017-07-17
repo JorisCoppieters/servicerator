@@ -21,6 +21,7 @@ const c_MODE_VERSION = '[VERSION]';
 module.exports['MODE_HELP'] = c_MODE_HELP;
 module.exports['MODE_VERSION'] = c_MODE_VERSION;
 
+module.exports['SCRIPT_NAME'] = c_SCRIPT_NAME;
 module.exports['VERSION'] = c_VERSION;
 
 // ******************************
