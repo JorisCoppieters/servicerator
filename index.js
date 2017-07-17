@@ -33,7 +33,21 @@ let minimist = require('minimist');
 // ******************************
 
 let g_IGNORE_FILES = [
-    'node_modules'
+    'docker/*/.aws_cache/*',
+    'docker/*/auth/*.crt',
+    'docker/*/auth/*.key',
+    'docker/*/logs/*',
+    'docker/*/model/*',
+    'docker/*/node/node_modules/*',
+    'docker/*/s3/*',
+];
+
+let g_DOCKER_IGNORE_FILES = [
+    '_env.sh',
+    'logs/*',
+    'model/*',
+    'node/node_modules/*',
+    's3/*',
 ];
 
 // ******************************
@@ -52,7 +66,11 @@ if (g_ARGV['help']) {
     help.printVersion();
 } else {
     let commands = g_ARGV['_'] || false;
-    let command = commands.shift();
+    let command = commands.length ? commands.shift() : false;
+    if (!command) {
+        help.printHelp();
+        return;
+    }
 
     let folderName;
     switch(command)
@@ -96,7 +114,7 @@ function hgInitFolder (in_folderName) {
         return;
     }
     let hgIgnoreFile = path.resolve(sourceFolder, '.hgignore');
-    writeFile(hgIgnoreFile, g_IGNORE_FILES.join('\n'));
+    writeFile(hgIgnoreFile, ['syntax: glob'].concat(g_IGNORE_FILES).join('\n'));
 }
 
 // ******************************
@@ -116,15 +134,39 @@ function initFolder (in_folderName) {
         sourceFolder = createFolder(in_folderName);
     }
 
-    let serviceConfigFile = path.resolve(sourceFolder, 'service.json');
-    writeFile(serviceConfigFile, JSON.stringify(getServiceConfig(sourceFolder), null, 4));
+    let serviceConfig = getServiceConfig(sourceFolder);
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
 
-    let bashEnvFile = path.resolve(sourceFolder, 'env.sh');
-    writeFile(bashEnvFile, getBaseEnvContents(sourceFolder));
+    let serviceConfigFile = path.resolve(sourceFolder, 'service.json');
+    writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4));
 
     createFolder(path.resolve(sourceFolder, 'docker'));
+
+    let dockerImageName = serviceConfigDockerImage.name || 'unknown';
+    let dockerImageFolder = path.resolve(sourceFolder, 'docker', dockerImageName);
+    createFolder(path.resolve(dockerImageFolder));
+
+    let bashEnvFile = path.resolve(dockerImageFolder, '_env.sh');
+    writeFile(bashEnvFile, getBaseEnvContents(serviceConfig));
+
+    let dockerFile = path.resolve(dockerImageFolder, 'Dockerfile');
+    writeFile(dockerFile, getDockerFileContents(serviceConfig));
+
+    let dockerIgnoreFile = path.resolve(dockerImageFolder, '.dockerignore');
+    writeFile(dockerIgnoreFile, g_DOCKER_IGNORE_FILES.join('\n'));
+
+    let nginxFile = path.resolve(dockerImageFolder, 'nginx.conf');
+    writeFile(nginxFile, getNginxFileContents(serviceConfig));
+
+    createFolder(path.resolve(dockerImageFolder, 'python'));
+    createFolder(path.resolve(dockerImageFolder, 'model'));
+    createFolder(path.resolve(dockerImageFolder, 's3'));
+    createFolder(path.resolve(dockerImageFolder, 'logs'));
+
     createFolder(path.resolve(sourceFolder, 'corpus'));
     createFolder(path.resolve(sourceFolder, 'model'));
+    createFolder(path.resolve(sourceFolder, 'bundled_model'));
     createFolder(path.resolve(sourceFolder, 'downloads'));
 
     return sourceFolder;
@@ -134,12 +176,20 @@ function initFolder (in_folderName) {
 
 function getServiceConfig (in_folderName) {
     let imageName = path.basename(in_folderName);
+    // let serviceName =
+    //     imageName
+    //         .replace(/([a-z]+)-.*/g,'$1') + '-' +
+    //     imageName
+    //         .replace(/-([a-z])[a-z]+/g,'-$1')
+    //         .replace(/^[a-z]+-/,'')
+    //         .replace(/-/g,'');
+
+
     let serviceName =
         imageName
-            .replace(/([a-z]+)-.*/g,'$1') + '-' +
-        imageName
+            .replace(/to/,'2')
             .replace(/-([a-z])[a-z]+/g,'-$1')
-            .replace(/^[a-z]+-/,'')
+            .replace(/^([a-z])[a-z]+-/,'$1-')
             .replace(/-/g,'');
 
     let serviceTestUrl = 'https://' + serviceName + '.test.my-services-url.com';
@@ -166,8 +216,12 @@ function getServiceConfig (in_folderName) {
         'docker': {
             'username': 'my-docker-username',
             'image': {
+                'base':'ubuntu:trusty',
                 'name': imageName,
-                'version': '1.0.0'
+                'version': '1.0.0',
+                'env_variables': [
+                    {key:'BASE_DIR', val:'/root'}
+                ]
             },
             'container': {
                 'memory_limit': 1500,
@@ -178,8 +232,8 @@ function getServiceConfig (in_folderName) {
                     {'number':5200, 'description': 'nginx_https','secure': true}
                 ],
                 'commands': [
-                    {'type':'start', 'env':'test', 'value':'./start-test.sh'},
-                    {'type':'start', 'env':'prod', 'value':'./start-prod.sh'},
+                    {'type':'python_start', 'needs_nginx': true, 'env':'test', 'value':'$BASE_DIR/start-test.sh'},
+                    {'type':'python_start', 'needs_nginx': true, 'env':'prod', 'value':'$BASE_DIR/start-prod.sh'},
                 ]
             }
         }
@@ -188,49 +242,264 @@ function getServiceConfig (in_folderName) {
 
 // ******************************
 
-function getBaseEnvContents (in_folderName) {
-    let serviceConfig = getServiceConfig(in_folderName);
+function getDockerFileContents (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig;
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
+    let serviceConfigService = serviceConfig.service || {};
+
+    let baseImage = serviceConfigDockerImage.base || 'unknown';
+    let serviceName = serviceConfigService.name || 'unknown';
+    let envVariables = serviceConfigDockerImage.env_variables || [];
+    let containerPorts = serviceConfigDockerContainer.ports || [];
+    let pythonStartCommands =
+        (serviceConfigDockerContainer.commands || [])
+            .filter((c) => {return c.type==='python_start';});
+
     return [
-        `_MODEL_VERSION="${serviceConfig.model.version}"`,
+        `# ----------------------`,
+        `#`,
+        `# BASE`,
+        `#`,
+        `# ----------------------`,
         ``,
-        `DOCKER_IMAGE_USERNAME="${serviceConfig.docker.username}";`,
-        `DOCKER_IMAGE_NAME="${serviceConfig.docker.image.name}";`,
-        `DOCKER_IMAGE_VERSION="${serviceConfig.docker.image.version}";`,
-        `DOCKER_IMAGE_MEMORY_LIMIT=${serviceConfig.docker.container.memory_limit};`,
+        `    FROM ${baseImage}`,
+        ``,
+        `# ----------------------`,
+        `#`,
+        `# ENVIRONMENT`,
+        `#`,
+        `# ----------------------`].join('\n') + (
+        envVariables.length ?
+            '\n\n' +
+            envVariables
+                .map((v) => {return `    ENV ${v.key} ${v.val}`}).join('\n')
+            : ''
+        ) + (
+        pythonStartCommands.length ?
+            '\n\n' +
+            pythonStartCommands
+                .map((c) => {return `    ENV INIT_${c.env.toUpperCase()}_FILE ${c.value}`}).join('\n')
+            : ''
+        ) + (
+        containerPorts.length ?
+            '\n\n' +
+            containerPorts
+            .map((p) => {return `    EXPOSE ${p.number}`}).join('\n')
+            : ''
+        ) +
+    [
+        ``,
+        ``,
+        `    WORKDIR $BASE_DIR`,
+        ``,
+        `# ----------------------`,
+        `#`,
+        `# NGINX`,
+        `#`,
+        `# ----------------------`,
+        ``,
+        `    RUN apt-get install -y nginx`,
+        `    RUN rm -v /etc/nginx/nginx.conf`,
+        `    ADD nginx.conf /etc/nginx/`,
+        ``,
+        `# ----------------------`,
+        `#`,
+        `# GENERATE SCRIPTS`,
+        `#`,
+        `# ----------------------`,].join('\n') + (
+        pythonStartCommands.length ?
+            '\n' +
+            pythonStartCommands
+                .map((c) => {
+                    let commandFile = `$INIT_${c.env.toUpperCase()}_FILE`;
+                    return [
+                        ``,
+                        `    RUN touch ${commandFile} && chmod +x ${commandFile}`,
+                        `    RUN \\`,
+                        `        echo "#! /bin/bash" > ${commandFile} && \\`,
+                    ].join('\n') + (
+                    c.needs_nginx ?
+                        `\n        echo "nginx &" >> ${commandFile} && \\`
+                        : ''
+                    ) +
+                    [
+                        ``,
+                        `        echo "cd python; python api-${c.env}.py" >> ${commandFile}`,
+                    ].join('\n')
+                }).join('\n')
+            : ''
+        ) +
+    [
+        ``,
+        ``,
+        `# ----------------------`,
+        `#`,
+        `# COPY FILES/FOLDERS`,
+        `#`,
+        `# ----------------------`,
+        ``,
+        `    RUN mkdir -p $PYTHON_DIR`,
+        `    COPY python $PYTHON_DIR`,
+        ``,
+        `    RUN mkdir -p /home/classifier/model`,
+        `    COPY bundled_model /home/classifier/model`,
+        ``,
+        `    RUN mkdir -p /home/classifier/auth`,
+        `    COPY auth /home/classifier/auth`,
+        ``,
+        `    RUN mkdir -p /var/log/tm-services/${serviceName}`,
+        `    RUN touch /var/log/tm-services/${serviceName}/api.log`,
+        ``,
+        `# ----------------------`,
+        `#`,
+        `# CMD / ENTRYPOINT`,
+        `#`,
+        `# ---------------------`,
+        ``].join('\n') +
+        pythonStartCommands
+            .filter((c) => {return c.env==='test'})
+            .map((c) => `\n    CMD $INIT_TEST_FILE`).join('\n') +
+    '\n';
+}
+
+// ******************************
+
+function getNginxFileContents (in_serviceConfig) {
+    return [
+        `worker_processes 4;`,
+        ``,
+        `events { worker_connections 1024; }`,
+        ``,
+        `http {`,
+        ``,
+        `    sendfile on;`,
+        ``,
+        `    server {`,
+        ``,
+        `        listen 5100;`,
+        ``,
+        `        access_log /var/log/nginx/docker.access.log;`,
+        `        error_log /var/log/nginx/docker.error.log;`,
+        ``,
+        `        location / {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        ``,
+        `        location /v1/status {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        ``,
+        `        location /v1/classify {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        ``,
+        `        location /v1/predict {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        `    }`,
+        ``,
+        `    server {`,
+        ``,
+        `        listen 5200;`,
+        ``,
+        `        ssl on;`,
+        `        ssl_certificate /home/classifier/auth/service.crt;`,
+        `        ssl_certificate_key /home/classifier/auth/service.key;`,
+        ``,
+        `        access_log /var/log/nginx/docker.ssl_access.log;`,
+        `        error_log /var/log/nginx/docker.ssl_error.log;`,
+        ``,
+        `        location / {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        ``,
+        `        location /v1/status {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        ``,
+        `        location /v1/classify {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        ``,
+        `        location /v1/predict {`,
+        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
+        `            proxy_set_header X-Real-IP $remote_addr;`,
+        `        }`,
+        `    }`,
+        `}`,
+        ``,
+        `daemon off;`,
+    ].join('\n');
+}
+
+// ******************************
+
+function getBaseEnvContents (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig;
+    let serviceConfigModel = serviceConfig.model || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
+    let serviceConfigService = serviceConfig.service || {};
+    let serviceConfigServiceCluster = serviceConfigService.cluster || {};
+    let serviceConfigServiceClusterInstance = serviceConfigServiceCluster.instance || {};
+
+    let containerPorts = serviceConfigDockerContainer.ports || [];
+    let serviceConfigServiceUrls = serviceConfigService.urls || [];
+    let pythonStartCommands =
+        (serviceConfigDockerContainer.commands || [])
+            .filter((c) => {return c.type==='python_start';});
+
+    return [
+        `_MODEL_VERSION="${serviceConfigModel.version}"`,
+        ``,
+        `DOCKER_IMAGE_USERNAME="${serviceConfigDocker.username}";`,
+        `DOCKER_IMAGE_NAME="${serviceConfigDockerImage.name}";`,
+        `DOCKER_IMAGE_VERSION="${serviceConfigDockerImage.version}";`,
+        `DOCKER_IMAGE_MEMORY_LIMIT=${serviceConfigDockerContainer.memory_limit};`,
         `DOCKER_CONTAINER_PORT=${
-                serviceConfig.docker.container.ports
-                    .find((p) => {return p.description==='nginx_http'}).number
+                (containerPorts
+                    .find((p) => {return p.description==='nginx_http'}) || {}).number
             };`,
         `DOCKER_CONTAINER_SECURE_PORT=${
-                serviceConfig.docker.container.ports
-                    .find((p) => {return p.description==='nginx_https'}).number
+                (containerPorts
+                    .find((p) => {return p.description==='nginx_https'}) || {}).number
             };`,
         `DOCKER_CONTAINER_TEST_START_COMMAND="${
-                serviceConfig.docker.container.commands
-                    .find((c) => {return c.type==='start' && c.env==='test'}).value
+                (pythonStartCommands
+                    .find((c) => {return c.env==='test'}) || {}).value
             }";`,
         `DOCKER_CONTAINER_START_COMMAND="${
-                serviceConfig.docker.container.commands
-                    .find((c) => {return c.type==='start' && c.env==='prod'}).value
+                (pythonStartCommands
+                    .find((c) => {return c.env==='prod'}) || {}).value
             }";`,
         `DOCKER_VERIFY_API_COMMAND="curl -s -k https://localhost:$DOCKER_CONTAINER_SECURE_PORT";`,
         `DOCKER_VERIFY_API_EXPECTED_RESULT='{'*'container_version'*':'*$DOCKER_IMAGE_VERSION*'cpu_count'*'cpu_percent'*'model_version'*':'*$_MODEL_VERSION*'processes'*'}';`,
         `DOCKER_EXTRA_TAG="model-version-"$_MODEL_VERSION;`,
         `DOCKER_CONTAINER_SECURE_URL_TEST="${
-                serviceConfig.service.urls
-                    .find((u) => {return u.env==='test'}).value
+                (serviceConfigServiceUrls
+                    .find((u) => {return u.env==='test'}) || {}).value
             }";`,
         `DOCKER_CONTAINER_SECURE_URL_PROD="${
-                serviceConfig.service.urls
-                    .find((u) => {return u.env==='prod'}).value
+                (serviceConfigServiceUrls
+                    .find((u) => {return u.env==='prod'}) || {}).value
             }";`,
         `DOCKER_CONTAINER_MOUNT_VOLUMES=true;`,
-        `CLUSTER_INSTANCE_COUNT=${serviceConfig.service.cluster.instance.count};`,
-        `INSTANCE_CPU_COUNT=${serviceConfig.docker.container.cpu_core_count};`,
-        `SERVICE_NAME="${serviceConfig.service.name}";`,
+        `CLUSTER_INSTANCE_COUNT=${serviceConfigServiceClusterInstance.count};`,
+        `INSTANCE_CPU_COUNT=${serviceConfigDockerContainer.cpu_core_count};`,
+        `SERVICE_NAME="${serviceConfigService.name}";`,
         ``,
-        `AWS_SERVICE_INSTANCE_TYPE="${serviceConfig.service.cluster.instance.type}";`,
-        `AWS_SERVICE_INSTANCE_VOLUME_SIZE=${serviceConfig.service.cluster.instance.volume_size};`,
+        `AWS_SERVICE_INSTANCE_TYPE="${serviceConfigServiceClusterInstance.type}";`,
+        `AWS_SERVICE_INSTANCE_VOLUME_SIZE=${serviceConfigServiceClusterInstance.volume_size};`,
         ``,
         `CONSTANTS_FILE="python/constants.py";`,
         `echo "#CONSTANTS" > "$CONSTANTS_FILE";`,

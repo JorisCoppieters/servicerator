@@ -22,11 +22,13 @@ function printHelp (in_message) {
     cprint.magenta('Version ' + c.VERSION);
     console.log();
     cprint.green('General Options:');
-    console.log(cprint.toWhite('--help') + '\t\t\t' + cprint.toCyan('Show this menu'));
-    console.log(cprint.toWhite('--version') + '\t\t' + cprint.toCyan('Print the version'));
-    // console.log();
-    // cprint.green('Flags:');
-    // console.log(cprint.toWhite('--debug') + '\t\t\t' + cprint.toCyan('Debug mode'));
+    console.log(cprint.toWhite('--help') + '\t\t\t\t' + cprint.toCyan('Show this menu'));
+    console.log(cprint.toWhite('--version') + '\t\t\t' + cprint.toCyan('Print the version'));
+    console.log();
+    cprint.green('Commands:');
+    console.log(cprint.toWhite('init') + ' ' + cprint.toDarkGray('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise this folder'));
+    console.log(cprint.toWhite('git-init') + ' ' + cprint.toDarkGray('FOLDER (Optional)') + '\t' + cprint.toCyan('Initialise this folder as a git repository'));
+    console.log(cprint.toWhite('hg-init') + ' ' + cprint.toDarkGray('FOLDER (Optional)') + '\t' + cprint.toCyan('Initialise this folder as a mercurial repository'));
 }
 
 // ******************************
