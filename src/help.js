@@ -25,10 +25,13 @@ function printHelp (in_message) {
     console.log(cprint.toWhite('--help') + '\t\t\t\t' + cprint.toCyan('Show this menu'));
     console.log(cprint.toWhite('--version') + '\t\t\t' + cprint.toCyan('Print the version'));
     console.log();
-    cprint.green('Commands:');
+    cprint.green('Init Commands:');
     console.log(cprint.toWhite('init') + ' ' + cprint.toDarkGray('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise this folder'));
     console.log(cprint.toWhite('git-init') + ' ' + cprint.toDarkGray('FOLDER (Optional)') + '\t' + cprint.toCyan('Initialise this folder as a git repository'));
     console.log(cprint.toWhite('hg-init') + ' ' + cprint.toDarkGray('FOLDER (Optional)') + '\t' + cprint.toCyan('Initialise this folder as a mercurial repository'));
+    console.log();
+    cprint.green('Init Options:');
+    console.log(cprint.toYellow('--overwrite') + '\t\t\t' + cprint.toCyan('Overwrite any files that exist'));
 }
 
 // ******************************

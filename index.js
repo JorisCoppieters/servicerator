@@ -73,19 +73,20 @@ if (g_ARGV['help']) {
     }
 
     let folderName;
+    let overwrite = g_ARGV['overwrite'];
     switch(command)
     {
         case 'init':
             folderName = commands.length ? commands.shift() : '.';
-            initFolder(folderName);
+            initFolder(folderName, overwrite);
             break;
         case 'git-init':
             folderName = commands.length ? commands.shift() : '.';
-            gitInitFolder(folderName);
+            gitInitFolder(folderName, overwrite);
             break;
         case 'hg-init':
             folderName = commands.length ? commands.shift() : '.';
-            hgInitFolder(folderName);
+            hgInitFolder(folderName, overwrite);
             break;
         default:
             cprint.yellow('Unknown command: ' + command);
@@ -97,29 +98,29 @@ if (g_ARGV['help']) {
 // Functions:
 // ******************************
 
-function gitInitFolder (in_folderName) {
-    let sourceFolder = initFolder(in_folderName);
+function gitInitFolder (in_folderName, in_overwrite) {
+    let sourceFolder = initFolder(in_folderName, in_overwrite);
     if (!sourceFolder) {
         return;
     }
     let gitIgnoreFile = path.resolve(sourceFolder, '.gitignore');
-    writeFile(gitIgnoreFile, g_IGNORE_FILES.join('\n'));
+    writeFile(gitIgnoreFile, g_IGNORE_FILES.join('\n'), in_overwrite);
 }
 
 // ******************************
 
-function hgInitFolder (in_folderName) {
-    let sourceFolder = initFolder(in_folderName);
+function hgInitFolder (in_folderName, in_overwrite) {
+    let sourceFolder = initFolder(in_folderName, in_overwrite);
     if (!sourceFolder) {
         return;
     }
     let hgIgnoreFile = path.resolve(sourceFolder, '.hgignore');
-    writeFile(hgIgnoreFile, ['syntax: glob'].concat(g_IGNORE_FILES).join('\n'));
+    writeFile(hgIgnoreFile, ['syntax: glob'].concat(g_IGNORE_FILES).join('\n'), in_overwrite);
 }
 
 // ******************************
 
-function initFolder (in_folderName) {
+function initFolder (in_folderName, in_overwrite) {
     if (in_folderName.match(/\.\.\/?/)) {
         cprint.yellow('Invalid path: ' + in_folderName);
         return false;
@@ -154,16 +155,16 @@ function initFolder (in_folderName) {
     createFolder(path.resolve(dockerImageFolder));
 
     let bashEnvFile = path.resolve(dockerImageFolder, '_env.sh');
-    writeFile(bashEnvFile, getBaseEnvContents(serviceConfig));
+    writeFile(bashEnvFile, getBaseEnvContents(serviceConfig), in_overwrite);
 
     let dockerFile = path.resolve(dockerImageFolder, 'Dockerfile');
-    writeFile(dockerFile, getDockerFileContents(serviceConfig));
+    writeFile(dockerFile, getDockerFileContents(serviceConfig), in_overwrite);
 
     let dockerIgnoreFile = path.resolve(dockerImageFolder, '.dockerignore');
-    writeFile(dockerIgnoreFile, g_DOCKER_IGNORE_FILES.join('\n'));
+    writeFile(dockerIgnoreFile, g_DOCKER_IGNORE_FILES.join('\n'), in_overwrite);
 
     let nginxFile = path.resolve(dockerImageFolder, 'nginx.conf');
-    writeFile(nginxFile, getNginxFileContents(serviceConfig));
+    writeFile(nginxFile, getNginxFileContents(serviceConfig), in_overwrite);
 
     createFolder(path.resolve(dockerImageFolder, 'python'));
     createFolder(path.resolve(dockerImageFolder, 'model'));
@@ -528,9 +529,11 @@ function createFolder (in_folderName) {
 
 // ******************************
 
-function writeFile (in_fileName, in_fileContents) {
+function writeFile (in_fileName, in_fileContents, in_overwrite) {
     var file = path.resolve(process.cwd(), in_fileName);
-    fs.writeFileSync(file, in_fileContents);
+    if (!fs.existsSync(file) || in_overwrite) {
+        fs.writeFileSync(file, in_fileContents);
+    }
     return file;
 }
 
