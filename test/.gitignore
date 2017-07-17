@@ -1,7 +1,0 @@
-docker/*/.aws_cache/*
-docker/*/auth/*.crt
-docker/*/auth/*.key
-docker/*/logs/*
-docker/*/model/*
-docker/*/node/node_modules/*
-docker/*/s3/*

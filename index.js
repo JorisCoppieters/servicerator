@@ -134,12 +134,18 @@ function initFolder (in_folderName) {
         sourceFolder = createFolder(in_folderName);
     }
 
-    let serviceConfig = getServiceConfig(sourceFolder);
+    let serviceConfig;
+    let serviceConfigFile = path.resolve(sourceFolder, 'service.json');
+
+    if (fs.existsSync(serviceConfigFile)) {
+        serviceConfig = JSON.parse(fs.readFileSync(serviceConfigFile));
+    } else {
+        serviceConfig = getServiceConfig(sourceFolder);
+        writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4));
+    }
+
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
-
-    let serviceConfigFile = path.resolve(sourceFolder, 'service.json');
-    writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4));
 
     createFolder(path.resolve(sourceFolder, 'docker'));
 
@@ -161,12 +167,11 @@ function initFolder (in_folderName) {
 
     createFolder(path.resolve(dockerImageFolder, 'python'));
     createFolder(path.resolve(dockerImageFolder, 'model'));
-    createFolder(path.resolve(dockerImageFolder, 's3'));
+    createFolder(path.resolve(dockerImageFolder, 'bundled_model'));
     createFolder(path.resolve(dockerImageFolder, 'logs'));
 
     createFolder(path.resolve(sourceFolder, 'corpus'));
     createFolder(path.resolve(sourceFolder, 'model'));
-    createFolder(path.resolve(sourceFolder, 'bundled_model'));
     createFolder(path.resolve(sourceFolder, 'downloads'));
 
     return sourceFolder;
