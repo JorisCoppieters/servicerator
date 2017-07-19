@@ -7,9 +7,8 @@
 let cprint = require('color-print');
 let path = require('path');
 
-let u = require('./utils');
-let print = require('./print');
-let exec = require('./exec');
+let print = require('../utils/print');
+let exec = require('../utils/exec');
 
 // ******************************
 // Functions:
@@ -275,11 +274,6 @@ function buildDockerImage (in_serviceConfig) {
 
 // ******************************
 
-function pushDockerImage (in_serviceConfig) {
-}
-
-// ******************************
-
 function listDockerImages (in_serviceConfig) {
     let serviceConfig = in_serviceConfig;
     let serviceConfigDocker = serviceConfig.docker || {};
@@ -403,6 +397,32 @@ function purgeDockerImages (in_serviceConfig, in_force) {
     }
     args = args.concat(imageTags);
     cprint.red('Removing ALL Docker images for service...');
+    exec.cmd('docker', args, '  ');
+}
+
+// ******************************
+
+function pushDockerImage (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig;
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfigDockerBuild = serviceConfigDocker.build || {};
+
+    if (!serviceConfigDockerImage.name) {
+        cprint.yellow("Docker Image name not set");
+        return;
+    }
+
+    if (!serviceConfigDocker.username) {
+        cprint.yellow("Docker Image username not set");
+        return;
+    }
+
+    let dockerImagePath = serviceConfigDocker.username + '/' + serviceConfigDockerImage.name;
+
+    let args = ['push'];
+    args = args.concat(dockerImagePath);
+    cprint.cyan('Pushing Docker images for service...');
     exec.cmd('docker', args, '  ');
 }
 

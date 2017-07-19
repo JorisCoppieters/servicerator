@@ -19,13 +19,16 @@
 let cprint = require('color-print');
 let minimist = require('minimist');
 let path = require('path');
-let process = require('process');
 
-let docker = require('./src/docker');
+let docker = require('./src/plugins/docker');
+let info = require('./src/plugins/info');
+
+let edit = require('./src/utils/edit');
+let env = require('./src/utils/env');
+let service = require('./src/utils/service');
+
 let help = require('./src/help');
 let init = require('./src/init');
-let print = require('./src/print');
-let service = require('./src/service');
 let setup = require('./src/setup');
 
 // ******************************
@@ -64,13 +67,18 @@ if (g_ARGV['help']) {
     let commands = g_ARGV['_'] || false;
     let overwrite = g_ARGV['overwrite'];
 
-    let command = commands.length ? commands.shift() : false;
-    if (!command) {
+    let command = commands.length ? commands.shift() : 'info';
+    if (command === 'help') {
         help.printHelp();
         return;
     }
 
-    if (['docker', 'git', 'hg'].indexOf(command) >= 0) {
+    if (command === 'version') {
+        help.printVersion();
+        return;
+    }
+
+    if (['docker', 'git', 'hg', 'edit'].indexOf(command) >= 0) {
         command = command + '-' + (commands.length ? commands.shift() : '');
     }
 
@@ -80,24 +88,27 @@ if (g_ARGV['help']) {
         return;
     }
 
-    let serviceConfig = init.getConfig(folderName);
+    let serviceConfig = env.getServiceConfig(folderName);
     if (!serviceConfig) {
         return;
     }
 
     switch(command)
     {
-        case 'help':
-            help.printHelp();
-            break;
-        case 'version':
-            help.printVersion();
-            break;
-
         case 'info':
         case 'service':
         case 'details':
-            print.serviceInfo(serviceConfig);
+            info.serviceInfo(serviceConfig);
+            break;
+        case 'summary':
+            info.serviceSummary(serviceConfig);
+            break;
+        case 'edit-':
+        case 'edit-folder':
+            edit.serviceFolder(serviceConfig);
+            break;
+        case 'edit-file':
+            edit.serviceConfigFile(serviceConfig);
             break;
         case 'setup':
             setup.folder(serviceConfig, overwrite);
