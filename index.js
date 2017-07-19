@@ -21,9 +21,10 @@ let minimist = require('minimist');
 let path = require('path');
 
 let docker = require('./src/plugins/docker');
+let edit = require('./src/plugins/edit');
 let info = require('./src/plugins/info');
+let summary = require('./src/plugins/summary');
 
-let edit = require('./src/utils/edit');
 let env = require('./src/utils/env');
 let service = require('./src/utils/service');
 
@@ -64,10 +65,10 @@ if (g_ARGV['help']) {
 } else if (g_ARGV['version']) {
     help.printVersion();
 } else {
-    let commands = g_ARGV['_'] || false;
+    let params = g_ARGV['_'] || false;
     let overwrite = g_ARGV['overwrite'];
 
-    let command = commands.length ? commands.shift() : 'info';
+    let command = params.length ? params.shift() : 'info';
     if (command === 'help') {
         help.printHelp();
         return;
@@ -78,38 +79,39 @@ if (g_ARGV['help']) {
         return;
     }
 
-    if (['docker', 'git', 'hg', 'edit'].indexOf(command) >= 0) {
-        command = command + '-' + (commands.length ? commands.shift() : '');
-    }
-
-    let folderName = commands.length ? commands.shift() : '.';
     if (command === 'init') {
+        let folderName = params.length ? params.shift() : '.';
         init.folder(folderName, overwrite);
         return;
     }
 
-    let serviceConfig = env.getServiceConfig(folderName);
+    let serviceConfig = env.getServiceConfig();
     if (!serviceConfig) {
+        return;
+    }
+
+    if (['docker'].indexOf(command) >= 0 &&
+        docker.handleCommand(params, serviceConfig)) {
+        return;
+    }
+
+    if (['edit'].indexOf(command) >= 0 &&
+        edit.handleCommand(params, serviceConfig)) {
+        return;
+    }
+
+    if (['info', 'service', 'details'].indexOf(command) >= 0 &&
+        info.handleCommand(params, serviceConfig)) {
+        return;
+    }
+
+    if (['summary'].indexOf(command) >= 0 &&
+        summary.handleCommand(params, serviceConfig)) {
         return;
     }
 
     switch(command)
     {
-        case 'info':
-        case 'service':
-        case 'details':
-            info.serviceInfo(serviceConfig);
-            break;
-        case 'summary':
-            info.serviceSummary(serviceConfig);
-            break;
-        case 'edit-':
-        case 'edit-folder':
-            edit.serviceFolder(serviceConfig);
-            break;
-        case 'edit-file':
-            edit.serviceConfigFile(serviceConfig);
-            break;
         case 'setup':
             setup.folder(serviceConfig, overwrite);
             break;
@@ -119,26 +121,8 @@ if (g_ARGV['help']) {
         case 'hg-setup':
             setup.hgFolder(serviceConfig, overwrite);
             break;
-        case 'docker-':
-        case 'docker-info':
-        case 'docker-list':
-        case 'docker-images':
-            docker.listImages(serviceConfig);
-            break;
-        case 'docker-build':
-            docker.buildImage(serviceConfig);
-            break;
-        case 'docker-push':
-            docker.pushImage(serviceConfig);
-            break;
-        case 'docker-clean':
-            docker.cleanImages(serviceConfig);
-            break;
-        case 'docker-purge':
-            docker.purgeImages(serviceConfig);
-            break;
         default:
-            cprint.yellow('Unknown command: ' + command);
+            cprint.yellow('Unknown command: ' + command + ' ' + params);
             break;
     }
 }

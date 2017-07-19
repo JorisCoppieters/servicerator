@@ -1,11 +1,22 @@
-'use strict'; // JS: ES5
+'use strict'; // JS: ES6
 
 // ******************************
 // Requries:
 // ******************************
 
-var c = require('./constants');
-var cprint = require('color-print');
+let docker = require('./plugins/docker');
+let edit = require('./plugins/edit');
+let info = require('./plugins/info');
+let summary = require('./plugins/summary');
+
+let c = require('./constants');
+let cprint = require('color-print');
+
+// ******************************
+// Constants:
+// ******************************
+
+let SPACING = 24;
 
 // ******************************
 // Functions:
@@ -28,19 +39,62 @@ function printHelp (in_message) {
     console.log();
     cprint.green('Init Commands:');
     console.log(cprint.toWhite('init') + ' ' + cprint.toDarkGray('FOLDER') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
+
+    _printPluginHelp('Setup', [
+        { params: [''], description: 'Setup this folder',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+        { params: ['git'], description: 'Setup this folder as a git repository',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+        { params: ['hg'], description: 'Setup this folder as a mercurial repository',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+    ]);
+    _printPluginHelp('Info', info.getCommands());
+    _printPluginHelp('Summary', summary.getCommands());
+    _printPluginHelp('Docker', docker.getCommands());
+    _printPluginHelp('Edit', edit.getCommands());
+}
+
+// ******************************
+
+function _printPluginHelp (in_plugin, in_commands) {
     console.log();
-    cprint.green('Setup Commands:');
-    console.log(cprint.toWhite('setup') + '\t\t\t' + cprint.toCyan('Setup this folder'));
-    console.log('  ' + cprint.toYellow('--overwrite') + '\t\t' + cprint.toCyan('Overwrite any files that exist'));
-    console.log(cprint.toWhite('git-setup') + '\t\t' + cprint.toCyan('Setup this folder as a git repository'));
-    console.log('  ' + cprint.toYellow('--overwrite') + '\t\t' + cprint.toCyan('Overwrite any files that exist'));
-    console.log(cprint.toWhite('hg-setup') + '\t\t' + cprint.toCyan('Setup this folder as a mercurial repository'));
-    console.log('  ' + cprint.toYellow('--overwrite') + '\t\t' + cprint.toCyan('Overwrite any files that exist'));
-    console.log();
-    cprint.green('Docker Commands:');
-    console.log(cprint.toWhite('build') + '\t\t\t' + cprint.toCyan('Build the docker image'));
-    console.log('  ' + cprint.toYellow('--remove-old') + '\t\t' + cprint.toCyan('Remove old docker images'));
-    console.log(cprint.toWhite('push') + '\t\t\t' + cprint.toCyan('Push the docker image'));
+    cprint.green(in_plugin + ' Commands:');
+    in_commands.forEach(command => {
+        let params = command.params || [];
+        if (!params.length) {
+            return;
+        }
+        let description = command.description || '';
+        let options = command.options || [];
+
+        let defaultParam = (params.find(p => p === '') === '');
+        let firstParam = params.find(p => p.length !== 0) || false;
+        firstParam = in_plugin.toLowerCase() + (firstParam ? ' ' + firstParam : '');
+
+        firstParam = (firstParam + ' '.repeat(SPACING)).substr(0, SPACING);
+
+        if (defaultParam) {
+            console.log(cprint.toWhite(firstParam) + cprint.toCyan(description));
+        } else {
+            console.log(cprint.toLightGrey(firstParam) + cprint.toCyan(description));
+        }
+
+        options.forEach(option => {
+            let optionParam = option.param;
+            if (!optionParam) {
+                return;
+            }
+
+            optionParam = '--' + optionParam;
+            let optionDescription = option.description || '';
+
+            let indent = '  ';
+
+            optionParam = (indent + optionParam + ' '.repeat(SPACING)).substr(0, SPACING);
+
+            console.log(cprint.toYellow(optionParam) + cprint.toCyan(optionDescription));
+        });
+    });
 }
 
 // ******************************

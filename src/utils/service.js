@@ -1,11 +1,11 @@
-'use strict'; // JS: ES5
+'use strict'; // JS: ES6
 
 // ******************************
 // Requries:
 // ******************************
 
-var cprint = require('color-print');
-var path = require('path');
+let cprint = require('color-print');
+let path = require('path');
 
 // ******************************
 // Functions:

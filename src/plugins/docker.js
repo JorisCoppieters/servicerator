@@ -1,4 +1,4 @@
-'use strict'; // JS: ES5
+'use strict'; // JS: ES6
 
 // ******************************
 // Requries:
@@ -12,6 +12,48 @@ let exec = require('../utils/exec');
 
 // ******************************
 // Functions:
+// ******************************
+
+function handleCommand (in_params, in_serviceConfig) {
+    let command = in_params.length ? in_params.shift() : '';
+    switch(command)
+    {
+        case '':
+        case 'info':
+        case 'list':
+        case 'images':
+            listDockerImages(in_serviceConfig);
+            break;
+        case 'build':
+            buildDockerImage(in_serviceConfig);
+            break;
+        case 'push':
+            pushDockerImage(in_serviceConfig);
+            break;
+        case 'clean':
+            cleanDockerImages(in_serviceConfig);
+            break;
+        case 'purge':
+            purgeDockerImages(in_serviceConfig);
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+// ******************************
+
+function getCommands () {
+    return [
+        { params: ['', 'info', 'list', 'images'], description: 'Print out service docker information' },
+        { params: ['build'], description: 'Build the service docker image', options: [{param:'no-cache', description:'Don\'t use cached images'}] },
+        { params: ['push'], description: 'Push the service docker image' },
+        { params: ['clean'], description: 'Clean up service temporary docker images' },
+        { params: ['purge'], description: 'Remove all service docker images' },
+    ];
+}
+
 // ******************************
 
 function getDockerFileContents (in_serviceConfig) {
@@ -429,6 +471,9 @@ function pushDockerImage (in_serviceConfig) {
 // ******************************
 // Exports:
 // ******************************
+
+module.exports['handleCommand'] = handleCommand;
+module.exports['getCommands'] = getCommands;
 
 module.exports['getDockerFileContents'] = getDockerFileContents;
 module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;

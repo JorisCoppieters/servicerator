@@ -1,12 +1,12 @@
-'use strict'; // JS: ES5
+'use strict'; // JS: ES6
 
 // ******************************
 // Requries:
 // ******************************
 
-var fs = require('fs');
-var path = require('path');
-var process = require('process');
+let fs = require('fs');
+let path = require('path');
+let process = require('process');
 
 // ******************************
 // Functions:

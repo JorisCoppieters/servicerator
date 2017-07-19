@@ -1,19 +1,19 @@
-'use strict'; // JS: ES5
+'use strict'; // JS: ES6
 
 // ******************************
 // Requries:
 // ******************************
 
-var path = require('path');
-var cprint = require('color-print');
+let path = require('path');
+let cprint = require('color-print');
 
-var init = require('./init');
+let init = require('./init');
 
-var nginx = require('./plugins/nginx');
-var bash = require('./plugins/bash');
-var docker = require('./plugins/docker');
+let nginx = require('./plugins/nginx');
+let bash = require('./plugins/bash');
+let docker = require('./plugins/docker');
 
-var fs = require('./utils/filesystem');
+let fs = require('./utils/filesystem');
 
 // ******************************
 // Functions:

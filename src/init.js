@@ -1,16 +1,16 @@
-'use strict'; // JS: ES5
+'use strict'; // JS: ES6
 
 // ******************************
 // Requries:
 // ******************************
 
-var cprint = require('color-print');
-var path = require('path');
+let cprint = require('color-print');
+let path = require('path');
 
-var env = require('./utils/env');
-var edit = require('./utils/edit');
-var service = require('./utils/service');
-var fs = require('./utils/filesystem');
+let env = require('./utils/env');
+let edit = require('./utils/edit');
+let service = require('./utils/service');
+let fs = require('./utils/filesystem');
 
 // ******************************
 // Functions:
@@ -45,7 +45,7 @@ function initFolder (in_folderName, in_overwrite) {
 
     serviceConfig.cwd = sourceFolder;
 
-    edit.serviceConfigFile(serviceConfig);
+    edit.file(serviceConfigFile);
 
     return serviceConfig;
 }
