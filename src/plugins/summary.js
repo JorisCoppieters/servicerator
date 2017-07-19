@@ -44,12 +44,12 @@ function printServiceSummary (in_serviceConfig) {
     let output = '';
     if (serviceConfigService.name) {
         if (output) { output += ' '; }
-        output += cprint.toCyan('[service:' + serviceConfigService.name + ']');
+        output += cprint.toBackgroundDarkGrey(cprint.toWhite('S:' + serviceConfigService.name, true));
     }
 
     if (serviceConfigDockerImage.name) {
         if (output) { output += ' '; }
-        output += cprint.toCyan('[docker_image:' + serviceConfigDockerImage.name + ']');
+        output += cprint.toBackgroundLightBlue(cprint.toWhite('DI:' + serviceConfigDockerImage.name, true));
     }
 
     print.out(output);

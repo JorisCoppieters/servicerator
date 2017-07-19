@@ -33,6 +33,11 @@ function getIgnoreFileContents (in_serviceConfig) {
         ignoreFiles.push('docker/*/model/*');
     }
 
+    if (serviceConfigDockerBuild.env === 'bash') {
+        ignoreFiles.push('docker/*/setup-aws-infrastructure.sh');
+        ignoreFiles.push('docker/*/create-docker-image.sh');
+    }
+
     return ignoreFiles.join('\n');
 }
 

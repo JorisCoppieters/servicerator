@@ -25,8 +25,9 @@ function getBashEnvContents (in_serviceConfig) {
             .filter((c) => {return c.type==='python_start';});
 
     return [
-        `_MODEL_VERSION="${serviceConfigModel.version}"`,
+        `_MODEL_VERSION="${serviceConfigModel.version}";`,
         ``,
+        `BASE_DIR="./";`,
         `DOCKER_IMAGE_USERNAME="${serviceConfigDocker.username}";`,
         `DOCKER_IMAGE_NAME="${serviceConfigDockerImage.name}";`,
         `DOCKER_IMAGE_VERSION="${serviceConfigDockerImage.version}";`,

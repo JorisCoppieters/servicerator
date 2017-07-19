@@ -19,6 +19,7 @@
 let cprint = require('color-print');
 let minimist = require('minimist');
 let path = require('path');
+let omelette = require('omelette');
 
 let help = require('./src/help');
 
@@ -40,6 +41,16 @@ let g_ARGV = minimist(process.argv.slice(2));
 // ******************************
 // Script:
 // ******************************
+
+const firstArgument = ({ reply }) => {
+  reply([ 'beautiful', 'cruel', 'far' ])
+}
+
+const planet = ({ reply }) => {
+  reply([ 'world', 'mars', 'pluto' ])
+}
+
+omelette`hello|hi ${firstArgument} ${planet}`.init()
 
 if (g_ARGV['help']) {
     help.printHelp();

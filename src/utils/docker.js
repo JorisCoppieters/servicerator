@@ -32,6 +32,10 @@ function getDockerFileContents (in_serviceConfig) {
     let filesystem = serviceConfigDockerImage.filesystem || [];
     let baseDir = serviceConfigDockerImage.work_directory || false;
 
+    if (enableNginx) {
+        aptGetPackages.push('nginx');
+    }
+
     return [
         `# ----------------------`,
         `#`,
@@ -81,19 +85,37 @@ function getDockerFileContents (in_serviceConfig) {
             `# ----------------------`,
             ``,
             `    WORKDIR "${baseDir}"`].join('\n') : '') +
-    (enableNginx ?
+    (pythonStartCommands.length ?
         [
             ``,
             ``,
             `# ----------------------`,
             `#`,
-            `# NGINX`,
+            `# GENERATE SCRIPTS`,
             `#`,
             `# ----------------------`,
             ``,
-            `    RUN apt-get install -y nginx`,
-            `    RUN rm -v /etc/nginx/nginx.conf`,
-            `    ADD nginx.conf /etc/nginx/`].join('\n') : '') +
+            ].join('\n') +
+
+        pythonStartCommands
+            .map(c => {
+                let commandFile = `$INIT_${c.env.toUpperCase()}_FILE`;
+                return [
+                    ``,
+                    `    RUN touch ${commandFile} && chmod +x ${commandFile}`,
+                    `    RUN \\`,
+                    `        echo "#! /bin/bash" > ${commandFile} && \\`,
+                ].join('\n') +
+                (c.needs_nginx ?
+                    `\n        echo "nginx &" >> ${commandFile} && \\`
+                    : ''
+                ) +
+                [
+                    ``,
+                    `        echo "cd python; python api-${c.env}.py" >> ${commandFile}`,
+                ].join('\n')
+            }).join('\n')
+        : '') +
     (aptGetPackages.length ?
         [
             ``,
@@ -128,6 +150,18 @@ function getDockerFileContents (in_serviceConfig) {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
+    (enableNginx ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# NGINX`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            `    RUN rm -v /etc/nginx/nginx.conf`,
+            `    ADD nginx.conf /etc/nginx/`].join('\n') : '') +
     (filesystem.length ?
         [
             ``,
@@ -154,42 +188,12 @@ function getDockerFileContents (in_serviceConfig) {
                 }
             }).join('\n')
         : '') +
-    (pythonStartCommands.length ?
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# GENERATE SCRIPTS`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ].join('\n') +
-
-        pythonStartCommands
-            .map(c => {
-                let commandFile = `$INIT_${c.env.toUpperCase()}_FILE`;
-                return [
-                    ``,
-                    `    RUN touch ${commandFile} && chmod +x ${commandFile}`,
-                    `    RUN \\`,
-                    `        echo "#! /bin/bash" > ${commandFile} && \\`,
-                ].join('\n') +
-                (c.needs_nginx ?
-                    `\n        echo "nginx &" >> ${commandFile} && \\`
-                    : ''
-                ) +
-                [
-                    ``,
-                    `        echo "cd python; python api-${c.env}.py" >> ${commandFile}`,
-                ].join('\n')
-            }).join('\n')
-        : '') +
     (pythonStartCommands
         .filter(c => {
             return c.cmd;
         })
         .map(c => {
+            let commandFile = `$INIT_${c.env.toUpperCase()}_FILE`;
             return [
                 ``,
                 ``,
@@ -199,7 +203,7 @@ function getDockerFileContents (in_serviceConfig) {
                 `#`,
                 `# ---------------------`,
                 ``,
-                `    CMD "${c.val}"`,
+                `    CMD "${commandFile}"`,
                 ``].join('\n');
         })[0] || '') +
     '\n';
@@ -224,6 +228,8 @@ function getIgnoreDockerContents (in_serviceConfig) {
     }
 
     if (serviceConfigDockerBuild.env === 'bash') {
+        ignoreFiles.push('setup-aws-infrastructure.sh');
+        ignoreFiles.push('create-docker-image.sh');
         ignoreFiles.push('_env.sh');
     }
 

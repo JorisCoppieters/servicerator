@@ -21,10 +21,12 @@
   "homepage": "https://github.com/JorisCoppieters/servicerator#readme",
   "devDependencies": {
     "color-print": "^1.0.2",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "omelette": "^0.4.4"
   },
   "dependencies": {
     "color-print": "^1.0.2",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "omelette": "^0.4.4"
   }
 }
