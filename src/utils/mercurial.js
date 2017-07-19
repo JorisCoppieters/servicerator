@@ -1,0 +1,45 @@
+'use strict'; // JS: ES6
+
+// ******************************
+// Requries:
+// ******************************
+
+// ******************************
+// Functions:
+// ******************************
+
+function getIgnoreFileContents (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfigDockerBuild = serviceConfigDocker.build || {};
+
+    let ignoreFiles = [
+        'syntax: glob',
+        'docker/*/.aws_cache/*',
+        'docker/*/auth/*.crt',
+        'docker/*/auth/*.key'
+    ];
+
+    if (serviceConfigDockerImage.env === 'node') {
+        ignoreFiles.push('docker/*/node/node_modules/*');
+    }
+
+    if (serviceConfigDockerImage.log) {
+        ignoreFiles.push('docker/*/logs/*');
+    }
+
+    if (serviceConfig.model) {
+        ignoreFiles.push('docker/*/model/*');
+    }
+
+    return ignoreFiles.join('\n');
+}
+
+// ******************************
+// Exports:
+// ******************************
+
+module.exports['getIgnoreFileContents'] = getIgnoreFileContents;
+
+// ******************************

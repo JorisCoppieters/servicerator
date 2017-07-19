@@ -7,16 +7,52 @@
 let path = require('path');
 let cprint = require('color-print');
 
-let init = require('./init');
-
-let nginx = require('./plugins/nginx');
-let bash = require('./plugins/bash');
-let docker = require('./plugins/docker');
-
-let fs = require('./utils/filesystem');
+let init = require('../utils/init');
+let nginx = require('../utils/nginx');
+let bash = require('../utils/bash');
+let docker = require('../utils/docker');
+let git = require('../utils/git');
+let hg = require('../utils/mercurial');
+let fs = require('../utils/filesystem');
 
 // ******************************
 // Functions:
+// ******************************
+
+function handleCommand (in_args, in_params, in_serviceConfig) {
+    let command = in_params.length ? in_params.shift() : '';
+    let overwrite = in_args['overwrite'];
+    switch(command)
+    {
+        case '':
+            setupFolder(in_serviceConfig, overwrite);
+            break;
+        case 'git':
+            gitSetupFolder(in_serviceConfig, overwrite);
+            break;
+        case 'hg':
+        case 'mercurial':
+            hgSetupFolder(in_serviceConfig, overwrite);
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+// ******************************
+
+function getCommands () {
+    return [
+        { params: [''], description: 'Setup this folder',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+        { params: ['git'], description: 'Setup this folder as a git repository',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+        { params: ['hg'], description: 'Setup this folder as a mercurial repository',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+    ];
+}
+
 // ******************************
 
 function gitSetupFolder (in_serviceConfig, in_overwrite) {
@@ -25,7 +61,7 @@ function gitSetupFolder (in_serviceConfig, in_overwrite) {
         return;
     }
     let gitIgnoreFile = path.resolve(sourceFolder, '.gitignore');
-    fs.writeFile(gitIgnoreFile, g_IGNORE_FILES.join('\n'), in_overwrite);
+    fs.writeFile(gitIgnoreFile, git.getIgnoreFileContents(in_serviceConfig), in_overwrite);
 }
 
 // ******************************
@@ -36,7 +72,7 @@ function hgSetupFolder (in_serviceConfig, in_overwrite) {
         return;
     }
     let hgIgnoreFile = path.resolve(sourceFolder, '.hgignore');
-    fs.writeFile(hgIgnoreFile, ['syntax: glob'].concat(g_IGNORE_FILES).join('\n'), in_overwrite);
+    fs.writeFile(hgIgnoreFile, hg.getIgnoreFileContents(in_serviceConfig), in_overwrite);
 }
 
 // ******************************
@@ -114,6 +150,9 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 // ******************************
 // Exports:
 // ******************************
+
+module.exports['handleCommand'] = handleCommand;
+module.exports['getCommands'] = getCommands;
 
 module.exports['gitFolder'] = gitSetupFolder;
 module.exports['hgFolder'] = hgSetupFolder;

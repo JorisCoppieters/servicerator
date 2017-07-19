@@ -13,7 +13,7 @@ let env = require('../utils/env');
 // Functions:
 // ******************************
 
-function handleCommand (in_params, in_serviceConfig) {
+function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift() : '';
     switch(command)
     {

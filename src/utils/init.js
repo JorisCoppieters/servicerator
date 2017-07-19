@@ -7,10 +7,10 @@
 let cprint = require('color-print');
 let path = require('path');
 
-let env = require('./utils/env');
-let edit = require('./utils/edit');
-let service = require('./utils/service');
-let fs = require('./utils/filesystem');
+let env = require('./env');
+let edit = require('./edit');
+let service = require('./service');
+let fs = require('./filesystem');
 
 // ******************************
 // Functions:

@@ -9,7 +9,7 @@
 // ******************************
 
 function getBashEnvContents (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig;
+    let serviceConfig = in_serviceConfig || {};
     let serviceConfigModel = serviceConfig.model || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};

@@ -8,6 +8,7 @@ let docker = require('./plugins/docker');
 let edit = require('./plugins/edit');
 let info = require('./plugins/info');
 let summary = require('./plugins/summary');
+let setup = require('./plugins/setup');
 
 let c = require('./constants');
 let cprint = require('color-print');
@@ -40,14 +41,7 @@ function printHelp (in_message) {
     cprint.green('Init Commands:');
     console.log(cprint.toWhite('init') + ' ' + cprint.toDarkGray('FOLDER') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
 
-    _printPluginHelp('Setup', [
-        { params: [''], description: 'Setup this folder',
-            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
-        { params: ['git'], description: 'Setup this folder as a git repository',
-            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
-        { params: ['hg'], description: 'Setup this folder as a mercurial repository',
-            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
-    ]);
+    _printPluginHelp('Setup', setup.getCommands());
     _printPluginHelp('Info', info.getCommands());
     _printPluginHelp('Summary', summary.getCommands());
     _printPluginHelp('Docker', docker.getCommands());

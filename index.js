@@ -20,35 +20,16 @@ let cprint = require('color-print');
 let minimist = require('minimist');
 let path = require('path');
 
+let help = require('./src/help');
+
 let docker = require('./src/plugins/docker');
 let edit = require('./src/plugins/edit');
 let info = require('./src/plugins/info');
 let summary = require('./src/plugins/summary');
+let setup = require('./src/plugins/setup');
 
 let env = require('./src/utils/env');
-let service = require('./src/utils/service');
-
-let help = require('./src/help');
-let init = require('./src/init');
-let setup = require('./src/setup');
-
-// ******************************
-// Constants:
-// ******************************
-
-// ******************************
-// Globals:
-// ******************************
-
-let g_IGNORE_FILES = [
-    'docker/*/.aws_cache/*',
-    'docker/*/auth/*.crt',
-    'docker/*/auth/*.key',
-    'docker/*/logs/*',
-    'docker/*/model/*',
-    'docker/*/node/node_modules/*',
-    'docker/*/s3/*',
-];
+let init = require('./src/utils/init');
 
 // ******************************
 // Arguments:
@@ -90,41 +71,32 @@ if (g_ARGV['help']) {
         return;
     }
 
+    if (['setup'].indexOf(command) >= 0 &&
+        setup.handleCommand(g_ARGV, params, serviceConfig)) {
+        return;
+    }
+
     if (['docker'].indexOf(command) >= 0 &&
-        docker.handleCommand(params, serviceConfig)) {
+        docker.handleCommand(g_ARGV, params, serviceConfig)) {
         return;
     }
 
     if (['edit'].indexOf(command) >= 0 &&
-        edit.handleCommand(params, serviceConfig)) {
+        edit.handleCommand(g_ARGV, params, serviceConfig)) {
         return;
     }
 
     if (['info', 'service', 'details'].indexOf(command) >= 0 &&
-        info.handleCommand(params, serviceConfig)) {
+        info.handleCommand(g_ARGV, params, serviceConfig)) {
         return;
     }
 
     if (['summary'].indexOf(command) >= 0 &&
-        summary.handleCommand(params, serviceConfig)) {
+        summary.handleCommand(g_ARGV, params, serviceConfig)) {
         return;
     }
 
-    switch(command)
-    {
-        case 'setup':
-            setup.folder(serviceConfig, overwrite);
-            break;
-        case 'git-setup':
-            setup.gitFolder(serviceConfig, overwrite);
-            break;
-        case 'hg-setup':
-            setup.hgFolder(serviceConfig, overwrite);
-            break;
-        default:
-            cprint.yellow('Unknown command: ' + command + ' ' + params);
-            break;
-    }
+    cprint.yellow('Unknown command: ' + command + ' ' + params);
 }
 
 // ******************************

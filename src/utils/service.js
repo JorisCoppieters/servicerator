@@ -58,6 +58,7 @@ function getServiceConfig (in_folderName) {
             'image': {
                 'base':'ubuntu:trusty',
                 'name': imageName,
+                'work_directory': '$BASE_DIR',
                 'tags': [
                     'latest',
                     '1.0.0',
