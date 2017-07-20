@@ -19,54 +19,6 @@ let fs = require('../utils/filesystem');
 // Functions:
 // ******************************
 
-function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
-    let overwrite = in_args['overwrite'];
-    switch(command)
-    {
-        case '':
-            setupFolder(in_serviceConfig, overwrite);
-            break;
-        case 'git':
-            gitSetupFolder(in_serviceConfig, overwrite);
-            break;
-        case 'hg':
-        case 'mercurial':
-            hgSetupFolder(in_serviceConfig, overwrite);
-            break;
-        default:
-            return false;
-    }
-    return true;
-}
-
-// ******************************
-
-function getBaseCommands () {
-    return ['setup'];
-}
-
-// ******************************
-
-function getCommands () {
-    return [
-        { params: [''], description: 'Setup this folder',
-            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
-        { params: ['git'], description: 'Setup this folder as a git repository',
-            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
-        { params: ['hg'], description: 'Setup this folder as a mercurial repository',
-            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
-    ];
-}
-
-// ******************************
-
-function getTitle () {
-    return 'Setup';
-}
-
-// ******************************
-
 function gitSetupFolder (in_serviceConfig, in_overwrite) {
     let sourceFolder = setupFolder(in_serviceConfig, in_overwrite);
     if (!sourceFolder) {
@@ -157,6 +109,56 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     }
 
     return sourceFolder;
+}
+
+// ******************************
+// Plugin Functions:
+// ******************************
+
+function handleCommand (in_args, in_params, in_serviceConfig) {
+    let command = in_params.length ? in_params.shift() : '';
+    let overwrite = in_args['overwrite'];
+    switch(command)
+    {
+        case '':
+            setupFolder(in_serviceConfig, overwrite);
+            break;
+        case 'git':
+            gitSetupFolder(in_serviceConfig, overwrite);
+            break;
+        case 'hg':
+        case 'mercurial':
+            hgSetupFolder(in_serviceConfig, overwrite);
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+// ******************************
+
+function getBaseCommands () {
+    return ['setup'];
+}
+
+// ******************************
+
+function getCommands () {
+    return [
+        { params: [''], description: 'Setup this folder',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+        { params: ['git'], description: 'Setup this folder as a git repository',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+        { params: ['hg'], description: 'Setup this folder as a mercurial repository',
+            options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
+    ];
+}
+
+// ******************************
+
+function getTitle () {
+    return 'Setup';
 }
 
 // ******************************

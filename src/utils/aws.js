@@ -12,6 +12,12 @@ let exec = require('./exec');
 let fs = require('./filesystem');
 
 // ******************************
+// Globals:
+// ******************************
+
+let g_AWS_CLI_INSTALLED = undefined;
+
+// ******************************
 // Functions:
 // ******************************
 
@@ -42,7 +48,7 @@ function getAwsDockerCredentials (in_serviceConfig) {
 
     awsLogin(in_serviceConfig);
 
-    let awsCmdResult = awsCmd(['ecr', 'get-login']);
+    let awsCmdResult = awsCmd(['ecr', 'get-login'], true);
     if (awsCmdResult.hasErrors) {
         return false;
     }
@@ -120,7 +126,7 @@ function awsLogin (in_serviceConfig) {
 
 // ******************************
 
-function awsCmd (in_args) {
+function awsCmd (in_args, in_hide) {
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
@@ -134,19 +140,22 @@ function awsCmd (in_args) {
         in_args = [in_args]
     }
 
-    return exec.cmdSync('aws', in_args);
+    return exec.cmdSync('aws', in_args, '  ', !in_hide);
 }
 
 // ******************************
 
 function awsInstalled () {
-    return !!awsVersion();
+    if (g_AWS_CLI_INSTALLED === undefined) {
+        g_AWS_CLI_INSTALLED = !!awsVersion();
+    }
+    return g_AWS_CLI_INSTALLED;
 }
 
 // ******************************
 
 function awsVersion () {
-    let cmdResult = exec.cmdSync('aws', ['--version']);
+    let cmdResult = exec.cmdSync('aws', ['--version'], '', false, true);
     if (cmdResult.hasError) {
         return false;
     } else {

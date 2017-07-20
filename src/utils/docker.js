@@ -15,6 +15,17 @@ let exec = require('./exec');
 const k_REPO_TYPE_AWS = 'AWS';
 const k_REPO_TYPE_DEFAULT = 'DEFAULT';
 
+const k_STATE_UNKNOWN = 0;
+const k_STATE_EXITED = 1;
+const k_STATE_FAILED = 5;
+const k_STATE_RUNNING = 10;
+
+// ******************************
+// Globals:
+// ******************************
+
+let g_DOCKER_INSTALLED = undefined;
+
 // ******************************
 // Functions:
 // ******************************
@@ -83,7 +94,7 @@ function getDockerFileContents (in_serviceConfig) {
         '\n\n' +
         containerPorts
             .map(p => {
-                return `    EXPOSE ${p.number}`;
+                return `    EXPOSE ${p.container}`;
             }).join('\n')
         : ''
     ) +
@@ -225,7 +236,7 @@ function getDockerFileContents (in_serviceConfig) {
 // ******************************
 
 function getIgnoreDockerContents (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig;
+    let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigDockerBuild = serviceConfigDocker.build || {};
@@ -267,10 +278,10 @@ function dockerLogin (in_username, in_password, in_repository) {
         return false;
     }
 
-    let repository = in_repository || getDefaultRepository();
+    let repository = in_repository || getDefaultDockerRepository();
     let args = ['login', '-u', in_username, '-p', in_password, repository];
     cprint.cyan('Logging into docker...');
-    let results = exec.cmdSync('docker', args, '  ');
+    let results = dockerCmd(args);
     if (results.hasError) {
         results.printError();
     } else {
@@ -281,14 +292,36 @@ function dockerLogin (in_username, in_password, in_repository) {
 
 // ******************************
 
+function dockerCmd (in_args, in_hide) {
+    if (!dockerInstalled()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    if (!in_args) {
+        return false;
+    }
+
+    if (!Array.isArray(in_args)) {
+        in_args = [in_args]
+    }
+
+    return exec.cmdSync('docker', in_args, '  ', !in_hide);
+}
+
+// ******************************
+
 function dockerInstalled () {
-    return !!dockerVersion();
+    if (g_DOCKER_INSTALLED === undefined) {
+        g_DOCKER_INSTALLED = !!dockerVersion();
+    }
+    return g_DOCKER_INSTALLED;
 }
 
 // ******************************
 
 function dockerVersion () {
-    let cmdResult = exec.cmdSync('docker', ['--version']);
+    let cmdResult = exec.cmdSync('docker', ['--version'], '', false);
     if (cmdResult.hasError) {
         return false;
     } else {
@@ -303,9 +336,15 @@ function dockerVersion () {
 module.exports['k_REPO_TYPE_AWS'] = k_REPO_TYPE_AWS;
 module.exports['k_REPO_TYPE_DEFAULT'] = k_REPO_TYPE_DEFAULT;
 
+module.exports['k_STATE_UNKNOWN'] = k_STATE_UNKNOWN;
+module.exports['k_STATE_RUNNING'] = k_STATE_RUNNING;
+module.exports['k_STATE_FAILED'] = k_STATE_FAILED;
+module.exports['k_STATE_EXITED'] = k_STATE_EXITED;
+
 module.exports['login'] = dockerLogin;
 module.exports['installed'] = dockerInstalled;
 module.exports['version'] = dockerVersion;
+module.exports['cmd'] = dockerCmd;
 module.exports['getDefaultRepository'] = getDefaultDockerRepository;
 module.exports['getDockerFileContents'] = getDockerFileContents;
 module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;

@@ -26,8 +26,8 @@ function out (in_string) {
 
 // ******************************
 
-function printKeyVal (in_key, in_val) {
-    out(cprint.toGreen(in_key) + ' ' + cprint.toWhite('=>') + ' ' + cprint.toCyan(in_val) + '\n');
+function printKeyVal (in_key, in_val, in_sameLine) {
+    out(cprint.toGreen(in_key) + ' ' + cprint.toWhite('=>') + ' ' + cprint.toCyan(in_val) + (in_sameLine ? '\r' : '\n'));
 }
 
 // ******************************

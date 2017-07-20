@@ -37,7 +37,13 @@ function getServiceConfig () {
         return false;
     }
 
-    let serviceConfig = JSON.parse(fs.readFile(serviceConfigFile));
+    let serviceConfig;
+    try {
+        serviceConfig = JSON.parse(fs.readFile(serviceConfigFile));
+    } catch (e) {
+        cprint.red('Failed to parse "' + serviceConfigFile + '":\n  ' + e);
+        return false;
+    }
     serviceConfig.cwd = path.dirname(serviceConfigFile);
     return serviceConfig;
 }

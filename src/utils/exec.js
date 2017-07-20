@@ -14,15 +14,20 @@ let print = require('./print');
 // Functions:
 // ******************************
 
-function execCmdSync (in_cmd, in_args, in_indent, in_printCmd) {
+function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
     in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
     if (in_printCmd) {
-        cprint.white('EXEC-SYNC: ' + in_cmd + ' ' + JSON.stringify(in_args));
+        cprint.white('  EXEC-SYNC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
     let execResult = child_process.spawnSync(in_cmd, in_args);
     let errorResult = execResult.stderr.toString();
     let cmdResult = execResult.stdout.toString();
     let rows = cmdResult.trim().split(/(?:\n|(?:\r\n?))+/);
+
+    if (in_errToOut) {
+        cmdResult += errorResult;
+        errorResult = '';
+    }
 
     return {
         error: errorResult,
@@ -37,10 +42,32 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd) {
 
 // ******************************
 
+function _flatArgs (in_args) {
+    let args = [];
+    in_args.forEach(a => {
+        if (a.match(/[\s]/)) {
+            args.push('\'' + a
+                .replace(/([\t])/g, '\\t')
+                .replace(/([\n])/g, '\\n')
+                .replace(/([\r])/g, '\\r')
+                + '\'');
+            return;
+        }
+        if (a.match(/["']/)) {
+            args.push('\'' + a + '\'');
+            return;
+        }
+        args.push(a);
+    });
+    return args.join(' ');
+}
+
+// ******************************
+
 function execCmd (in_cmd, in_args, in_indent, in_printCmd, in_doneCb) {
     in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
     if (in_printCmd) {
-        cprint.white('EXEC: ' + in_cmd + ' ' + JSON.stringify(in_args));
+        cprint.white('  EXEC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
     let indent = in_indent || '  ';
     let child = child_process.spawn(in_cmd, in_args);
@@ -53,11 +80,11 @@ function execCmd (in_cmd, in_args, in_indent, in_printCmd, in_doneCb) {
 
         let line = chunk.toString();
 
-        if (line.match(/error[ :=-]/i)) {
+        if (line.match(/error[:=-]? /i)) {
             print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
-        } else if (line.match(/warning[ :=-]/i)) {
+        } else if (line.match(/warning[:=-]? /i)) {
             print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
-        } else if (line.match(/success[ :=-]/i)) {
+        } else if (line.match(/success[:=-]? /i)) {
             print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
         } else {
             print.out(cprint.toLightBlue(str.indentContents(line, indent) + '\n'));

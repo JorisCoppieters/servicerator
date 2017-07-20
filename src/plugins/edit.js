@@ -13,46 +13,6 @@ let env = require('../utils/env');
 // Functions:
 // ******************************
 
-function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
-    switch(command)
-    {
-        case '':
-        case 'folder':
-            editServiceFolder(in_serviceConfig);
-            break;
-        case 'config':
-            editServiceConfigFile(in_serviceConfig);
-            break;
-        default:
-            return false;
-    }
-    return true;
-}
-
-// ******************************
-
-function getBaseCommands () {
-    return ['edit'];
-}
-
-// ******************************
-
-function getCommands () {
-    return [
-        { params: ['', 'folder'], description: 'Open the service folder in your editor' },
-        { params: ['config'], description: 'Open the service config file in your editor' },
-    ];
-}
-
-// ******************************
-
-function getTitle () {
-    return 'Edit';
-}
-
-// ******************************
-
 function editServiceFolder () {
     let serviceFolder = env.getServiceFolder();
     if (!serviceFolder) {
@@ -73,6 +33,48 @@ function editServiceConfigFile () {
     }
 
     edit.file(serviceConfigFile);
+}
+
+// ******************************
+// Plugin Functions:
+// ******************************
+
+function handleCommand (in_args, in_params, in_serviceConfig) {
+    let command = in_params.length ? in_params.shift() : '';
+    switch(command)
+    {
+        case '':
+        case 'config':
+            editServiceConfigFile(in_serviceConfig);
+            break;
+        case 'folder':
+            editServiceFolder(in_serviceConfig);
+            break;
+        default:
+            return false;
+    }
+    return true;
+}
+
+// ******************************
+
+function getBaseCommands () {
+    return ['edit'];
+}
+
+// ******************************
+
+function getCommands () {
+    return [
+        { params: ['', 'config'], description: 'Open the service config file in your editor' },
+        { params: ['folder'], description: 'Open the service folder in your editor' },
+    ];
+}
+
+// ******************************
+
+function getTitle () {
+    return 'Edit';
 }
 
 // ******************************
