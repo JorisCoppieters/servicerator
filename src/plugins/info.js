@@ -26,10 +26,22 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
 // ******************************
 
+function getBaseCommands () {
+    return ['info', 'service', 'details'];
+}
+
+// ******************************
+
 function getCommands () {
     return [
         { params: [''], description: 'Print out service information' },
     ];
+}
+
+// ******************************
+
+function getTitle () {
+    return 'Info';
 }
 
 // ******************************
@@ -63,8 +75,8 @@ function printServiceInfo (in_serviceConfig) {
 // ******************************
 
 module.exports['handleCommand'] = handleCommand;
+module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
-
-module.exports['serviceInfo'] = printServiceInfo;
+module.exports['getTitle'] = getTitle;
 
 // ******************************

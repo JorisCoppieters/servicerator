@@ -20,13 +20,15 @@
   },
   "homepage": "https://github.com/JorisCoppieters/servicerator#readme",
   "devDependencies": {
+    "bluebird": "^3.5.0",
+    "clone": "^2.1.1",
     "color-print": "^1.0.2",
-    "minimist": "^1.2.0",
-    "omelette": "^0.4.4"
+    "minimist": "^1.2.0"
   },
   "dependencies": {
+    "bluebird": "^3.5.0",
+    "clone": "^2.1.1",
     "color-print": "^1.0.2",
-    "minimist": "^1.2.0",
-    "omelette": "^0.4.4"
+    "minimist": "^1.2.0"
   }
 }

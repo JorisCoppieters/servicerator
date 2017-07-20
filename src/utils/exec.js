@@ -37,7 +37,7 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd) {
 
 // ******************************
 
-function execCmd (in_cmd, in_args, in_indent, in_printCmd) {
+function execCmd (in_cmd, in_args, in_indent, in_printCmd, in_doneCb) {
     in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
     if (in_printCmd) {
         cprint.white('EXEC: ' + in_cmd + ' ' + JSON.stringify(in_args));
@@ -47,17 +47,17 @@ function execCmd (in_cmd, in_args, in_indent, in_printCmd) {
     let seenError = false;
 
     child.stdout.on('data', chunk => {
-        if (seenError) {
-            return;
-        }
+        // if (seenError) {
+        //     return;
+        // }
 
         let line = chunk.toString();
 
-        if (line.match(/error/i)) {
+        if (line.match(/error[ :=-]/i)) {
             print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
-        } else if (line.match(/warning/i)) {
+        } else if (line.match(/warning[ :=-]/i)) {
             print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
-        } else if (line.match(/success/i)) {
+        } else if (line.match(/success[ :=-]/i)) {
             print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
         } else {
             print.out(cprint.toLightBlue(str.indentContents(line, indent) + '\n'));
@@ -72,6 +72,12 @@ function execCmd (in_cmd, in_args, in_indent, in_printCmd) {
     child.on('error', error => {
         print.out(cprint.toRed(str.indentContents(error, indent) + '\n'));
         seenError = true;
+    });
+
+    child.on('close', close => {
+        if (in_doneCb) {
+            in_doneCb();
+        }
     });
 }
 

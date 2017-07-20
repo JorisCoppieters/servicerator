@@ -16,21 +16,16 @@
 // Requires:
 // ******************************
 
+let clone = require('clone');
 let cprint = require('color-print');
 let minimist = require('minimist');
 let path = require('path');
-let omelette = require('omelette');
 
 let help = require('./src/help');
 
-let docker = require('./src/plugins/docker');
-let edit = require('./src/plugins/edit');
-let info = require('./src/plugins/info');
-let summary = require('./src/plugins/summary');
-let setup = require('./src/plugins/setup');
-
 let env = require('./src/utils/env');
 let init = require('./src/utils/init');
+let plugins = env.getPlugins();
 
 // ******************************
 // Arguments:
@@ -41,16 +36,6 @@ let g_ARGV = minimist(process.argv.slice(2));
 // ******************************
 // Script:
 // ******************************
-
-const firstArgument = ({ reply }) => {
-  reply([ 'beautiful', 'cruel', 'far' ])
-}
-
-const planet = ({ reply }) => {
-  reply([ 'world', 'mars', 'pluto' ])
-}
-
-omelette`hello|hi ${firstArgument} ${planet}`.init()
 
 if (g_ARGV['help']) {
     help.printHelp();
@@ -82,28 +67,16 @@ if (g_ARGV['help']) {
         return;
     }
 
-    if (['setup'].indexOf(command) >= 0 &&
-        setup.handleCommand(g_ARGV, params, serviceConfig)) {
-        return;
-    }
+    let pluginHandled = false;
+    plugins.forEach(p => {
+        if (p.getBaseCommands().indexOf(command) >= 0 &&
+            p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
+            pluginHandled = true;
+            return;
+        }
+    });
 
-    if (['docker'].indexOf(command) >= 0 &&
-        docker.handleCommand(g_ARGV, params, serviceConfig)) {
-        return;
-    }
-
-    if (['edit'].indexOf(command) >= 0 &&
-        edit.handleCommand(g_ARGV, params, serviceConfig)) {
-        return;
-    }
-
-    if (['info', 'service', 'details'].indexOf(command) >= 0 &&
-        info.handleCommand(g_ARGV, params, serviceConfig)) {
-        return;
-    }
-
-    if (['summary'].indexOf(command) >= 0 &&
-        summary.handleCommand(g_ARGV, params, serviceConfig)) {
+    if (pluginHandled) {
         return;
     }
 

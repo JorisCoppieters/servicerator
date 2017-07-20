@@ -4,6 +4,17 @@
 // Requries:
 // ******************************
 
+let cprint = require('color-print');
+
+let exec = require('./exec');
+
+// ******************************
+// Constants:
+// ******************************
+
+const k_REPO_TYPE_AWS = 'AWS';
+const k_REPO_TYPE_DEFAULT = 'DEFAULT';
+
 // ******************************
 // Functions:
 // ******************************
@@ -28,7 +39,9 @@ function getDockerFileContents (in_serviceConfig) {
     let enableNginx = serviceConfigDockerImage.nginx;
 
     let aptGetPackages = serviceConfigDockerImage.apt_get_packages || [];
+    let aptGetUpdate = serviceConfigDockerImage.apt_get_update || false;
     let pipPackages = serviceConfigDockerImage.pip_packages || [];
+    let pipUpdate = serviceConfigDockerImage.pip_update || false;
     let filesystem = serviceConfigDockerImage.filesystem || [];
     let baseDir = serviceConfigDockerImage.work_directory || false;
 
@@ -126,7 +139,7 @@ function getDockerFileContents (in_serviceConfig) {
             `#`,
             `# ----------------------`,
             ``,
-            `    RUN apt-get update -y && apt-get upgrade -y && apt-get install -y \\`,
+            `    RUN ${aptGetUpdate ? 'apt-get update -y && apt-get upgrade -y && ' : ''}apt-get install -y \\`,
             ``].join('\n') +
         aptGetPackages
             .map(p => {
@@ -143,7 +156,7 @@ function getDockerFileContents (in_serviceConfig) {
             `#`,
             `# ----------------------`,
             ``,
-            `    RUN pip install \\`,
+            `    RUN ${pipUpdate ? 'pip install pip --upgrade && ' : ''}pip install \\`,
             ``].join('\n') +
         pipPackages
             .map(p => {
@@ -241,9 +254,59 @@ function getIgnoreDockerContents (in_serviceConfig) {
 }
 
 // ******************************
+
+function getDefaultDockerRepository () {
+  return 'docker.io';
+}
+
+// ******************************
+
+function dockerLogin (in_username, in_password, in_repository) {
+    if (!dockerInstalled()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    let repository = in_repository || getDefaultRepository();
+    let args = ['login', '-u', in_username, '-p', in_password, repository];
+    cprint.cyan('Logging into docker...');
+    let results = exec.cmdSync('docker', args, '  ');
+    if (results.hasError) {
+        results.printError();
+    } else {
+        results.printResult();
+    }
+    return !results.hasError;
+}
+
+// ******************************
+
+function dockerInstalled () {
+    return !!dockerVersion();
+}
+
+// ******************************
+
+function dockerVersion () {
+    let cmdResult = exec.cmdSync('docker', ['--version']);
+    if (cmdResult.hasError) {
+        return false;
+    } else {
+        return cmdResult.result;
+    }
+}
+
+// ******************************
 // Exports:
 // ******************************
 
+module.exports['k_REPO_TYPE_AWS'] = k_REPO_TYPE_AWS;
+module.exports['k_REPO_TYPE_DEFAULT'] = k_REPO_TYPE_DEFAULT;
+
+module.exports['login'] = dockerLogin;
+module.exports['installed'] = dockerInstalled;
+module.exports['version'] = dockerVersion;
+module.exports['getDefaultRepository'] = getDefaultDockerRepository;
 module.exports['getDockerFileContents'] = getDockerFileContents;
 module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;
 

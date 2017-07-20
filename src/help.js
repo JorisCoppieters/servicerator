@@ -4,14 +4,11 @@
 // Requries:
 // ******************************
 
-let docker = require('./plugins/docker');
-let edit = require('./plugins/edit');
-let info = require('./plugins/info');
-let summary = require('./plugins/summary');
-let setup = require('./plugins/setup');
+let cprint = require('color-print');
 
 let c = require('./constants');
-let cprint = require('color-print');
+let env = require('./utils/env');
+let plugins = env.getPlugins();
 
 // ******************************
 // Constants:
@@ -41,11 +38,9 @@ function printHelp (in_message) {
     cprint.green('Init Commands:');
     console.log(cprint.toWhite('init') + ' ' + cprint.toDarkGray('FOLDER') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
 
-    _printPluginHelp('Setup', setup.getCommands());
-    _printPluginHelp('Info', info.getCommands());
-    _printPluginHelp('Summary', summary.getCommands());
-    _printPluginHelp('Docker', docker.getCommands());
-    _printPluginHelp('Edit', edit.getCommands());
+    plugins.forEach(p => {
+        _printPluginHelp(p.getTitle(), p.getCommands());
+    });
 }
 
 // ******************************

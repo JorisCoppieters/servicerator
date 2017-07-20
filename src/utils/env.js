@@ -81,6 +81,73 @@ function getServiceConfigFile () {
 }
 
 // ******************************
+
+function getStoredPassword (in_application, in_username) {
+    if (!in_application || !in_username) {
+        return false;
+    }
+
+    let envKey;
+    let envVal;
+
+    envKey = in_application.toUpperCase() + '_' + in_username.toUpperCase() + '_PASSWORD';
+    envVal = process.env[envKey] || false;
+    if (envVal) {
+        return envVal;
+    }
+}
+
+// ******************************
+
+function getStoredSecretKey (in_application, in_access_key) {
+    if (!in_application) {
+        return false;
+    }
+
+    let keyName = (in_access_key) ?  '_' + in_access_key.toUpperCase() : '';
+
+    let envKey;
+    let envVal;
+
+    envKey = in_application.toUpperCase() + keyName + '_SECRET_KEY';
+    envVal = process.env[envKey] || false;
+    if (envVal) {
+        return envVal;
+    }
+}
+
+// ******************************
+
+function getPlugins () {
+    let plugins = [];
+    let pluginsFolder = path.resolve(__dirname + '/../plugins');
+    let files = fs.files(pluginsFolder);
+    files.forEach(f => {
+        let pluginFile = path.resolve(pluginsFolder, f);
+        let plugin = require(pluginFile);
+        if (!plugin.getTitle || !plugin.getBaseCommands || !plugin.getCommands || !plugin.handleCommand) {
+            cprint.yellow('Invalid plugin: ' + pluginFile);
+            return;
+        }
+        plugins.push(plugin);
+    });
+
+    return plugins;
+}
+
+// ******************************
+
+function getUserHome() {
+  return process.env[(process.platform == 'win32') ? 'HOME' : 'HOME'];
+}
+
+// ******************************
+
+function getShellHome() {
+  return process.env['HOME'];
+}
+
+// ******************************
 // Exports:
 // ******************************
 
@@ -88,5 +155,10 @@ module.exports['SERVICE_CONFIG_FILE_NAME'] = SERVICE_CONFIG_FILE_NAME;
 module.exports['getServiceFolder'] = getServiceFolder;
 module.exports['getServiceConfigFile'] = getServiceConfigFile;
 module.exports['getServiceConfig'] = getServiceConfig;
+module.exports['getStoredPassword'] = getStoredPassword;
+module.exports['getStoredSecretKey'] = getStoredSecretKey;
+module.exports['getPlugins'] = getPlugins;
+module.exports['getUserHome'] = getUserHome;
+module.exports['getShellHome'] = getShellHome;
 
 // ******************************

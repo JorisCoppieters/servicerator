@@ -22,7 +22,7 @@ function editFiles (in_paths) {
     let editor = getEditor();
     if (!editor) {
         cprint.yellow("No editor set");
-        return;
+        return false;
     }
 
     exec.cmd(editor, ['-a'].concat(in_paths));

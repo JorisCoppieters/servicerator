@@ -42,6 +42,12 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
 // ******************************
 
+function getBaseCommands () {
+    return ['setup'];
+}
+
+// ******************************
+
 function getCommands () {
     return [
         { params: [''], description: 'Setup this folder',
@@ -51,6 +57,12 @@ function getCommands () {
         { params: ['hg'], description: 'Setup this folder as a mercurial repository',
             options: [{param:'overwrite', description:'Overwrite any files that exist'}] },
     ];
+}
+
+// ******************************
+
+function getTitle () {
+    return 'Setup';
 }
 
 // ******************************
@@ -152,10 +164,8 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 // ******************************
 
 module.exports['handleCommand'] = handleCommand;
+module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
-
-module.exports['gitFolder'] = gitSetupFolder;
-module.exports['hgFolder'] = hgSetupFolder;
-module.exports['folder'] = setupFolder;
+module.exports['getTitle'] = getTitle;
 
 // ******************************

@@ -26,10 +26,22 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
 // ******************************
 
+function getBaseCommands () {
+    return ['summary'];
+}
+
+// ******************************
+
 function getCommands () {
     return [
         { params: [''], description: 'Print single line summary of service' },
     ];
+}
+
+// ******************************
+
+function getTitle () {
+    return 'Summary';
 }
 
 // ******************************
@@ -49,7 +61,13 @@ function printServiceSummary (in_serviceConfig) {
 
     if (serviceConfigDockerImage.name) {
         if (output) { output += ' '; }
-        output += cprint.toBackgroundLightBlue(cprint.toWhite('DI:' + serviceConfigDockerImage.name, true));
+
+        let tag = 'latest';
+        if (serviceConfigDockerImage.tags && serviceConfigDockerImage.tags.length) {
+            tag = serviceConfigDockerImage.tags[0];
+        }
+
+        output += cprint.toBackgroundLightBlue(cprint.toWhite('DI:' + serviceConfigDockerImage.name + ':' + tag, true));
     }
 
     print.out(output);
@@ -60,8 +78,8 @@ function printServiceSummary (in_serviceConfig) {
 // ******************************
 
 module.exports['handleCommand'] = handleCommand;
+module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
-
-module.exports['serviceSummary'] = printServiceSummary;
+module.exports['getTitle'] = getTitle;
 
 // ******************************

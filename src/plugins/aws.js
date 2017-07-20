@@ -4,10 +4,8 @@
 // Requries:
 // ******************************
 
-let cprint = require('color-print');
-
-let edit = require('../utils/edit');
-let env = require('../utils/env');
+let aws = require('../utils/aws');
+let docker = require('../utils/docker');
 
 // ******************************
 // Functions:
@@ -18,12 +16,15 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     switch(command)
     {
         case '':
-        case 'folder':
-            editServiceFolder(in_serviceConfig);
+        case 'setup':
+        case 'login':
+            awsLogin(in_serviceConfig);
             break;
-        case 'config':
-            editServiceConfigFile(in_serviceConfig);
+
+        case 'docker-login':
+            awsDockerLogin(in_serviceConfig);
             break;
+
         default:
             return false;
     }
@@ -33,46 +34,35 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 // ******************************
 
 function getBaseCommands () {
-    return ['edit'];
+    return ['aws'];
 }
 
 // ******************************
 
 function getCommands () {
     return [
-        { params: ['', 'folder'], description: 'Open the service folder in your editor' },
-        { params: ['config'], description: 'Open the service config file in your editor' },
+        { params: ['', 'setup', 'login'], description: 'Setup AWS login information' },
+        { params: ['docker-login'], description: 'Log into AWS docker repository' }
     ];
 }
 
 // ******************************
 
 function getTitle () {
-    return 'Edit';
+    return 'AWS';
 }
 
 // ******************************
 
-function editServiceFolder () {
-    let serviceFolder = env.getServiceFolder();
-    if (!serviceFolder) {
-        cprint.yellow("No service folder set");
-        return;
-    }
-
-    edit.folder(serviceFolder);
+function awsLogin (in_serviceConfig) {
+    aws.login(in_serviceConfig);
 }
 
 // ******************************
 
-function editServiceConfigFile () {
-    let serviceConfigFile = env.getServiceConfigFile();
-    if (!serviceConfigFile) {
-        cprint.yellow("No service config file set");
-        return;
-    }
-
-    edit.file(serviceConfigFile);
+function awsDockerLogin (in_serviceConfig) {
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    docker.login(awsDockerCredentials.username, awsDockerCredentials.password);
 }
 
 // ******************************

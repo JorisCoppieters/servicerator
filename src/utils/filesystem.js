@@ -54,12 +54,24 @@ function cwd (in_fileName) {
 }
 
 // ******************************
+
+function files (in_folderName) {
+    var folder = path.resolve(process.cwd(), in_folderName);
+    if (!fs.existsSync(folder)) {
+        return [];
+    }
+    return fs.readdirSync(folder);
+}
+
+// ******************************
 // Exports:
 // ******************************
 
 module.exports['createFolder'] = createFolder;
 module.exports['cwd'] = cwd;
+module.exports['files'] = files;
 module.exports['fileExists'] = fileExists;
+module.exports['folderExists'] = fileExists;
 module.exports['readFile'] = readFile;
 module.exports['writeFile'] = writeFile;
 
