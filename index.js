@@ -25,6 +25,7 @@ let help = require('./src/help');
 
 let env = require('./src/utils/env');
 let init = require('./src/utils/init');
+let service = require('./src/utils/service');
 let plugins = env.getPlugins();
 
 // ******************************
@@ -63,6 +64,10 @@ if (g_ARGV['help']) {
     }
 
     let serviceConfig = env.getServiceConfig();
+    if (!serviceConfig) {
+        serviceConfig = service.getConfig('.');
+    }
+
     if (!serviceConfig) {
         return;
     }

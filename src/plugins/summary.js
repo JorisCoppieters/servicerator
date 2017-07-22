@@ -5,6 +5,8 @@
 // ******************************
 
 let cprint = require('color-print');
+
+let docker = require('../utils/docker');
 let print = require('../utils/print');
 
 // ******************************
@@ -19,21 +21,22 @@ function printServiceSummary (in_serviceConfig) {
     let serviceConfigService = serviceConfig.service || {};
 
     let output = '';
+
     if (serviceConfigService.name) {
         if (output) { output += ' '; }
-        output += cprint.toBackgroundDarkGrey(cprint.toWhite('S:' + serviceConfigService.name, true));
+        output += cprint.toCyan('[service - ' + serviceConfigService.name + ']');
     }
 
     if (serviceConfigDockerImage.name) {
         if (output) { output += ' '; }
 
-        let tag = 'latest';
-        if (serviceConfigDockerImage.tags && serviceConfigDockerImage.tags.length) {
-            tag = serviceConfigDockerImage.tags[0];
-        }
+        let dockerImageTags = docker.getImageTags(in_serviceConfig);
+        let tag = dockerImageTags[0];
 
-        output += cprint.toBackgroundLightBlue(cprint.toWhite('DI:' + serviceConfigDockerImage.name + ':' + tag, true));
+        output += cprint.toLightBlue('[image - ' + serviceConfigDockerImage.name + ':' + tag + ']');
     }
+
+    output = cprint.toMagenta('>> ') + output;
 
     print.out(output);
 }

@@ -5,6 +5,8 @@
 // ******************************
 
 let cprint = require('color-print');
+
+let docker = require('../utils/docker');
 let print = require('../utils/print');
 
 // ******************************
@@ -17,21 +19,29 @@ function printServiceInfo (in_serviceConfig) {
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigDockerContainer = serviceConfigDocker.container || {};
     let serviceConfigService = serviceConfig.service || {};
+    let sourceFolder = serviceConfig.cwd || false;
 
-    let dockerUsername = serviceConfigDocker.username || 'docker_username';
-    let dockerImageName = serviceConfigDockerImage.name || 'docker_image';
-    let dockerImagePath = dockerUsername + '/' + (dockerImageName || '');
+    let serviceName = serviceConfigService.name || false;
+    let dockerUsername = serviceConfigDocker.username || false;
+    let dockerImageName = serviceConfigDockerImage.name || false;
+    let dockerImageVersion = serviceConfigDockerImage.version || false;
+    let dockerImageLanguage = serviceConfigDockerImage.language || false;
+    let dockerImageTags = docker.getImageTags(in_serviceConfig);
+
+    let dockerImagePath = false;
+    if (dockerUsername && dockerImageName) {
+        dockerImagePath = dockerUsername + '/' + dockerImageName;
+    }
 
     cprint.magenta('-- Service Info --');
-    print.keyVal('Service Name', serviceConfigService.name || '(Not Set)');
-    cprint.magenta('----');
-    print.keyVal('Docker Username', dockerUsername);
-    print.keyVal('Docker Password', serviceConfigDocker.password ? '*******' : '(Not Set)');
+    print.keyVal('Service Name', serviceName || '(Not Set)');
     print.keyVal('Docker Image Name', dockerImageName || '(Not Set)');
-    print.keyVal('Docker Image Path', dockerImagePath);
-    (serviceConfigDockerImage.tags || []).forEach((t) => {
+    print.keyVal('Docker Image Language', dockerImageLanguage || '(Not Set)');
+    print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
+    dockerImageTags.slice(0,1).forEach((t) => {
         print.keyVal('Docker Image Tag', dockerImagePath + ':' + t);
     });
+    print.keyVal('Source Folder', sourceFolder || '(Not Set)');
     cprint.magenta('----');
 }
 

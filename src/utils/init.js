@@ -51,9 +51,25 @@ function initFolder (in_folderName, in_overwrite) {
 }
 
 // ******************************
+
+function saveServiceConfig (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let sourceFolder = serviceConfig.cwd;
+    if (!sourceFolder) {
+        cprint.yellow('Invalid source folder: ' + sourceFolder);
+        return false;
+    }
+
+    cprint.cyan('Saving service config...');
+    let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+    fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4), true);
+}
+
+// ******************************
 // Exports:
 // ******************************
 
 module.exports['folder'] = initFolder;
+module.exports['saveServiceConfig'] = saveServiceConfig;
 
 // ******************************

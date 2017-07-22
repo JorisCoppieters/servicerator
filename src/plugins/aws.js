@@ -17,24 +17,36 @@ let print = require('../utils/print');
 function printAwsServiceInfo (in_serviceConfig, in_prod) {
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigService = serviceConfig.service || {};
+    let serviceConfigAws = serviceConfig.aws || {};
 
-    let serviceName = serviceConfigService.name;
-    if (!serviceName) {
-        cprint.yellow('No service name set');
-        return false;
+    let serviceName = serviceConfigService.name || false;
+    let awsAccessKey = serviceConfigAws.access_key || false;
+    let awsSecretKey = false;
+    if (awsAccessKey) {
+        awsSecretKey = aws.getSecretKey(serviceConfig);
     }
 
-    cprint.magenta('-- AWS Service State --');
-    print.keyVal('Service Name', serviceName);
+    cprint.magenta('-- AWS --');
+    print.keyVal('AWS Access Key', awsAccessKey || '(Not Set)');
+    print.keyVal('AWS Secret Key', awsSecretKey ? '*******' : '(Not Set)');
+    print.out('\n');
 
-    print.keyVal('Service Test Cluster', '...', true);
-    let testClusterState = _getAwsClusterState(in_serviceConfig, 'test');
-    print.keyVal('\rService Test Cluster', testClusterState + ' '.repeat(10));
+    cprint.magenta('-- AWS Service --');
+    print.keyVal('AWS Service Name', serviceName || '(Not Set)');
+    print.out('\n');
 
-    if (in_prod) {
-        print.keyVal('Service Prod Cluster', '...', true);
-        let prodClusterState = _getAwsClusterState(in_serviceConfig, 'prod');
-        print.keyVal('\rService Prod Cluster', prodClusterState + ' '.repeat(10));
+    if (serviceName) {
+        cprint.magenta('-- AWS Clusters State --');
+        print.keyVal('AWS Service Test Cluster', '...', true);
+        let testClusterState = _getAwsClusterState(in_serviceConfig, 'test');
+        print.keyVal('\rAWS Service Test Cluster', testClusterState + ' '.repeat(10));
+
+        if (in_prod) {
+            print.keyVal('AWS Service Prod Cluster', '...', true);
+            let prodClusterState = _getAwsClusterState(in_serviceConfig, 'prod');
+            print.keyVal('\rAWS Service Prod Cluster', prodClusterState + ' '.repeat(10));
+        }
+        print.out('\n');
     }
 
     cprint.magenta('----');

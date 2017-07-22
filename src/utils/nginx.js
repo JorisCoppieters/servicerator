@@ -9,76 +9,71 @@
 // ******************************
 
 function getNginxFileContents (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfigDockerImageNginx = serviceConfigDockerImage.nginx || {};
+    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
+    let workdir = serviceConfigDockerImage.work_directory || './';
+
+    let workerProcesses = 4;
+    let workerConnections = 1024;
+
+    let dockerAuthDir = workdir + '/auth';
+    let nginxServers = serviceConfigDockerImageNginx.servers || [];
+
+    let nginxServersContent = nginxServers.map(s => {
+        let authContent = [];
+
+        if (s.ssl) {
+            authContent.push('');
+            authContent.push(`        ssl on;`);
+
+            let dockerAuthCertificateFile = s.ssl.certificate.replace(/\$AUTH_DIR/, dockerAuthDir);
+            authContent.push(`        ssl_certificate ${dockerAuthCertificateFile};`);
+
+            let dockerAuthKeyFile = s.ssl.key.replace(/\$AUTH_DIR/, dockerAuthDir);
+            authContent.push(`        ssl_certificate_key ${dockerAuthKeyFile};`);
+        }
+
+        let serverLocations = s.locations.map(l => {
+            let serverLocationContent = [
+                ``,
+                `        location ${l.location} {`,
+                `            proxy_pass ${l.pass_through};`,
+                `            proxy_set_header X-Real-IP $remote_addr;`,
+                `        }`,
+            ];
+
+            return serverLocationContent.join('\n');
+        });
+
+        return [
+            ``,
+            `    server {`,
+            `        listen ${s.port};`]
+            .concat(authContent)
+            .concat([
+            ``,
+            `        access_log ${s.access_log};`,
+            `        error_log ${s.error_log};`])
+            .concat(serverLocations)
+            .concat([
+            `    }`
+            ])
+            .join('\n');
+    }).join('\n');
+
     return [
-        `worker_processes 4;`,
+        `worker_processes ${workerProcesses};`,
         ``,
-        `events { worker_connections 1024; }`,
+        `events { worker_connections ${workerConnections}; }`,
         ``,
         `http {`,
         ``,
         `    sendfile on;`,
-        ``,
-        `    server {`,
-        ``,
-        `        listen 5100;`,
-        ``,
-        `        access_log /var/log/nginx/docker.access.log;`,
-        `        error_log /var/log/nginx/docker.error.log;`,
-        ``,
-        `        location / {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        ``,
-        `        location /v1/status {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        ``,
-        `        location /v1/classify {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        ``,
-        `        location /v1/predict {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        `    }`,
-        ``,
-        `    server {`,
-        ``,
-        `        listen 5200;`,
-        ``,
-        `        ssl on;`,
-        `        ssl_certificate /home/classifier/auth/service.crt;`,
-        `        ssl_certificate_key /home/classifier/auth/service.key;`,
-        ``,
-        `        access_log /var/log/nginx/docker.ssl_access.log;`,
-        `        error_log /var/log/nginx/docker.ssl_error.log;`,
-        ``,
-        `        location / {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        ``,
-        `        location /v1/status {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/status;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        ``,
-        `        location /v1/classify {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        ``,
-        `        location /v1/predict {`,
-        `            proxy_pass http://127.0.0.1:5000/v1/predict;`,
-        `            proxy_set_header X-Real-IP $remote_addr;`,
-        `        }`,
-        `    }`,
+        nginxServersContent,
         `}`,
-        ``,
         `daemon off;`,
     ].join('\n');
 }

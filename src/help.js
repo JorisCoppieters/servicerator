@@ -14,7 +14,7 @@ let plugins = env.getPlugins();
 // Constants:
 // ******************************
 
-let SPACING = 24;
+let SPACING = 32;
 
 // ******************************
 // Functions:
@@ -27,16 +27,17 @@ function printHelp (in_message) {
     }
 
     console.log();
-    console.log(cprint.toBackgroundDarkGrey(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 9), true)) + '\t' + cprint.toBackgroundLightMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)));
-    console.log(cprint.toBackgroundDarkGrey(cprint.toWhite('  ' + c.SCRIPT_NAME + ' Help  ', true)) + '\t' + cprint.toBackgroundLightMagenta(cprint.toWhite('  Version ' + c.VERSION + '  ', true)));
-    console.log(cprint.toBackgroundDarkGrey(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 9), true)) + '\t' + cprint.toBackgroundLightMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)));
+    console.log(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)));
+    console.log(cprint.toBackgroundMagenta(cprint.toWhite('  ' + c.SCRIPT_NAME + ' Help  ' + ' '.repeat(9), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite('  Version ' + c.VERSION + '  ', true)));
+    console.log(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)));
     console.log();
-    cprint.green('General Options:');
-    console.log(cprint.toWhite('--help') + '\t\t\t' + cprint.toCyan('Show this menu'));
-    console.log(cprint.toWhite('--version') + '\t\t' + cprint.toCyan('Print the version'));
+    _printHelpHeader('General Options');
+    console.log(cprint.toWhite('--help') + '\t\t\t\t' + cprint.toCyan('Show this menu'));
+    console.log(cprint.toWhite('--version') + '\t\t\t' + cprint.toCyan('Print the version'));
     console.log();
-    cprint.green('Init Commands:');
-    console.log(cprint.toWhite('init') + ' ' + cprint.toDarkGray('FOLDER') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
+    _printHelpHeader('Init Commands');
+    console.log(cprint.toLightGreen('init') + ' ' + cprint.toLightGrey('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
+    console.log();
 
     plugins.forEach(p => {
         _printPluginHelp(p.getTitle(), p.getCommands());
@@ -46,8 +47,7 @@ function printHelp (in_message) {
 // ******************************
 
 function _printPluginHelp (in_plugin, in_commands) {
-    console.log();
-    cprint.green(in_plugin + ' Commands:');
+    _printHelpHeader(in_plugin + ' Commands');
     in_commands.forEach(command => {
         let params = command.params || [];
         if (!params.length) {
@@ -63,9 +63,9 @@ function _printPluginHelp (in_plugin, in_commands) {
         firstParam = (firstParam + ' '.repeat(SPACING)).substr(0, SPACING);
 
         if (defaultParam) {
-            console.log(cprint.toWhite(firstParam) + cprint.toCyan(description));
+            console.log(cprint.toLightGreen(firstParam) + cprint.toCyan(description));
         } else {
-            console.log(cprint.toLightGrey(firstParam) + cprint.toCyan(description));
+            console.log(cprint.toGreen(firstParam) + cprint.toCyan(description));
         }
 
         options.forEach(option => {
@@ -74,16 +74,28 @@ function _printPluginHelp (in_plugin, in_commands) {
                 return;
             }
 
-            optionParam = '--' + optionParam;
+            optionParam = (optionParam.length > 1 ? '--' : '-') + optionParam;
             let optionDescription = option.description || '';
 
             let indent = '  ';
 
             optionParam = (indent + optionParam + ' '.repeat(SPACING)).substr(0, SPACING);
 
-            console.log(cprint.toYellow(optionParam) + cprint.toCyan(optionDescription));
+            console.log(cprint.toLightGrey(optionParam) + '  ' + cprint.toCyan(optionDescription));
         });
+
+        console.log();
     });
+}
+
+// ******************************
+
+function _printHelpHeader (in_title) {
+    console.log();
+    cprint.backgroundLightBlue(cprint.toWhite(' '.repeat(in_title.length + 2), true));
+    cprint.backgroundLightBlue(cprint.toWhite(' ' + in_title + ' ', true));
+    cprint.backgroundLightBlue(cprint.toWhite(' '.repeat(in_title.length + 2), true));
+    console.log();
 }
 
 // ******************************

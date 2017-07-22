@@ -5,8 +5,12 @@
 // ******************************
 
 let cprint = require('color-print');
+let path = require('path');
 
+let fs = require('./filesystem');
 let exec = require('./exec');
+let date = require('./date');
+let env = require('./env');
 
 // ******************************
 // Constants:
@@ -30,7 +34,7 @@ let g_DOCKER_INSTALLED = undefined;
 // Functions:
 // ******************************
 
-function getDockerFileContents (in_serviceConfig) {
+function getDockerfileContents (in_serviceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -38,27 +42,155 @@ function getDockerFileContents (in_serviceConfig) {
     let serviceConfigService = serviceConfig.service || {};
 
     let baseImage = serviceConfigDockerImage.base || 'ubuntu:trusty';
-    let serviceName = serviceConfigService.name || 'unknown';
+    let serviceName = serviceConfigService.name || 'service';
     let envVariables = serviceConfigDockerImage.env_variables || [];
-    let containerPorts = serviceConfigDockerContainer.ports || [];
-    let pythonStartCommands =
-        (serviceConfigDockerContainer.commands || [])
-            .filter(c => {
-                return c.type==='python_start';
-            });
+    let imagePorts = serviceConfigDockerImage.ports || [];
+    let scripts = (serviceConfigDockerImage.scripts || []);
 
-    let enableNginx = serviceConfigDockerImage.nginx;
+    let enableS3cmd = serviceConfigDockerImage.s3cmd;
+    let enableAuth = serviceConfigDockerImage.auth;
 
     let aptGetPackages = serviceConfigDockerImage.apt_get_packages || [];
     let aptGetUpdate = serviceConfigDockerImage.apt_get_update || false;
     let pipPackages = serviceConfigDockerImage.pip_packages || [];
     let pipUpdate = serviceConfigDockerImage.pip_update || false;
     let filesystem = serviceConfigDockerImage.filesystem || [];
-    let baseDir = serviceConfigDockerImage.work_directory || false;
+    let commands = serviceConfigDockerImage.commands || [];
+    let workdir = serviceConfigDockerImage.work_directory || './';
 
-    if (enableNginx) {
+    let firstFilesystem = [];
+    let firstEnvVariables = [];
+
+    firstEnvVariables.push({
+        key: 'SERVICE_NAME',
+        val: serviceName
+    });
+    firstEnvVariables.push({
+        key: 'BASE_DIR',
+        val: workdir
+    });
+
+    if (scripts.length) {
+        let dockerScriptsDir = '$BASE_DIR/scripts';
+        firstEnvVariables.push({
+            key: 'SCRIPTS_DIR',
+            val: dockerScriptsDir
+        });
+        scripts.forEach(s => {
+            let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
+            let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
+            firstEnvVariables.push({
+                key: scriptKey,
+                val: scriptPath
+            });
+            s.key = '$' + scriptKey
+        });
+
+        firstFilesystem.push(
+            {
+                "path": "$SCRIPTS_DIR",
+                "type": "folder"
+            }
+        );
+    }
+
+    if (serviceConfig.model) {
+        firstEnvVariables.push({
+            key: 'MODEL_DIR',
+            val: '$BASE_DIR/model'
+        });
+
+        firstFilesystem.push(
+            {
+                "path": "$MODEL_DIR",
+                "type": "folder"
+            }
+        );
+
+        if (serviceConfig.model.type === 'bundled' && serviceConfig.model.source) {
+            firstFilesystem.push(
+                {
+                    'source': `${serviceConfig.model.source}`,
+                    'destination': '$MODEL_DIR',
+                    'type': 'copy_folder'
+                }
+            );
+        } else if (serviceConfig.model.source) {
+            firstFilesystem.push(
+                {
+                    'source': `${serviceConfig.model.source}`,
+                    'destination': '$MODEL_DIR',
+                    'type': 'link'
+                }
+            );
+        }
+    }
+
+    if (serviceConfig.auth) {
+        firstEnvVariables.push({
+            key: 'AUTH_DIR',
+            val: '$BASE_DIR/auth'
+        });
+
+        firstFilesystem.push(
+            {
+                "path": "$AUTH_DIR",
+                "type": "folder"
+            }
+        );
+
+        if (serviceConfig.auth.type === 'self-signed' && serviceConfig.auth.certificate && serviceConfig.auth.key) {
+            firstFilesystem.push(
+                {
+                    'source': `${serviceConfig.auth.certificate}`,
+                    'destination': '$AUTH_DIR',
+                    'type': 'copy_file'
+                }
+            );
+            firstFilesystem.push(
+                {
+                    'source': `${serviceConfig.auth.key}`,
+                    'destination': '$AUTH_DIR',
+                    'type': 'copy_file'
+                }
+            );
+        }
+    }
+
+    let enableNginx = false;
+    if (serviceConfigDockerImage.nginx) {
+        enableNginx = true;
         aptGetPackages.push('nginx');
     }
+
+    if (serviceConfigDockerImage.language === 'python') {
+        firstEnvVariables.push({
+            key: 'PYTHON_DIR',
+            val: '$BASE_DIR/python'
+        });
+
+        firstFilesystem.push(
+            {
+                "path": "$PYTHON_DIR",
+                "type": "folder"
+            }
+        );
+    } else if (serviceConfigDockerImage.language === 'node') {
+        firstEnvVariables.push({
+            key: 'NODE_DIR',
+            val: '$BASE_DIR/node'
+        });
+
+        firstFilesystem.push(
+            {
+                "path": "$NODE_DIR",
+                "type": "folder"
+            }
+        );
+    }
+
+    filesystem = firstFilesystem.concat(filesystem);
+    envVariables = _uniqueByField(firstEnvVariables.concat(envVariables));
 
     return [
         `# ----------------------`,
@@ -75,30 +207,12 @@ function getDockerFileContents (in_serviceConfig) {
         `#`,
         `# ----------------------`].join('\n') +
     (envVariables.length ?
-        '\n\n' +
-        envVariables
-            .map(v => {
-                return `    ENV ${v.key} "${v.val}"`;
-            }).join('\n')
-        : ''
+        '\n\n' + envVariables.map(v => `    ENV ${v.key} "${v.val}"`).join('\n') : ''
     ) +
-    (pythonStartCommands.length ?
-        '\n\n' +
-        pythonStartCommands
-            .map(c => {
-                return `    ENV INIT_${c.env.toUpperCase()}_FILE "${c.val}"`;
-            }).join('\n')
-        : ''
+    (imagePorts.length ?
+        '\n\n' + imagePorts.map(p => `    EXPOSE ${p}`).join('\n') : ''
     ) +
-    (containerPorts.length ?
-        '\n\n' +
-        containerPorts
-            .map(p => {
-                return `    EXPOSE ${p.container}`;
-            }).join('\n')
-        : ''
-    ) +
-    (baseDir ?
+    (workdir !== './' ?
         [
             ``,
             ``,
@@ -108,38 +222,7 @@ function getDockerFileContents (in_serviceConfig) {
             `#`,
             `# ----------------------`,
             ``,
-            `    WORKDIR "${baseDir}"`].join('\n') : '') +
-    (pythonStartCommands.length ?
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# GENERATE SCRIPTS`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ].join('\n') +
-
-        pythonStartCommands
-            .map(c => {
-                let commandFile = `$INIT_${c.env.toUpperCase()}_FILE`;
-                return [
-                    ``,
-                    `    RUN touch ${commandFile} && chmod +x ${commandFile}`,
-                    `    RUN \\`,
-                    `        echo "#! /bin/bash" > ${commandFile} && \\`,
-                ].join('\n') +
-                (c.needs_nginx ?
-                    `\n        echo "nginx &" >> ${commandFile} && \\`
-                    : ''
-                ) +
-                [
-                    ``,
-                    `        echo "cd python; python api-${c.env}.py" >> ${commandFile}`,
-                ].join('\n')
-            }).join('\n')
-        : '') +
+            `    WORKDIR $BASE_DIR`].join('\n') : '') +
     (aptGetPackages.length ?
         [
             ``,
@@ -203,34 +286,132 @@ function getDockerFileContents (in_serviceConfig) {
                     return `    RUN mkdir -p "${f.path}"`;
                 } else if (f.type === 'copy_folder') {
                     return `    COPY "${f.source}" "${f.destination}"`;
-                } else if (f.type === 'file' && !f.contents) {
-                    return `    RUN touch "${f.path}"`;
-                } else if (f.type === 'file' && f.contents) {
-                    return `    ECHO "${f.contents}" > "${f.path}"`;
+                } else if (f.type === 'copy_file') {
+                    return `    COPY "${f.source}" "${f.destination}"`;
+                } else if (f.type === 'file') {
+                    let command = `    RUN touch "${f.path}"`;
+
+                    if (f.permissions) {
+                        command += ` && chmod ${f.permissions} "${f.path}"`
+                    }
+
+                    if (f.contents && f.contents.length) {
+                        command += '\n    RUN \\' +
+                        f.contents
+                            .map(c => `\n        echo "${c}" >> "${f.path}"`)
+                            .join(' && \\');
+                    }
+
+                    return command;
                 } else if (f.type === 'link') {
                     return `    RUN ln -s "${f.source}" "${f.destination}"`;
                 }
             }).join('\n')
         : '') +
-    (pythonStartCommands
-        .filter(c => {
-            return c.cmd;
-        })
-        .map(c => {
-            let commandFile = `$INIT_${c.env.toUpperCase()}_FILE`;
+    (scripts.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# GENERATE SCRIPTS`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            ].join('\n') +
+
+        scripts
+            .map(s => {
+                if (s.language === 'bash') {
+                    return [
+                        ``,
+                        `    RUN touch ${s.key} && chmod +x ${s.key}`,
+                        `    RUN \\`,
+                        `        echo "#! /bin/bash" > ${s.key} && \\`,
+                    ].join('\n') +
+                    s.commands
+                        .map(c => `\n        echo "${c}" >> ${s.key}`)
+                        .join(' && \\');
+                }
+            }).join('\n')
+        : '') +
+    (commands.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# OTHER`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            ``].join('\n') + commands.map(c => `    RUN ${c}`).join('\n')
+        : '') +
+    (scripts
+        .filter(s => s.language === 'bash')
+        .filter(s => s.cmd)
+        .map(s => {
             return [
                 ``,
                 ``,
                 `# ----------------------`,
                 `#`,
-                `# CMD`,
+                `# BASH CMD`,
                 `#`,
-                `# ---------------------`,
+                `# ----------------------`,
                 ``,
-                `    CMD "${commandFile}"`,
+                `    CMD ${s.key}`,
                 ``].join('\n');
         })[0] || '') +
     '\n';
+}
+
+// ******************************
+
+function getDockerFolder (in_sourceFolder) {
+    let sourceFolder = in_sourceFolder;
+
+    if (!sourceFolder) {
+        cprint.yellow('Source folder not set');
+        return;
+    }
+
+    let dockerFolder = path.resolve(sourceFolder, 'docker');
+    if (fs.fileExists(path.resolve(dockerFolder, 'Dockerfile'))) {
+        return dockerFolder;
+    }
+
+    let dockerSubFolder = fs.folders(dockerFolder)
+        .map(f => path.resolve(dockerFolder, f))
+        .filter(fs.folderExists)
+        .filter(fs.isFolder)
+        .find(f => fs.fileExists(path.resolve(f, 'Dockerfile')));
+
+    return dockerSubFolder;
+}
+
+// ******************************
+
+function getDockerfile (in_sourceFolder) {
+    let sourceFolder = in_sourceFolder;
+
+    let dockerFolder = getDockerFolder(in_sourceFolder);
+    let dockerfile = path.resolve(dockerFolder, 'Dockerfile');
+    return dockerfile;
+}
+
+// ******************************
+
+function parseDockerfile (in_dockerFile) {
+    let dockerfileContents = fs.readFile(in_dockerFile);
+    return parseDockerfileContents(dockerfileContents);
+}
+
+// ******************************
+
+function parseDockerfileContents (in_dockerFileContents) {
+    let serviceConfig = {};
+    return serviceConfig;
 }
 
 // ******************************
@@ -243,15 +424,19 @@ function getIgnoreDockerContents (in_serviceConfig) {
 
     let ignoreFiles = [];
 
-    if (serviceConfigDockerImage.env === 'node') {
+    if (serviceConfigDockerImage.language === 'node') {
         ignoreFiles.push('node/node_modules/*');
+    }
+
+    if (serviceConfigDockerImage.language === 'python') {
+        ignoreFiles.push('*.pyc');
     }
 
     if (serviceConfigDockerImage.log) {
         ignoreFiles.push('logs/*');
     }
 
-    if (serviceConfigDockerBuild.env === 'bash') {
+    if (serviceConfigDockerBuild.language === 'bash') {
         ignoreFiles.push('setup-aws-infrastructure.sh');
         ignoreFiles.push('create-docker-image.sh');
         ignoreFiles.push('_env.sh');
@@ -272,9 +457,89 @@ function getDefaultDockerRepository () {
 
 // ******************************
 
+function getDockerPassword (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+
+    let dockerUsername = serviceConfigDocker.username;
+    let dockerPassword = serviceConfigDocker.password;
+
+    if (!dockerUsername) {
+        cprint.yellow('Docker username not set');
+        return false;
+    }
+
+    if (!dockerPassword) {
+        dockerPassword = env.getStoredPassword('docker', dockerUsername);
+    }
+
+    return dockerPassword;
+}
+
+// ******************************
+
+function getDockerImageTags (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let serviceConfigModel = serviceConfig.model || {};
+    let serviceConfigCorpus = serviceConfig.corpus || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+
+    let dockerImageTags = serviceConfigDockerImage.tags || [];
+
+    let dockerImageVersion = serviceConfigDockerImage.version;
+    if (dockerImageVersion) {
+        let dockerImageVersionTag = dockerImageVersion;
+        if (dockerImageTags.indexOf(dockerImageVersionTag) < 0) {
+            dockerImageTags.push(dockerImageVersionTag);
+        }
+    }
+
+    if (serviceConfigDockerImage.tag_with_date) {
+        let dockerImageDateTag = date.getTag();
+        if (dockerImageTags.indexOf(dockerImageDateTag) < 0) {
+            dockerImageTags.push(dockerImageDateTag);
+        }
+    }
+
+    let modelVersion = serviceConfigModel.version;
+    if (modelVersion) {
+        let modelVersionTag = 'model-version-' + modelVersion;
+        if (dockerImageTags.indexOf(modelVersionTag) < 0) {
+            dockerImageTags.push(modelVersionTag);
+        }
+    }
+
+    let corpusVersion = serviceConfigModel.version;
+    if (corpusVersion) {
+        let corpusVersionTag = 'corpus-version-' + corpusVersion;
+        if (dockerImageTags.indexOf(corpusVersionTag) < 0) {
+            dockerImageTags.push(corpusVersionTag);
+        }
+    }
+
+    if (dockerImageTags.indexOf('latest') < 0) {
+        dockerImageTags.push('latest');
+    }
+
+    return dockerImageTags;
+}
+
+// ******************************
+
 function dockerLogin (in_username, in_password, in_repository) {
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    if (!in_username) {
+        cprint.yellow('Docker username not set');
+        return false;
+    }
+
+    if (!in_password) {
+        cprint.yellow('Docker password not set');
         return false;
     }
 
@@ -330,6 +595,28 @@ function dockerVersion () {
 }
 
 // ******************************
+// Helper Functions:
+// ******************************
+
+function _uniqueByField (in_collection, in_key) {
+    if (!in_collection || !in_collection.length) {
+        return [];
+    }
+    let key = in_key || 'key';
+
+    let sortByKey = {};
+    in_collection
+        .forEach(obj => {
+            let keyVal = obj[key];
+            sortByKey[keyVal] = obj;
+        });
+
+    return Object.keys(sortByKey)
+        .filter((elem, pos, self) => { return self.indexOf(elem) === pos; })
+        .map(k => sortByKey[k]);
+}
+
+// ******************************
 // Exports:
 // ******************************
 
@@ -345,8 +632,14 @@ module.exports['login'] = dockerLogin;
 module.exports['installed'] = dockerInstalled;
 module.exports['version'] = dockerVersion;
 module.exports['cmd'] = dockerCmd;
+module.exports['parseDockerfile'] = parseDockerfile;
+module.exports['parseDockerfileContents'] = parseDockerfileContents;
+module.exports['getFolder'] = getDockerFolder;
+module.exports['getDockerfile'] = getDockerfile;
+module.exports['getPassword'] = getDockerPassword;
+module.exports['getImageTags'] = getDockerImageTags;
 module.exports['getDefaultRepository'] = getDefaultDockerRepository;
-module.exports['getDockerFileContents'] = getDockerFileContents;
+module.exports['getDockerfileContents'] = getDockerfileContents;
 module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;
 
 // ******************************

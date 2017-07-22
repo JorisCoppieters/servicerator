@@ -57,46 +57,43 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigDockerBuild = serviceConfigDocker.build || {};
 
-    fs.createFolder(path.resolve(sourceFolder, 'docker'));
+    let dockerFolder = path.resolve(sourceFolder, 'docker');
+    fs.createFolder(dockerFolder);
 
-    let dockerImageName = serviceConfigDockerImage.name || 'unknown';
-    let dockerImageFolder = path.resolve(sourceFolder, 'docker', dockerImageName);
-    fs.createFolder(path.resolve(dockerImageFolder));
-
-    let dockerFileContents = docker.getDockerFileContents(serviceConfig);
+    let dockerFileContents = docker.getDockerfileContents(serviceConfig);
     if (dockerFileContents) {
-        fs.writeFile(path.resolve(dockerImageFolder, 'Dockerfile'), dockerFileContents, in_overwrite);
+        fs.writeFile(path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, in_overwrite);
     }
 
     let dockerIgnoreFileContents = docker.getIgnoreDockerContents(serviceConfig);
     if (dockerIgnoreFileContents) {
-        fs.writeFile(path.resolve(dockerImageFolder, '.dockerignore'), dockerIgnoreFileContents, in_overwrite);
+        fs.writeFile(path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, in_overwrite);
     }
 
     if (serviceConfigDockerImage.nginx) {
-        let nginxFile = path.resolve(dockerImageFolder, 'nginx.conf');
+        let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
         fs.writeFile(nginxFile, nginx.getFileContents(serviceConfig), in_overwrite);
     }
 
     if (serviceConfigDockerImage.log) {
-        fs.createFolder(path.resolve(dockerImageFolder, 'logs'));
+        fs.createFolder(path.resolve(dockerFolder, 'logs'));
     }
 
-    if (serviceConfigDockerImage.env === 'python') {
-        fs.createFolder(path.resolve(dockerImageFolder, 'python'));
+    if (serviceConfigDockerImage.language === 'python') {
+        fs.createFolder(path.resolve(dockerFolder, 'python'));
     }
 
-    if (serviceConfigDockerBuild.env === 'bash') {
-        let bashEnvFile = path.resolve(dockerImageFolder, '_env.sh');
+    if (serviceConfigDockerBuild.language === 'bash') {
+        let bashEnvFile = path.resolve(dockerFolder, '_env.sh');
         fs.writeFile(bashEnvFile, bash.getEnvContents(serviceConfig), in_overwrite);
     }
 
     if (serviceConfig.model) {
-        fs.createFolder(path.resolve(dockerImageFolder, 'model'));
+        fs.createFolder(path.resolve(dockerFolder, 'model'));
         fs.createFolder(path.resolve(sourceFolder, 'model'));
 
         if (serviceConfig.model.bundled_model) {
-            fs.createFolder(path.resolve(dockerImageFolder, 'bundled_model'));
+            fs.createFolder(path.resolve(dockerFolder, 'bundled_model'));
         }
     }
 

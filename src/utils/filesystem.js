@@ -7,6 +7,7 @@
 let fs = require('fs');
 let path = require('path');
 let process = require('process');
+let cprint = require('color-print');
 
 // ******************************
 // Functions:
@@ -37,7 +38,7 @@ function readFile (in_fileName) {
     if (!fs.existsSync(file)) {
         return '';
     }
-    return fs.readFileSync(file);
+    return fs.readFileSync(file).toString();
 }
 
 // ******************************
@@ -45,6 +46,13 @@ function readFile (in_fileName) {
 function fileExists (in_fileName) {
     var file = path.resolve(process.cwd(), in_fileName);
     return fs.existsSync(file);
+}
+
+// ******************************
+
+function isFolder (in_folderName) {
+    var folder = path.resolve(process.cwd(), in_folderName);
+    return fs.lstatSync(folder).isDirectory();
 }
 
 // ******************************
@@ -64,15 +72,37 @@ function files (in_folderName) {
 }
 
 // ******************************
+
+function getExtensionForType (in_fileType) {
+    let extension = '';
+    switch (in_fileType)
+    {
+        case 'bash':
+            extension = '.sh';
+            break;
+
+        default:
+            cprint.yellow('Unknown file type: ' + in_fileType);
+            return '';
+
+    }
+
+    return extension;
+}
+
+// ******************************
 // Exports:
 // ******************************
 
 module.exports['createFolder'] = createFolder;
 module.exports['cwd'] = cwd;
-module.exports['files'] = files;
 module.exports['fileExists'] = fileExists;
+module.exports['files'] = files;
 module.exports['folderExists'] = fileExists;
+module.exports['folders'] = files;
+module.exports['isFolder'] = isFolder;
 module.exports['readFile'] = readFile;
 module.exports['writeFile'] = writeFile;
+module.exports['getExtensionForType'] = getExtensionForType;
 
 // ******************************

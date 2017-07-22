@@ -8,6 +8,7 @@ let cprint = require('color-print');
 let path = require('path');
 
 let fs = require('./filesystem');
+let service = require('./service');
 
 // ******************************
 // Constants:
@@ -45,6 +46,9 @@ function getServiceConfig () {
         return false;
     }
     serviceConfig.cwd = path.dirname(serviceConfigFile);
+
+    service.checkConfigSchema(serviceConfig);
+
     return serviceConfig;
 }
 

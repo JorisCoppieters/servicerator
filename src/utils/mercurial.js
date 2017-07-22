@@ -16,26 +16,30 @@ function getIgnoreFileContents (in_serviceConfig) {
 
     let ignoreFiles = [
         'syntax: glob',
-        'docker/*/.aws_cache/*',
-        'docker/*/auth/*.crt',
-        'docker/*/auth/*.key'
+        'docker/.aws_cache/*',
+        'docker/auth/*.crt',
+        'docker/auth/*.key'
     ];
 
-    if (serviceConfigDockerImage.env === 'node') {
-        ignoreFiles.push('docker/*/node/node_modules/*');
+    if (serviceConfigDockerImage.language === 'node') {
+        ignoreFiles.push('docker/node/node_modules/*');
+    }
+
+    if (serviceConfigDockerImage.language === 'python') {
+        ignoreFiles.push('docker/python/*.pyc');
     }
 
     if (serviceConfigDockerImage.log) {
-        ignoreFiles.push('docker/*/logs/*');
+        ignoreFiles.push('docker/logs/*');
     }
 
     if (serviceConfig.model) {
-        ignoreFiles.push('docker/*/model/*');
+        ignoreFiles.push('docker/model/*');
     }
 
-    if (serviceConfigDockerBuild.env === 'bash') {
-        ignoreFiles.push('docker/*/setup-aws-infrastructure.sh');
-        ignoreFiles.push('docker/*/create-docker-image.sh');
+    if (serviceConfigDockerBuild.language === 'bash') {
+        ignoreFiles.push('docker/setup-aws-infrastructure.sh');
+        ignoreFiles.push('docker/create-docker-image.sh');
     }
 
     return ignoreFiles.join('\n');

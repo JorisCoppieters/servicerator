@@ -68,12 +68,7 @@ function getAwsDockerCredentials (in_serviceConfig) {
 
 // ******************************
 
-function awsLogin (in_serviceConfig) {
-    if (!awsInstalled()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
-
+function getAwsSecretKey (in_serviceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
 
@@ -93,6 +88,27 @@ function awsLogin (in_serviceConfig) {
         awsSecretKey = env.getStoredSecretKey('aws', '');
     }
 
+    return awsSecretKey;
+}
+
+// ******************************
+
+function awsLogin (in_serviceConfig) {
+    if (!awsInstalled()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let serviceConfig = in_serviceConfig || {};
+    let serviceConfigAws = serviceConfig.aws || {};
+
+    let awsAccessKey = serviceConfigAws.access_key;
+    if (!awsAccessKey) {
+        cprint.yellow("AWS access key not set");
+        return false;
+    }
+
+    let awsSecretKey = getAwsSecretKey(in_serviceConfig);
     if (!awsSecretKey) {
         cprint.yellow("AWS secret key not set");
         return false;
@@ -171,6 +187,7 @@ module.exports['installed'] = awsInstalled;
 module.exports['version'] = awsVersion;
 module.exports['login'] = awsLogin;
 module.exports['cmd'] = awsCmd;
+module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepository'] = getAwsDockerRepository;
 
