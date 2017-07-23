@@ -8,6 +8,7 @@ let fs = require('fs');
 let path = require('path');
 let process = require('process');
 let cprint = require('color-print');
+let rimraf = require('rimraf');
 
 // ******************************
 // Functions:
@@ -19,6 +20,15 @@ function createFolder (in_folderName) {
         fs.mkdirSync(folder);
     }
     return folder;
+}
+
+// ******************************
+
+function deleteFolder (in_folderName) {
+    var folder = path.resolve(process.cwd(), in_folderName);
+    if (fs.existsSync(folder)) {
+        rimraf(folder, () => {});
+    }
 }
 
 // ******************************
@@ -39,6 +49,23 @@ function readFile (in_fileName) {
         return '';
     }
     return fs.readFileSync(file).toString();
+}
+
+// ******************************
+
+function copyFile (in_source, in_destination) {
+    var source = path.resolve(process.cwd(), in_source);
+    var destination = path.resolve(process.cwd(), in_destination);
+    if (!fs.existsSync(source)) {
+        return false;
+    }
+
+    let readStream = fs.createReadStream(source);
+    readStream.once('error', (err) => {
+        cprint.red(err);
+    });
+
+    readStream.pipe(fs.createWriteStream(destination));
 }
 
 // ******************************
@@ -95,6 +122,7 @@ function getExtensionForType (in_fileType) {
 // ******************************
 
 module.exports['createFolder'] = createFolder;
+module.exports['deleteFolder'] = deleteFolder;
 module.exports['cwd'] = cwd;
 module.exports['fileExists'] = fileExists;
 module.exports['files'] = files;
@@ -102,6 +130,7 @@ module.exports['folderExists'] = fileExists;
 module.exports['folders'] = files;
 module.exports['isFolder'] = isFolder;
 module.exports['readFile'] = readFile;
+module.exports['copyFile'] = copyFile;
 module.exports['writeFile'] = writeFile;
 module.exports['getExtensionForType'] = getExtensionForType;
 

@@ -116,9 +116,7 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.container.ports = serviceConfig.docker.container.ports || [];
             serviceConfig.docker.container.ports.push({
                 'host': parseInt(val),
-                'container': parseInt(val),
-                'description': 'nginx_http',
-                'secure': false
+                'container': parseInt(val)
             });
         } else if (key === 'DOCKER_CONTAINER_SECURE_PORT') {
             serviceConfig.docker = serviceConfig.docker || {};
@@ -126,19 +124,15 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.container.ports = serviceConfig.docker.container.ports || [];
             serviceConfig.docker.container.ports.push({
                 'host': parseInt(val),
-                'container': parseInt(val),
-                'description': 'nginx_http',
-                'secure': true
+                'container': parseInt(val)
             });
         } else if (key === 'DOCKER_CONTAINER_TEST_START_COMMAND') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.image = serviceConfig.docker.image || {};
             serviceConfig.docker.image.scripts = serviceConfig.docker.image.scripts || [];
             serviceConfig.docker.image.scripts.push({
-                'name': val,
+                'name': 'start-test',
                 'language': 'bash',
-                'type': 'start',
-                'env': 'test',
                 'commands': [
                     'nginx &',
                     'cd python; python api-test.py'
@@ -150,10 +144,8 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.image = serviceConfig.docker.image || {};
             serviceConfig.docker.image.scripts = serviceConfig.docker.image.scripts || [];
             serviceConfig.docker.image.scripts.push({
-                'name': val,
+                'name': 'start-prod',
                 'language': 'bash',
-                'type': 'start',
-                'env': 'prod',
                 'commands': [
                     'nginx &',
                     'cd python; python api-prod.py'

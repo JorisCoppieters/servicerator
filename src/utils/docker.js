@@ -94,7 +94,7 @@ function getDockerfileContents (in_serviceConfig) {
         );
     }
 
-    if (serviceConfig.model) {
+    if (serviceConfig.model && !serviceConfig.model.disableAutoPopulate) {
         firstEnvVariables.push({
             key: 'MODEL_DIR',
             val: '$BASE_DIR/model'
@@ -126,7 +126,7 @@ function getDockerfileContents (in_serviceConfig) {
         }
     }
 
-    if (serviceConfig.auth) {
+    if (serviceConfig.auth && !serviceConfig.auth.disableAutoPopulate) {
         firstEnvVariables.push({
             key: 'AUTH_DIR',
             val: '$BASE_DIR/auth'
@@ -257,6 +257,18 @@ function getDockerfileContents (in_serviceConfig) {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
+    (commands.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# OTHER`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            ``].join('\n') + commands.map(c => `    RUN ${c}`).join('\n')
+        : '') +
     (enableNginx ?
         [
             ``,
@@ -334,18 +346,6 @@ function getDockerfileContents (in_serviceConfig) {
                         .join(' && \\');
                 }
             }).join('\n')
-        : '') +
-    (commands.length ?
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# OTHER`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ``].join('\n') + commands.map(c => `    RUN ${c}`).join('\n')
         : '') +
     (scripts
         .filter(s => s.language === 'bash')

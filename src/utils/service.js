@@ -19,7 +19,7 @@ function getServiceConfig (in_folderName) {
     let bashEnvFile = path.resolve(in_folderName, '_env.sh');
     let sourceFolder = false;
 
-    if (fs.fileExists(bashEnvFile)) {
+    if (bashEnvFile && fs.fileExists(bashEnvFile)) {
         let dockerFolder = path.resolve(bashEnvFile, '../');
         if (path.dirname(dockerFolder) === 'docker') {
             sourceFolder = path.resolve(dockerFolder, '../');
@@ -28,12 +28,12 @@ function getServiceConfig (in_folderName) {
         }
     } else {
         let dockerFolder = path.resolve(in_folderName, 'docker');
-        if (fs.fileExists(dockerFolder)) {
+        if (dockerFolder && fs.fileExists(dockerFolder)) {
 
             bashEnvFile = path.resolve(dockerFolder, '_env.sh');
             sourceFolder = path.resolve(dockerFolder, '../');
 
-            if (!fs.fileExists(bashEnvFile)) {
+            if (!bashEnvFile || !fs.fileExists(bashEnvFile)) {
                 let folders = fs.folders(dockerFolder)
                     .map(f => path.resolve(dockerFolder, f))
                     .filter(fs.folderExists)
@@ -48,7 +48,7 @@ function getServiceConfig (in_folderName) {
         }
     }
 
-    if (fs.fileExists(bashEnvFile)) {
+    if (bashEnvFile && fs.fileExists(bashEnvFile)) {
         let bashServiceConfig = bash.parseEnvFile(bashEnvFile);
         if (bashServiceConfig) {
             bashServiceConfig.build = {
@@ -57,7 +57,7 @@ function getServiceConfig (in_folderName) {
             bashServiceConfig.cwd = sourceFolder;
 
             let pythonFolder = path.resolve(in_folderName, 'python');
-            if (fs.folderExists(pythonFolder)) {
+            if (pythonFolder && fs.folderExists(pythonFolder)) {
                 if (!bashServiceConfig.docker || !bashServiceConfig.docker.env) {
                     bashServiceConfig.docker = bashServiceConfig.docker || {};
                     bashServiceConfig.docker.image = bashServiceConfig.docker.image || {};
@@ -118,130 +118,8 @@ function getServiceConfig (in_folderName) {
 
 // ******************************
 
-function getServiceConfigSchema () {
-    return {
-        cwd: 'STRING',
-        aws: {
-            access_key: 'STRING',
-            account_id: 'NUMBER',
-            region: 'STRING'
-        },
-        build: {
-            language: 'STRING'
-        },
-        model: {
-            version: 'STRING',
-            type: 'STRING'
-        },
-        corpus: {
-            version: 'STRING'
-        },
-        service: {
-            name: 'STRING',
-            urls: [
-                {env: 'STRING', val: 'STRING'}
-            ],
-            cluster: {
-                instance: {
-                    count: 'NUMBER',
-                    type: 'STRING',
-                    volume_size: 'NUMBER'
-                }
-            }
-        },
-        auth: {
-            type: 'STRING',
-            certificate: 'STRING',
-            key: 'STRING',
-        },
-        docker: {
-            username: 'STRING',
-            image: {
-                name: 'STRING',
-                nginx: {
-                    certificate: 'STRING',
-                    key: 'STRING',
-                    servers: [
-                        {
-                            port: 'NUMBER',
-                            ssl: {
-                                certificate: 'STRING',
-                                key: 'STRING'
-                            },
-                            access_log: 'STRING',
-                            error_log: 'STRING',
-                            locations: [
-                                {location: 'STRING', pass_through: 'STRING'}
-                            ]
-                        }
-                    ]
-                },
-                ports: [
-                    'NUMBER',
-                ],
-                base: 'STRING',
-                language: 'STRING',
-                work_directory: 'STRING',
-                tags: [
-                    'STRING'
-                ],
-                tag_with_date: 'BOOLEAN',
-                apt_get_update: 'BOOLEAN',
-                apt_get_packages: [
-                    'STRING'
-                ],
-                pip_update: 'BOOLEAN',
-                pip_packages: [
-                    'STRING'
-                ],
-                version: 'STRING',
-                env_variables: [
-                    {key: 'STRING', val: 'STRING'}
-                ],
-                filesystem: [
-                    {
-                        path: 'STRING',
-                        type: 'STRING',
-                        source: 'STRING',
-                        destination: 'STRING'
-                    }
-                ],
-                scripts: [
-                    {
-                        name: 'STRING',
-                        language: 'STRING',
-                        commands: [
-                            'STRING'
-                        ],
-                        cmd: 'BOOLEAN'
-                    }
-                ],
-                log: 'BOOLEAN'
-            },
-            other_repositories: [
-                {type: 'STRING'}
-            ],
-            container: {
-                memory_limit: 'NUMBER',
-                cpu_core_count: 'NUMBER',
-                volumes: [
-                    {container: 'STRING', host: 'STRING'}
-                ],
-                ports: [
-                    {host: 'NUMBER', container: 'NUMBER'}
-                ],
-                commands: [
-                    {env: 'STRING', val: 'STRING'}
-                ]
-            }
-        }
-    };
-}
-
-// ******************************
-
 function checkServiceConfigSchema (in_serviceConfig) {
-    let schema = getServiceConfigSchema();
+    let schema = _getServiceConfigSchema();
     _checkObjectAgainstSchema('ROOT', in_serviceConfig, schema);
 }
 
@@ -327,6 +205,159 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal) {
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _getServiceConfigSchema () {
+    return {
+        "auth": {
+            "certificate": "STRING",
+            "disableAutoPopulate": "BOOLEAN",
+            "key": "STRING",
+            "rootCAKey": "STRING",
+            "rootCACertificate": "STRING",
+            "type": "STRING"
+        },
+        "aws": {
+            "access_key": "STRING",
+            "account_id": "NUMBER",
+            "region": "STRING"
+        },
+        "build": {
+            "language": "STRING"
+        },
+        "corpus": {
+            "version": "STRING"
+        },
+        "cwd": "STRING",
+        "docker": {
+            "container": {
+                "commands": [
+                    {
+                        "env": "STRING",
+                        "val": "STRING"
+                    }
+                ],
+                "cpu_core_count": "NUMBER",
+                "memory_limit": "NUMBER",
+                "ports": [
+                    {
+                        "container": "NUMBER",
+                        "host": "NUMBER"
+                    }
+                ],
+                "volumes": [
+                    {
+                        "container": "STRING",
+                        "host": "STRING"
+                    }
+                ]
+            },
+            "image": {
+                "apt_get_packages": [
+                    "STRING"
+                ],
+                "apt_get_update": "BOOLEAN",
+                "base": "STRING",
+                "commands": [
+                    "STRING"
+                ],
+                "env_variables": [
+                    {
+                        "key": "STRING",
+                        "val": "STRING"
+                    }
+                ],
+                "filesystem": [
+                    {
+                        "contents": [
+                            "STRING"
+                        ],
+                        "destination": "STRING",
+                        "path": "STRING",
+                        "permissions": "STRING",
+                        "source": "STRING",
+                        "type": "STRING"
+                    }
+                ],
+                "language": "STRING",
+                "log": "BOOLEAN",
+                "name": "STRING",
+                "nginx": {
+                    "certificate": "STRING",
+                    "key": "STRING",
+                    "servers": [
+                        {
+                            "access_log": "STRING",
+                            "error_log": "STRING",
+                            "locations": [
+                                {
+                                    "location": "STRING",
+                                    "pass_through": "STRING"
+                                }
+                            ],
+                            "port": "NUMBER",
+                            "ssl": {
+                                "certificate": "STRING",
+                                "key": "STRING"
+                            }
+                        }
+                    ]
+                },
+                "pip_packages": [
+                    "STRING"
+                ],
+                "pip_update": "BOOLEAN",
+                "ports": [
+                    "NUMBER"
+                ],
+                "scripts": [
+                    {
+                        "cmd": "BOOLEAN",
+                        "commands": [
+                            "STRING"
+                        ],
+                        "language": "STRING",
+                        "name": "STRING"
+                    }
+                ],
+                "tag_with_date": "BOOLEAN",
+                "tags": [
+                    "STRING"
+                ],
+                "version": "STRING",
+                "work_directory": "STRING"
+            },
+            "other_repositories": [
+                {
+                    "type": "STRING"
+                }
+            ],
+            "username": "STRING"
+        },
+        "model": {
+            "disableAutoPopulate": "BOOLEAN",
+            "type": "STRING",
+            "version": "STRING"
+        },
+        "service": {
+            "cluster": {
+                "instance": {
+                    "count": "NUMBER",
+                    "type": "STRING",
+                    "volume_size": "NUMBER"
+                }
+            },
+            "name": "STRING",
+            "urls": [
+                {
+                    "env": "STRING",
+                    "val": "STRING"
+                }
+            ]
+        }
+    };
+}
+
 // ******************************
 
 function _getBaseServiceConfig (in_folderName) {
@@ -479,7 +510,6 @@ function _getBaseServiceConfig (in_folderName) {
 // ******************************
 
 module.exports['getConfig'] = getServiceConfig;
-module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
 
 // ******************************

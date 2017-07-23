@@ -45,6 +45,9 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
 function _flatArgs (in_args) {
     let args = [];
     in_args.forEach(a => {
+        if (typeof(a) !== 'string') {
+            return a;
+        }
         if (a.match(/[\s]/)) {
             args.push('\'' + a
                 .replace(/([\t])/g, '\\t')
@@ -53,7 +56,7 @@ function _flatArgs (in_args) {
                 + '\'');
             return;
         }
-        if (a.match(/["']/)) {
+        if (a.match(/[\\"']/)) {
             args.push('\'' + a + '\'');
             return;
         }

@@ -35,7 +35,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod) {
     print.keyVal('AWS Service Name', serviceName || '(Not Set)');
     print.out('\n');
 
-    if (serviceName) {
+    if (awsAccessKey && awsSecretKey && serviceName) {
         cprint.magenta('-- AWS Clusters State --');
         print.keyVal('AWS Service Test Cluster', '...', true);
         let testClusterState = _getAwsClusterState(in_serviceConfig, 'test');

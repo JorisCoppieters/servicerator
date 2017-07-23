@@ -57,6 +57,11 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigDockerBuild = serviceConfigDocker.build || {};
 
+    if (serviceConfig.auth) {
+        let authFolder = path.resolve(sourceFolder, 'auth');
+        fs.createFolder(authFolder);
+    }
+
     let dockerFolder = path.resolve(sourceFolder, 'docker');
     fs.createFolder(dockerFolder);
 
@@ -79,11 +84,13 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         fs.createFolder(path.resolve(dockerFolder, 'logs'));
     }
 
-    if (serviceConfigDockerImage.language === 'python') {
-        fs.createFolder(path.resolve(dockerFolder, 'python'));
+    if (serviceConfig.auth) {
+        fs.createFolder(path.resolve(dockerFolder, 'auth'));
     }
 
-    if (serviceConfigDockerBuild.language === 'bash') {
+    if (serviceConfigDockerImage.language === 'python') {
+        fs.createFolder(path.resolve(dockerFolder, 'python'));
+    } else if (serviceConfigDockerBuild.language === 'bash') {
         let bashEnvFile = path.resolve(dockerFolder, '_env.sh');
         fs.writeFile(bashEnvFile, bash.getEnvContents(serviceConfig), in_overwrite);
     }
