@@ -107,9 +107,9 @@ function getServiceConfig (in_folderName) {
         }
     }
 
-    if (!serviceConfig.service || !serviceConfig.service.name) {
-        return false;
-    }
+    // if (!serviceConfig.service || !serviceConfig.service.name) {
+    //     return false;
+    // }
 
     checkServiceConfigSchema(serviceConfig);
 
@@ -159,8 +159,6 @@ function getServiceConfigSchema () {
             image: {
                 name: 'STRING',
                 nginx: {
-                    certificate: 'STRING',
-                    key: 'STRING',
                     servers: [
                         {
                             port: 'NUMBER',
@@ -374,19 +372,31 @@ function _getBaseServiceConfig (in_folderName) {
             image: {
                 name: imageName,
                 nginx: {
-                    certificate: '$AUTH_DIR/service.crt',
-                    key: '$AUTH_DIR/service.key',
                     servers: [
                         {
                             port: 5100,
-                            secure: false,
-                            paths: [
+                            access_log: '/var/log/nginx/access_log',
+                            error_log: '/var/log/nginx/error_log',
+                            locations: [
+                                {location: '/', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/status', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/classify', pass_through: 'http://127.0.0.1:5000/v1/predict'},
+                                {location: '/v1/predict', pass_through: 'http://127.0.0.1:5000/v1/predict'}
                             ]
                         },
                         {
                             port: 5200,
-                            secure: true,
-                            paths: [
+                            ssl: {
+                                certificate: '$AUTH_DIR/service.crt',
+                                key: '$AUTH_DIR/service.key'
+                            },
+                            access_log: '/var/log/nginx/ssl.access_log',
+                            error_log: '/var/log/nginx/ssl.error_log',
+                            locations: [
+                                {location: '/', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/status', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/classify', pass_through: 'http://127.0.0.1:5000/v1/predict'},
+                                {location: '/v1/predict', pass_through: 'http://127.0.0.1:5000/v1/predict'}
                             ]
                         }
                     ]

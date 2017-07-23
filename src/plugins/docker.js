@@ -41,7 +41,7 @@ function printDockerInfo (in_serviceConfig) {
     print.keyVal('Docker Password', dockerPassword ? '*******' : '(Not Set)');
     print.out('\n');
 
-    if (serviceConfigDocker.container) {
+    if (serviceConfigDocker.container && docker.installed()) {
         let containerName = getDockerContainerName(in_serviceConfig);
         let containerState = getDockerContainerState(in_serviceConfig, true);
 
@@ -57,7 +57,7 @@ function printDockerInfo (in_serviceConfig) {
     print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
     print.out('\n');
 
-    if (dockerImageName && dockerUsername) {
+    if (dockerImageName && dockerUsername && docker.installed()) {
         let dockerImageTags = docker.getImageTags(in_serviceConfig);
         let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
 
@@ -104,6 +104,11 @@ function printDockerInfo (in_serviceConfig) {
 // ******************************
 
 function pullDockerImage (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
     let serviceConfigDocker = serviceConfig.docker || {};
@@ -145,6 +150,11 @@ function pullDockerImage (in_serviceConfig) {
 // ******************************
 
 function buildDockerImage (in_serviceConfig, in_noCache) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -191,6 +201,11 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
 // ******************************
 
 function pushDockerImage (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
     let serviceConfigDocker = serviceConfig.docker || {};
@@ -225,6 +240,11 @@ function pushDockerImage (in_serviceConfig) {
 // ******************************
 
 function cleanDockerImages (in_serviceConfig, in_force) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -285,6 +305,11 @@ function cleanDockerImages (in_serviceConfig, in_force) {
 // ******************************
 
 function purgeDockerImages (in_serviceConfig, in_force) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -388,6 +413,11 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
 // ******************************
 
 function dockerLogin (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -407,6 +437,11 @@ function dockerLogin (in_serviceConfig) {
 // ******************************
 
 function startDockerContainer (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -481,6 +516,11 @@ function startDockerContainer (in_serviceConfig) {
 // ******************************
 
 function enterDockerContainer (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let runningDockerContainerId = getRunningDockerContainerId(in_serviceConfig);
     if (!runningDockerContainerId) {
         cprint.yellow('No running container found');
@@ -496,6 +536,11 @@ function enterDockerContainer (in_serviceConfig) {
 // ******************************
 
 function stopDockerContainer (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let dockerImageIds = _getDockerImageIds(in_serviceConfig);
     dockerImageIds.forEach(id => stopDockerImageIdContainer(id));
 
@@ -522,6 +567,11 @@ function stopDockerContainer (in_serviceConfig) {
 // ******************************
 
 function stopDockerImageIdContainer (in_dockerImageId) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let dockerContainerIds = getDockerImageIdContainerIds(in_dockerImageId);
     dockerContainerIds.forEach(id => {
         let args = [];
@@ -541,6 +591,11 @@ function stopDockerImageIdContainer (in_dockerImageId) {
 // ******************************
 
 function removeDockerContainer (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let dockerImageIds = _getDockerImageIds(in_serviceConfig);
     dockerImageIds.forEach(id => removeDockerImageIdContainer(id));
 
@@ -572,6 +627,11 @@ function removeDockerContainer (in_serviceConfig) {
 // ******************************
 
 function removeDockerImageIdContainer (in_dockerImageId) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let dockerContainerIds = getDockerImageIdContainerIds(in_dockerImageId, true);
     dockerContainerIds.forEach(id => {
         let args = [];
@@ -603,6 +663,11 @@ function getDockerContainerName (in_serviceConfig) {
 // ******************************
 
 function getDockerContainerState (in_serviceConfig, in_nice) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -636,6 +701,11 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
 // ******************************
 
 function getRunningDockerContainerId (in_serviceConfig, in_nice) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let containerName = getDockerContainerName(in_serviceConfig);
 
     let cmdResult = docker.cmd(['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'], true);
@@ -654,6 +724,11 @@ function getRunningDockerContainerId (in_serviceConfig, in_nice) {
 // ******************************
 
 function getDockerImageIdContainerIds (in_dockerImageId, in_includeStopped) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let args = [];
     args.push('ps');
     if (in_includeStopped) {
@@ -673,6 +748,11 @@ function getDockerImageIdContainerIds (in_dockerImageId, in_includeStopped) {
 // ******************************
 
 function printDockerContainerStats (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
