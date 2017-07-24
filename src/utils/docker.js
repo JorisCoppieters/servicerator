@@ -396,6 +396,10 @@ function getDockerfile (in_sourceFolder) {
     let sourceFolder = in_sourceFolder;
 
     let dockerFolder = getDockerFolder(in_sourceFolder);
+    if (!dockerFolder) {
+        return false;
+    }
+
     let dockerfile = path.resolve(dockerFolder, 'Dockerfile');
     return dockerfile;
 }
@@ -411,6 +415,15 @@ function parseDockerfile (in_dockerFile) {
 
 function parseDockerfileContents (in_dockerFileContents) {
     let serviceConfig = {};
+    let dockerFileContentsLines = in_dockerFileContents.split(/(?:\n)|(?:\r\n?)/);
+
+    let baseImage = dockerFileContentsLines.find(l => l.match(/^FROM .*$/));
+    if (baseImage) {
+        serviceConfig.docker = serviceConfig.docker || {};
+        serviceConfig.docker.image = serviceConfig.docker.image || {};
+        serviceConfig.docker.image.base = baseImage.match(/^FROM (.*)$/)[1];
+    }
+
     return serviceConfig;
 }
 
@@ -546,13 +559,30 @@ function dockerLogin (in_username, in_password, in_repository) {
     let repository = in_repository || getDefaultDockerRepository();
     let args = ['login', '-u', in_username, '-p', in_password, repository];
     cprint.cyan('Logging into docker...');
-    let results = dockerCmd(args);
-    if (results.hasError) {
-        results.printError();
+    let cmdResult = dockerCmd(args);
+    if (cmdResult.hasError) {
+        cmdResult.printError();
     } else {
-        results.printResult();
+        cmdResult.printResult();
     }
-    return !results.hasError;
+    return !cmdResult.hasError;
+}
+
+// ******************************
+
+function dockerInfo () {
+    if (!dockerInstalled()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    let args = ['info'];
+    let cmdResult = dockerCmd(args);
+    if (cmdResult.hasError) {
+        cmdResult.printError();
+        return false;
+    }
+    return cmdResult.results;
 }
 
 // ******************************
@@ -631,6 +661,7 @@ module.exports['k_STATE_EXITED'] = k_STATE_EXITED;
 module.exports['login'] = dockerLogin;
 module.exports['installed'] = dockerInstalled;
 module.exports['version'] = dockerVersion;
+module.exports['info'] = dockerInfo;
 module.exports['cmd'] = dockerCmd;
 module.exports['parseDockerfile'] = parseDockerfile;
 module.exports['parseDockerfileContents'] = parseDockerfileContents;

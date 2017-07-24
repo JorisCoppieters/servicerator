@@ -29,10 +29,14 @@ function editServiceConfigFile () {
 function editServiceDockerfile (in_serviceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        cprint.yellow("Source folder not set");
+        return;
+    }
 
     let serviceDockerfile = docker.getDockerfile(sourceFolder);
     if (!serviceDockerfile) {
-        cprint.yellow("No service Dockerfile set");
+        cprint.yellow("Service Dockerfile not set");
         return;
     }
 
@@ -41,14 +45,15 @@ function editServiceDockerfile (in_serviceConfig) {
 
 // ******************************
 
-function editServiceFolder () {
-    let serviceFolder = env.getServiceFolder();
-    if (!serviceFolder) {
-        cprint.yellow("No service folder set");
+function editServiceFolder (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        cprint.yellow("Source folder not set");
         return;
     }
 
-    edit.folder(serviceFolder);
+    edit.folder(sourceFolder);
 }
 
 // ******************************

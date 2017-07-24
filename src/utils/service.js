@@ -101,6 +101,8 @@ function getServiceConfig (in_folderName) {
     if (fs.fileExists(dockerFile) && fs.folderExists(serviceFolder)) {
         let dockerServiceConfig = docker.parseDockerfile(dockerFile);
         if (dockerServiceConfig) {
+            Object.assign(serviceConfig, dockerServiceConfig);
+
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.image = serviceConfig.docker.image || {};
             serviceConfig.docker.image.name = path.basename(serviceFolder);
@@ -108,6 +110,10 @@ function getServiceConfig (in_folderName) {
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.name = path.basename(serviceFolder);
         }
+    }
+
+    if (fs.folderExists(serviceFolder)) {
+        serviceConfig.cwd = serviceFolder;
     }
 
     let pythonFolder = path.resolve(in_folderName, 'python');
@@ -376,154 +382,20 @@ function _getServiceConfigSchema () {
 function _getBaseServiceConfig (in_folderName) {
     let imageName = path.basename(in_folderName);
 
-    let serviceName =
-        imageName
-            .replace(/to/,'2')
-            .replace(/-([a-z])[a-z]+/g,'-$1')
-            .replace(/^([a-z])[a-z]+-/,'$1-')
-            .replace(/-/g,'');
-
-    let serviceTestUrl = 'https://' + serviceName + '.test.my-services-url.com';
-    let serviceProdUrl = 'https://' + serviceName + '.my-services-url.com';
-
     return {
-        model: {
-            version: '1.0.0',
-            type: 'bundled'
-        },
-        corpus: {
-            version: '1.0.0'
-        },
-        service: {
-            name: '',
-            urls: [
-                {env: 'test', val: serviceTestUrl},
-                {env: 'prod', val: serviceProdUrl}
-            ],
-            cluster: {
-                instance: {
-                    count: 2,
-                    type: 't2.small',
-                    volume_size: 8
-                }
-            }
-        },
-        auth: {
-            type: 'self-signed',
-            certificate: './auth/service.crt',
-            key: './auth/service.key',
-        },
         docker: {
             username: 'my-docker-username',
             image: {
                 name: imageName,
-                nginx: {
-                    servers: [
-                        {
-                            port: 5100,
-                            access_log: '/var/log/nginx/access_log',
-                            error_log: '/var/log/nginx/error_log',
-                            locations: [
-                                {location: '/', pass_through: 'http://127.0.0.1:5000/v1/status'},
-                                {location: '/v1/status', pass_through: 'http://127.0.0.1:5000/v1/status'},
-                                {location: '/v1/classify', pass_through: 'http://127.0.0.1:5000/v1/predict'},
-                                {location: '/v1/predict', pass_through: 'http://127.0.0.1:5000/v1/predict'}
-                            ]
-                        },
-                        {
-                            port: 5200,
-                            ssl: {
-                                certificate: '$AUTH_DIR/service.crt',
-                                key: '$AUTH_DIR/service.key'
-                            },
-                            access_log: '/var/log/nginx/ssl.access_log',
-                            error_log: '/var/log/nginx/ssl.error_log',
-                            locations: [
-                                {location: '/', pass_through: 'http://127.0.0.1:5000/v1/status'},
-                                {location: '/v1/status', pass_through: 'http://127.0.0.1:5000/v1/status'},
-                                {location: '/v1/classify', pass_through: 'http://127.0.0.1:5000/v1/predict'},
-                                {location: '/v1/predict', pass_through: 'http://127.0.0.1:5000/v1/predict'}
-                            ]
-                        }
-                    ]
-                },
-                ports: [
-                    5100,
-                    5200
-                ],
                 base: 'ubuntu:trusty',
                 language: 'none',
-                work_directory: './',
-                tags: [
-                ],
+                work_directory: '.',
                 tag_with_date: true,
-                apt_get_update: false,
-                apt_get_packages: [
-                    'htop',
-                    'unzip',
-                    'nano',
-                    'jp2a'
-                ],
-                pip_update: true,
-                pip_packages: [
-                    'psutil',
-                    'flask',
-                    'flask_cors'
-                ],
-                version: '1.0.0',
-                env_variables: [
-                    {key: 'SERVICE_NAME', val: serviceName},
-                    {key: 'PYTHON_DIR', val: './python'},
-                    {key: 'MODEL_DIR', val: './model'},
-                    {key: 'AUTH_DIR', val: './auth'}
-                ],
-                filesystem: [
-                    {
-                        source: 'python',
-                        destination: '$PYTHON_DIR',
-                        type: 'copy_folder'
-                    },
-                    {
-                        path: '/var/log/tm-services/$SERVICE_NAME',
-                        type: 'folder'
-                    },
-                    {
-                        path: '/var/log/tm-services/$SERVICE_NAME/api.log',
-                        type: 'file'
-                    }
-                ],
-                scripts: [
-                    {
-                        name: 'start-test',
-                        language: 'bash',
-                        commands: [
-                            'nginx &',
-                            'cd python; python api-test.py'
-                        ],
-                        cmd: true
-                    },
-                    {
-                        name: 'start-prod',
-                        language: 'bash',
-                        commands: [
-                            'nginx &',
-                            'cd python; python api-prod.py'
-                        ]
-                    }
-                ],
-                log: true
+                version: '1.0.0'
             },
             container: {
                 memory_limit: 1500,
-                cpu_core_count: 1,
-                ports: [
-                    {host: 5100, container: 5100},
-                    {host: 5200, container: 5200},
-                ],
-                commands: [
-                    {env: 'test', val: './scripts/start-test.sh'},
-                    {env: 'prod', val: './scripts/start-prod.sh'}
-                ]
+                cpu_core_count: 1
             }
         }
     };
