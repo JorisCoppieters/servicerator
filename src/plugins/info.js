@@ -8,6 +8,7 @@ let cprint = require('color-print');
 
 let docker = require('../utils/docker');
 let print = require('../utils/print');
+let env = require('../utils/env');
 
 // ******************************
 // Functions:
@@ -20,6 +21,8 @@ function printServiceInfo (in_serviceConfig) {
     let serviceConfigDockerContainer = serviceConfigDocker.container || {};
     let serviceConfigService = serviceConfig.service || {};
     let sourceFolder = serviceConfig.cwd || false;
+
+    let serviceConfigFile = env.getServiceConfigFile();
 
     let serviceName = serviceConfigService.name || false;
     let dockerUsername = serviceConfigDocker.username || false;
@@ -41,6 +44,7 @@ function printServiceInfo (in_serviceConfig) {
     dockerImageTags.slice(0,1).forEach((t) => {
         print.keyVal('Docker Image Tag', dockerImagePath + ':' + t);
     });
+    print.keyVal('Config File', serviceConfigFile || '(Not Set)');
     print.keyVal('Source Folder', sourceFolder || '(Not Set)');
     cprint.magenta('----');
 }

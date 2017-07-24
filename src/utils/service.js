@@ -72,9 +72,17 @@ function getServiceConfig (in_folderName) {
         }
     }
 
+    let serviceFolder = path.resolve(in_folderName);
     let dockerFile = path.resolve(in_folderName, 'Dockerfile');
 
-    if (!fs.fileExists(dockerFile)) {
+    if (fs.fileExists(dockerFile)) {
+        let dockerFolder = path.resolve(in_folderName, '../');
+        if (path.basename(dockerFolder) === 'docker') {
+            serviceFolder = path.resolve(dockerFolder, '../');
+        } else {
+            serviceFolder = path.resolve(dockerFolder, '../../');
+        }
+    } else {
         let dockerFolder = path.resolve(in_folderName, 'docker');
         if (fs.fileExists(dockerFolder)) {
             dockerFile = path.resolve(dockerFolder, 'Dockerfile');
@@ -90,10 +98,15 @@ function getServiceConfig (in_folderName) {
 
     let serviceConfig = _getBaseServiceConfig(in_folderName);
 
-    if (fs.fileExists(dockerFile)) {
+    if (fs.fileExists(dockerFile) && fs.folderExists(serviceFolder)) {
         let dockerServiceConfig = docker.parseDockerfile(dockerFile);
         if (dockerServiceConfig) {
-            // TODO
+            serviceConfig.docker = serviceConfig.docker || {};
+            serviceConfig.docker.image = serviceConfig.docker.image || {};
+            serviceConfig.docker.image.name = path.basename(serviceFolder);
+
+            serviceConfig.service = serviceConfig.service || {};
+            serviceConfig.service.name = path.basename(serviceFolder);
         }
     }
 
@@ -107,9 +120,9 @@ function getServiceConfig (in_folderName) {
         }
     }
 
-    // if (!serviceConfig.service || !serviceConfig.service.name) {
-    //     return false;
-    // }
+    if (!serviceConfig.service || !serviceConfig.service.name) {
+        return false;
+    }
 
     checkServiceConfigSchema(serviceConfig);
 
@@ -123,6 +136,7 @@ function getServiceConfigSchema () {
         cwd: 'STRING',
         aws: {
             access_key: 'STRING',
+            secret_key: 'STRING',
             account_id: 'NUMBER',
             region: 'STRING'
         },
@@ -156,6 +170,7 @@ function getServiceConfigSchema () {
         },
         docker: {
             username: 'STRING',
+            password: 'STRING',
             image: {
                 name: 'STRING',
                 nginx: {
@@ -409,7 +424,6 @@ function _getBaseServiceConfig (in_folderName) {
                 language: 'none',
                 work_directory: './',
                 tags: [
-                    'beta'
                 ],
                 tag_with_date: true,
                 apt_get_update: false,
