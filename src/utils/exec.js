@@ -20,8 +20,8 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
         cprint.white('  EXEC-SYNC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
     let execResult = child_process.spawnSync(in_cmd, in_args);
-    let errorResult = execResult.stderr.toString();
-    let cmdResult = execResult.stdout.toString();
+    let errorResult = (execResult.stderr || false).toString();
+    let cmdResult = (execResult.stdout || false).toString();
     let rows = cmdResult.trim().split(/(?:\n|(?:\r\n?))+/);
 
     if (in_errToOut) {

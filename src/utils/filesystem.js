@@ -71,6 +71,9 @@ function copyFile (in_source, in_destination) {
 // ******************************
 
 function fileExists (in_fileName) {
+    if (!in_fileName) {
+        return false;
+    }
     var file = path.resolve(process.cwd(), in_fileName);
     return fs.existsSync(file);
 }

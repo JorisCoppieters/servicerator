@@ -72,9 +72,17 @@ function getServiceConfig (in_folderName) {
         }
     }
 
+    let serviceFolder = path.resolve(in_folderName);
     let dockerFile = path.resolve(in_folderName, 'Dockerfile');
 
-    if (!fs.fileExists(dockerFile)) {
+    if (fs.fileExists(dockerFile)) {
+        let dockerFolder = path.resolve(in_folderName, '../');
+        if (path.basename(dockerFolder) === 'docker') {
+            serviceFolder = path.resolve(dockerFolder, '../');
+        } else {
+            serviceFolder = path.resolve(dockerFolder, '../../');
+        }
+    } else {
         let dockerFolder = path.resolve(in_folderName, 'docker');
         if (fs.fileExists(dockerFolder)) {
             dockerFile = path.resolve(dockerFolder, 'Dockerfile');
@@ -90,10 +98,15 @@ function getServiceConfig (in_folderName) {
 
     let serviceConfig = _getBaseServiceConfig(in_folderName);
 
-    if (fs.fileExists(dockerFile)) {
+    if (fs.fileExists(dockerFile) && fs.folderExists(serviceFolder)) {
         let dockerServiceConfig = docker.parseDockerfile(dockerFile);
         if (dockerServiceConfig) {
-            // TODO
+            serviceConfig.docker = serviceConfig.docker || {};
+            serviceConfig.docker.image = serviceConfig.docker.image || {};
+            serviceConfig.docker.image.name = path.basename(serviceFolder);
+
+            serviceConfig.service = serviceConfig.service || {};
+            serviceConfig.service.name = path.basename(serviceFolder);
         }
     }
 
@@ -220,7 +233,8 @@ function _getServiceConfigSchema () {
         "aws": {
             "access_key": "STRING",
             "account_id": "NUMBER",
-            "region": "STRING"
+            "region": "STRING",
+            "secret_key": "STRING"
         },
         "build": {
             "language": "STRING"
@@ -283,8 +297,6 @@ function _getServiceConfigSchema () {
                 "log": "BOOLEAN",
                 "name": "STRING",
                 "nginx": {
-                    "certificate": "STRING",
-                    "key": "STRING",
                     "servers": [
                         {
                             "access_log": "STRING",
@@ -332,6 +344,7 @@ function _getServiceConfigSchema () {
                     "type": "STRING"
                 }
             ],
+            "password": "STRING",
             "username": "STRING"
         },
         "model": {
@@ -405,19 +418,31 @@ function _getBaseServiceConfig (in_folderName) {
             image: {
                 name: imageName,
                 nginx: {
-                    certificate: '$AUTH_DIR/service.crt',
-                    key: '$AUTH_DIR/service.key',
                     servers: [
                         {
                             port: 5100,
-                            secure: false,
-                            paths: [
+                            access_log: '/var/log/nginx/access_log',
+                            error_log: '/var/log/nginx/error_log',
+                            locations: [
+                                {location: '/', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/status', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/classify', pass_through: 'http://127.0.0.1:5000/v1/predict'},
+                                {location: '/v1/predict', pass_through: 'http://127.0.0.1:5000/v1/predict'}
                             ]
                         },
                         {
                             port: 5200,
-                            secure: true,
-                            paths: [
+                            ssl: {
+                                certificate: '$AUTH_DIR/service.crt',
+                                key: '$AUTH_DIR/service.key'
+                            },
+                            access_log: '/var/log/nginx/ssl.access_log',
+                            error_log: '/var/log/nginx/ssl.error_log',
+                            locations: [
+                                {location: '/', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/status', pass_through: 'http://127.0.0.1:5000/v1/status'},
+                                {location: '/v1/classify', pass_through: 'http://127.0.0.1:5000/v1/predict'},
+                                {location: '/v1/predict', pass_through: 'http://127.0.0.1:5000/v1/predict'}
                             ]
                         }
                     ]
@@ -430,7 +455,6 @@ function _getBaseServiceConfig (in_folderName) {
                 language: 'none',
                 work_directory: './',
                 tags: [
-                    'beta'
                 ],
                 tag_with_date: true,
                 apt_get_update: false,
