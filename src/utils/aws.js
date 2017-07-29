@@ -1,7 +1,7 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Requries:
+// Requires:
 // ******************************
 
 let path = require('path');

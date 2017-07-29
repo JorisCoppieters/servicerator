@@ -1,7 +1,7 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Requries:
+// Requires:
 // ******************************
 
 // ******************************
@@ -15,9 +15,7 @@ function getIgnoreFileContents (in_serviceConfig) {
     let serviceConfigDockerBuild = serviceConfigDocker.build || {};
 
     let ignoreFiles = [
-        'docker/.aws_cache/*',
-        'docker/auth/*.crt',
-        'docker/auth/*.key'
+        'docker/.aws_cache/*'
     ];
 
     if (serviceConfigDockerImage.language === 'node') {
@@ -34,6 +32,13 @@ function getIgnoreFileContents (in_serviceConfig) {
 
     if (serviceConfig.model) {
         ignoreFiles.push('docker/model/*');
+    }
+
+    if (serviceConfig.auth) {
+        ignoreFiles.push('auth/*.crt');
+        ignoreFiles.push('auth/*.key');
+        ignoreFiles.push('docker/auth/*.crt');
+        ignoreFiles.push('docker/auth/*.key');
     }
 
     if (serviceConfigDockerBuild.language === 'bash') {

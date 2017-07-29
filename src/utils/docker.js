@@ -1,16 +1,17 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Requries:
+// Requires:
 // ******************************
 
 let cprint = require('color-print');
 let path = require('path');
 
-let fs = require('./filesystem');
-let exec = require('./exec');
 let date = require('./date');
 let env = require('./env');
+let exec = require('./exec');
+let fs = require('./filesystem');
+let test = require('./test');
 
 // ******************************
 // Constants:
@@ -88,8 +89,8 @@ function getDockerfileContents (in_serviceConfig) {
 
         firstFilesystem.push(
             {
-                "path": "$SCRIPTS_DIR",
-                "type": "folder"
+                'path': '$SCRIPTS_DIR',
+                'type': 'folder'
             }
         );
     }
@@ -102,8 +103,8 @@ function getDockerfileContents (in_serviceConfig) {
 
         firstFilesystem.push(
             {
-                "path": "$MODEL_DIR",
-                "type": "folder"
+                'path': '$MODEL_DIR',
+                'type': 'folder'
             }
         );
 
@@ -134,8 +135,8 @@ function getDockerfileContents (in_serviceConfig) {
 
         firstFilesystem.push(
             {
-                "path": "$AUTH_DIR",
-                "type": "folder"
+                'path': '$AUTH_DIR',
+                'type': 'folder'
             }
         );
 
@@ -171,8 +172,8 @@ function getDockerfileContents (in_serviceConfig) {
 
         firstFilesystem.push(
             {
-                "path": "$PYTHON_DIR",
-                "type": "folder"
+                'path': '$PYTHON_DIR',
+                'type': 'folder'
             }
         );
     } else if (serviceConfigDockerImage.language === 'node') {
@@ -183,8 +184,8 @@ function getDockerfileContents (in_serviceConfig) {
 
         firstFilesystem.push(
             {
-                "path": "$NODE_DIR",
-                "type": "folder"
+                'path': '$NODE_DIR',
+                'type': 'folder'
             }
         );
     }
@@ -207,7 +208,7 @@ function getDockerfileContents (in_serviceConfig) {
         `#`,
         `# ----------------------`].join('\n') +
     (envVariables.length ?
-        '\n\n' + envVariables.map(v => `    ENV ${v.key} "${v.val}"`).join('\n') : ''
+        '\n\n' + envVariables.map(v => `    ENV ${v.key} '${v.val}'`).join('\n') : ''
     ) +
     (imagePorts.length ?
         '\n\n' + imagePorts.map(p => `    EXPOSE ${p}`).join('\n') : ''
@@ -237,7 +238,7 @@ function getDockerfileContents (in_serviceConfig) {
             ``].join('\n') +
         aptGetPackages
             .map(p => {
-                return `        "${p}"`;
+                return `        '${p}'`;
             }).join(' \\\n')
         : '') +
     (pipPackages.length ?
@@ -254,7 +255,7 @@ function getDockerfileContents (in_serviceConfig) {
             ``].join('\n') +
         pipPackages
             .map(p => {
-                return `        "${p}"`;
+                return `        '${p}'`;
             }).join(' \\\n')
         : '') +
     (commands.length ?
@@ -295,28 +296,28 @@ function getDockerfileContents (in_serviceConfig) {
         filesystem
             .map(f => {
                 if (f.type === 'folder') {
-                    return `    RUN mkdir -p "${f.path}"`;
+                    return `    RUN mkdir -p '${f.path}'`;
                 } else if (f.type === 'copy_folder') {
-                    return `    COPY "${f.source}" "${f.destination}"`;
+                    return `    COPY '${f.source}' '${f.destination}'`;
                 } else if (f.type === 'copy_file') {
-                    return `    COPY "${f.source}" "${f.destination}"`;
+                    return `    COPY '${f.source}' '${f.destination}'`;
                 } else if (f.type === 'file') {
-                    let command = `    RUN touch "${f.path}"`;
+                    let command = `    RUN touch '${f.path}'`;
 
                     if (f.permissions) {
-                        command += ` && chmod ${f.permissions} "${f.path}"`
+                        command += ` && chmod ${f.permissions} '${f.path}'`
                     }
 
                     if (f.contents && f.contents.length) {
                         command += '\n    RUN \\' +
                         f.contents
-                            .map(c => `\n        echo "${c}" >> "${f.path}"`)
+                            .map(c => `\n        echo '${c}' >> '${f.path}'`)
                             .join(' && \\');
                     }
 
                     return command;
                 } else if (f.type === 'link') {
-                    return `    RUN ln -s "${f.source}" "${f.destination}"`;
+                    return `    RUN ln -s '${f.source}' '${f.destination}'`;
                 }
             }).join('\n')
         : '') +
@@ -339,10 +340,10 @@ function getDockerfileContents (in_serviceConfig) {
                         ``,
                         `    RUN touch ${s.key} && chmod +x ${s.key}`,
                         `    RUN \\`,
-                        `        echo "#! /bin/bash" > ${s.key} && \\`,
+                        `        echo '#! /bin/bash' > ${s.key} && \\`,
                     ].join('\n') +
                     s.commands
-                        .map(c => `\n        echo "${c}" >> ${s.key}`)
+                        .map(c => `\n        echo '${c}' >> ${s.key}`)
                         .join(' && \\');
                 }
             }).join('\n')
@@ -523,7 +524,7 @@ function getDockerImageTags (in_serviceConfig) {
         }
     }
 
-    let corpusVersion = serviceConfigModel.version;
+    let corpusVersion = serviceConfigCorpus.version;
     if (corpusVersion) {
         let corpusVersionTag = 'corpus-version-' + corpusVersion;
         if (dockerImageTags.indexOf(corpusVersionTag) < 0) {

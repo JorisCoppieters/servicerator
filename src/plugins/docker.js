@@ -1,7 +1,7 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Requries:
+// Requires:
 // ******************************
 
 let cprint = require('color-print');
@@ -1073,6 +1073,11 @@ function getTitle () {
 }
 
 // ******************************
+
+function runTests () {
+}
+
+// ******************************
 // Exports:
 // ******************************
 
@@ -1080,5 +1085,6 @@ module.exports['handleCommand'] = handleCommand;
 module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
 module.exports['getTitle'] = getTitle;
+module.exports['runTests'] = runTests;
 
 // ******************************

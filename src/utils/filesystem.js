@@ -1,9 +1,10 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Requries:
+// Requires:
 // ******************************
 
+let Promise = require('bluebird');
 let fs = require('fs');
 let path = require('path');
 let process = require('process');
@@ -54,18 +55,25 @@ function readFile (in_fileName) {
 // ******************************
 
 function copyFile (in_source, in_destination) {
-    var source = path.resolve(process.cwd(), in_source);
-    var destination = path.resolve(process.cwd(), in_destination);
-    if (!fs.existsSync(source)) {
-        return false;
-    }
+    return new Promise((resolve, reject) => {
+        var source = path.resolve(process.cwd(), in_source);
+        var destination = path.resolve(process.cwd(), in_destination);
+        if (!fs.existsSync(source)) {
+            return resolve();
+        }
 
-    let readStream = fs.createReadStream(source);
-    readStream.once('error', (err) => {
-        cprint.red(err);
+        let readStream = fs.createReadStream(source);
+        readStream.once('error', (err) => {
+            cprint.red(err);
+            return reject();
+        });
+
+        readStream.on('close', () => {
+            return resolve();
+        });
+
+        readStream.pipe(fs.createWriteStream(destination));
     });
-
-    readStream.pipe(fs.createWriteStream(destination));
 }
 
 // ******************************
