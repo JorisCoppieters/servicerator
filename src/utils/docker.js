@@ -377,6 +377,10 @@ function getDockerFolder (in_sourceFolder) {
         return;
     }
 
+    if (fs.fileExists(path.resolve(sourceFolder, 'Dockerfile'))) {
+        return sourceFolder;
+    }
+
     let dockerFolder = path.resolve(sourceFolder, 'docker');
     if (fs.fileExists(path.resolve(dockerFolder, 'Dockerfile'))) {
         return dockerFolder;

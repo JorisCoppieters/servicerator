@@ -199,7 +199,7 @@ function _parseCmdResult (in_cmdResult) {
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
+    let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let _arg_prod = in_args['prod'];
 
     let serviceConfig = in_serviceConfig || {};

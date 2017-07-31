@@ -9,6 +9,7 @@ let cprint = require('color-print');
 let edit = require('../utils/edit');
 let docker = require('../utils/docker');
 let env = require('../utils/env');
+let init = require('../utils/init');
 
 // ******************************
 // Functions:
@@ -17,8 +18,12 @@ let env = require('../utils/env');
 function editServiceConfigFile () {
     let serviceConfigFile = env.getServiceConfigFile();
     if (!serviceConfigFile) {
-        cprint.yellow("No service config file set");
-        return;
+        init.folder('.')
+        serviceConfigFile = env.getServiceConfigFile();
+        if (!serviceConfigFile) {
+            cprint.yellow("No service config file set");
+            return;
+        }
     }
 
     edit.file(serviceConfigFile);
@@ -61,7 +66,7 @@ function editServiceFolder (in_serviceConfig) {
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
+    let command = in_params.length ? in_params.shift().toLowerCase().toLowerCase() : '';
     switch(command)
     {
         case '':
@@ -84,7 +89,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 // ******************************
 
 function getBaseCommands () {
-    return ['edit'];
+    return ['edit', 'configure', 'config'];
 }
 
 // ******************************

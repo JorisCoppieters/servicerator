@@ -120,7 +120,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
+    let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let overwrite = in_args['overwrite'];
     switch(command)
     {

@@ -30,6 +30,7 @@ function printServiceInfo (in_serviceConfig) {
     let dockerImageVersion = serviceConfigDockerImage.version || false;
     let dockerImageLanguage = serviceConfigDockerImage.language || false;
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
+    let dockerfile = docker.getDockerfile(sourceFolder);
 
     let dockerImagePath = false;
     if (dockerUsername && dockerImageName) {
@@ -38,6 +39,7 @@ function printServiceInfo (in_serviceConfig) {
 
     cprint.magenta('-- Service Info --');
     print.keyVal('Service Name', serviceName || '(Not Set)');
+    print.keyVal('Docker File', dockerfile || '(Not Set)');
     print.keyVal('Docker Image Name', dockerImageName || '(Not Set)');
     print.keyVal('Docker Image Language', dockerImageLanguage || '(Not Set)');
     print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
@@ -54,7 +56,7 @@ function printServiceInfo (in_serviceConfig) {
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
+    let command = in_params.length ? in_params.shift().toLowerCase() : '';
     switch(command)
     {
         case '':

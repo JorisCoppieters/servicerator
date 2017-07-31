@@ -46,7 +46,7 @@ if (g_ARGV['help']) {
     let params = g_ARGV['_'] || false;
     let overwrite = g_ARGV['overwrite'];
 
-    let command = params.length ? params.shift() : 'info';
+    let command = params.length ? params.shift().toLowerCase() : 'info';
     if (command === 'help') {
         help.printHelp();
         return;

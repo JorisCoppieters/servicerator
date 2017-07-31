@@ -947,7 +947,7 @@ function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepository
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
-    let command = in_params.length ? in_params.shift() : '';
+    let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let no_cache = in_args['cache'] === false;
     let force = in_args['force'];
     switch(command)
