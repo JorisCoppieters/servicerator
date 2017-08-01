@@ -227,7 +227,7 @@ function getDockerfileContents (in_serviceConfig) {
     (imagePorts.length ?
         '\n\n' + imagePorts.map(p => `    EXPOSE ${p}`).join('\n') : ''
     ) +
-    (workdir !== './' ?
+    (workdir !== './' && workdir !== '.' ?
         [
             ``,
             ``,
@@ -443,12 +443,14 @@ function parseDockerfileContents (in_dockerFileContents) {
     let serviceConfig = {};
     let dockerFileContentsLines = in_dockerFileContents.split(/(?:\n)|(?:\r\n?)/);
 
-    let baseImage = dockerFileContentsLines.find(l => l.match(/^FROM .*$/));
-    if (baseImage) {
-        serviceConfig.docker = serviceConfig.docker || {};
-        serviceConfig.docker.image = serviceConfig.docker.image || {};
-        serviceConfig.docker.image.base = baseImage.match(/^FROM (.*)$/)[1];
-    }
+    dockerFileContentsLines.forEach(l => {
+        let fromMatch = l.match(/^ *FROM (.*)$/);
+        if (fromMatch) {
+            serviceConfig.docker = serviceConfig.docker || {};
+            serviceConfig.docker.image = serviceConfig.docker.image || {};
+            serviceConfig.docker.image.base = fromMatch[1];
+        }
+    });
 
     return serviceConfig;
 }

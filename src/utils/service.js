@@ -55,6 +55,11 @@ function getServiceConfig (in_folderName) {
         let dockerServiceConfig = docker.parseDockerfile(dockerfile);
         if (dockerServiceConfig) {
             serviceConfig = copyServiceConfig(serviceConfig, dockerServiceConfig);
+            serviceConfig = copyServiceConfig(serviceConfig, {
+                service: {
+                    name: path.basename(sourceFolder)
+                }
+            });
         }
     }
 
@@ -77,7 +82,7 @@ function getServiceConfig (in_folderName) {
                 name: path.basename(sourceFolder),
                 language: 'none',
                 base: 'ubuntu:trusty',
-                work_directory: '.',
+                work_directory: '/root',
                 tag_with_date: true,
                 version: '1.0.0'
             },
@@ -85,9 +90,6 @@ function getServiceConfig (in_folderName) {
                 memory_limit: 1500,
                 cpu_core_count: 1
             }
-        },
-        service: {
-            name: path.basename(sourceFolder)
         }
     });
 
