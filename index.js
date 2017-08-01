@@ -74,10 +74,18 @@ if (g_ARGV['help']) {
 
     let pluginHandled = false;
     plugins.forEach(p => {
-        if (p.getBaseCommands().indexOf(command) >= 0 &&
-            p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
-            pluginHandled = true;
-            return;
+        if (p.getBaseCommands().indexOf(command) >= 0) {
+            let nextParam = (params[0] || '').toLowerCase();
+            if (nextParam === 'help') {
+                help.printPluginHelp(command);
+                pluginHandled = true;
+                return;
+            }
+
+            if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
+                pluginHandled = true;
+                return;
+            }
         }
     });
 

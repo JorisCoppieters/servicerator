@@ -45,7 +45,7 @@ function initFolder (in_folderName, in_overwrite) {
         }
 
         serviceConfig = service.getConfig(sourceFolder);
-        fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4), true);
+        fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
     }
 
     serviceConfig.cwd = sourceFolder;
@@ -67,9 +67,22 @@ function saveServiceConfig (in_serviceConfig) {
 
     cprint.cyan('Saving service config...');
     let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
-    fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4), true);
+    fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
 }
 
+// ******************************
+// Helper Functions:
+// ******************************
+
+
+// ******************************
+
+function _serviceConfigReplacer (in_key, in_val) {
+    if (in_key === 'cwd') {
+        return undefined;
+    }
+    return in_val;
+}
 // ******************************
 // Exports:
 // ******************************

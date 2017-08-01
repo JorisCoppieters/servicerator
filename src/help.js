@@ -46,6 +46,18 @@ function printHelp (in_message) {
 
 // ******************************
 
+function printPluginHelp (in_command) {
+    plugins.forEach(p => {
+        if (p.getBaseCommands().indexOf(in_command) >= 0) {
+            _printPluginHelp(p.getTitle(), p.getCommands());
+        }
+    });
+}
+
+// ******************************
+// Test Functions:
+// ******************************
+
 function _printPluginHelp (in_plugin, in_commands) {
     _printHelpHeader(in_plugin + ' Commands');
     in_commands.forEach(command => {
@@ -109,6 +121,7 @@ function printVersion () {
 // ******************************
 
 module.exports['printHelp'] = printHelp;
+module.exports['printPluginHelp'] = printPluginHelp;
 module.exports['printVersion'] = printVersion;
 
 // ******************************
