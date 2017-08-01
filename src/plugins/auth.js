@@ -157,7 +157,8 @@ function generateAuthFiles (in_serviceConfig) {
             `L = Wellington`,
             `O = TradeMe Ltd.`,
             `OU = Data Science`,
-            `CN = "${serviceName}".trademe-ds.com`,
+            `CN = "${serviceName}".trademe-ds.com`, // TODO - remove TM specific AUTH stuff
+
 
             `[req_ext]`,
             `keyUsage = keyEncipherment, dataEncipherment`,
@@ -166,6 +167,8 @@ function generateAuthFiles (in_serviceConfig) {
 
             `[alt_names]`
         ];
+
+        // TODO - remove TM specific AUTH stuff
 
         [`${serviceName}.test.trademe-ds.com`].concat(serviceConfigServiceUrls.map(u => u.val)).forEach((u, idx) => {
             reqCaCrtConfigContents.push(`DNS.${idx} = "${u}"`);
@@ -217,6 +220,8 @@ function generateAuthFiles (in_serviceConfig) {
 
             `[ alternate_names ]`
         ];
+
+        // TODO - remove TM specific AUTH stuff
 
         [`${serviceName}.test.trademe-ds.com`].concat(serviceConfigServiceUrls.map(u => u.val)).forEach((u, idx) => {
             caSignExtConfigContents.push(`DNS.${idx} = "${u}"`);

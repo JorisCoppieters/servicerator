@@ -22,7 +22,7 @@ function indentContents (in_contents, in_indent) {
             if (!c.trim()) {
                 return;
             }
-            contents += indent + c.trim() + '\n';
+            contents += indent + c + '\n';
         })
 
     contents = contents

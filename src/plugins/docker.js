@@ -12,8 +12,11 @@ let aws = require('../utils/aws');
 let docker = require('../utils/docker');
 let edit = require('../utils/edit');
 let exec = require('../utils/exec');
+let fs = require('../utils/filesystem');
+let gitbash = require('../utils/gitbash');
 let init = require('../utils/init');
 let print = require('../utils/print');
+let service = require('../utils/service');
 let sync = require('../utils/sync');
 
 // ******************************
@@ -172,6 +175,12 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     }
 
     let dockerFolder = docker.getFolder(sourceFolder);
+    if (!dockerFolder || !fs.folderExists(dockerFolder)) {
+        cprint.yellow('Docker folder doesn\'t exist');
+        return;
+    }
+
+    _preBuildDockerFolder(in_serviceConfig);
 
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
     let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
@@ -197,6 +206,8 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
 
     cprint.cyan('Building Docker image...');
     exec.cmd('docker', args, '  ');
+
+    _postBuildDockerFolder(in_serviceConfig);
 }
 
 // ******************************
@@ -457,6 +468,10 @@ function startDockerContainer (in_serviceConfig) {
     let serviceName = serviceConfigService.name || 'service';
 
     let dockerFolder = docker.getFolder(sourceFolder);
+    if (!dockerFolder || !fs.folderExists(dockerFolder)) {
+        cprint.yellow('Docker folder doesn\'t exist');
+        return;
+    }
 
     let dockerUsername = serviceConfigDocker.username;
     let dockerImageName = serviceConfigDockerImage.name;
@@ -489,6 +504,9 @@ function startDockerContainer (in_serviceConfig) {
         if (!port.host || !port.container) {
             return;
         }
+        if (port.env !== 'test') {
+            return;
+        }
         args.push('--publish');
         args.push(port.host + ':' + port.container);
     });
@@ -499,8 +517,7 @@ function startDockerContainer (in_serviceConfig) {
         }
 
         let volumeHost = path.resolve(dockerFolder, volume.host);
-        let volumeContainer = volume.container
-            .replace(/\$SERVICE_NAME/, serviceName);
+        let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
 
         args.push('--volume');
         args.push(volumeHost + ':' + volumeContainer);
@@ -530,6 +547,11 @@ function enterDockerContainer (in_serviceConfig) {
         return false;
     }
 
+    if (!gitbash.installed()) {
+        cprint.yellow('GitBash isn\'t installed');
+        return false;
+    }
+
     let runningDockerContainerId = getRunningDockerContainerId(in_serviceConfig);
     if (!runningDockerContainerId) {
         cprint.yellow('No running container found');
@@ -537,9 +559,7 @@ function enterDockerContainer (in_serviceConfig) {
     }
 
     let args = ['-c', 'docker exec --interactive --tty ' + runningDockerContainerId + ' bash'];
-    exec.cmd('C:/Program Files/Git/git-bash.exe', args);
-    // TODO
-    // gitbash.cmd(args);
+    gitbash.cmd(args);
 }
 
 // ******************************
@@ -554,7 +574,6 @@ function stopDockerContainer (in_serviceConfig) {
     dockerImageIds.forEach(id => stopDockerImageIdContainer(id));
 
     if (getDockerContainerState(in_serviceConfig) < docker.k_STATE_RUNNING) {
-        cprint.yellow('No running container found');
         return;
     }
 
@@ -655,6 +674,23 @@ function removeDockerImageIdContainer (in_dockerImageId) {
             cmdResult.printResult('  ');
         }
     });
+}
+
+// ******************************
+
+function verifyDockerContainer (in_serviceConfig) {
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_RUNNING) {
+        cprint.yellow('No running container found');
+        return;
+    }
+
+    // TODO
+    cprint.magenta('Not implemented!');
 }
 
 // ******************************
@@ -800,6 +836,39 @@ function editServiceDockerfile (in_serviceConfig) {
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _preBuildDockerFolder (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+
+    if (serviceConfigDockerImage.language === 'python') {
+        let serviceConfigDockerImagePython = serviceConfigDockerImage.python || {};
+
+        let constantsFile = path.resolve(dockerFolder, 'python', 'constants.py');
+        let constantsFileLines = serviceConfigDockerImagePython.constants || [];
+        constantsFileLines = ['# CONSTANTS'].concat(constantsFileLines);
+        let constantsFileContents = constantsFileLines
+            .map(l => {
+                return service.replaceServiceConfigReferences(in_serviceConfig, l);
+            })
+            .join('\n');
+
+        fs.writeFile(constantsFile, constantsFileContents, true);
+    }
+}
+
+// ******************************
+
+function _postBuildDockerFolder (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+}
+
 // ******************************
 
 function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepository, in_cmd) {
@@ -1040,29 +1109,42 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         case 'stats':
             printDockerContainerStats(in_serviceConfig);
             break;
+
         case 'start':
         case 'start-container':
         case 'run':
         case 'run-container':
             startDockerContainer(in_serviceConfig);
             break;
+
         case 'enter':
         case 'enter-container':
         case 'interact':
         case 'interactive':
             enterDockerContainer(in_serviceConfig);
             break;
+
         case 'stop':
         case 'stop-container':
             stopDockerContainer(in_serviceConfig);
             break;
+
         case 'rm':
         case 'remove':
         case 'remove-container':
             removeDockerContainer(in_serviceConfig);
             break;
 
+        case 'verify':
+        case 'verify-container':
+        case 'test':
+        case 'test-container':
+            verifyDockerContainer(in_serviceConfig);
+            break;
+
         case 'edit':
+        case 'config':
+        case 'configure':
             editServiceDockerfile(in_serviceConfig);
             break;
 
@@ -1092,13 +1174,14 @@ function getCommands () {
         { params: ['enter-container', 'enter', 'interact', 'interactive'], description: 'Enter the running service docker container' },
         { params: ['stop-container', 'stop'], description: 'Stop the service docker container' },
         { params: ['remove-container', 'remove', 'rm'], description: 'Remove the service docker container' },
+        { params: ['verify-container', 'verify', 'test-container', 'test'], description: 'Verify the service docker container' },
         { params: ['container', 'stats', 'state', 'running'], description: 'Print the current state of the service docker container' },
         { params: ['pull'], description: 'Pull the service docker image' },
         { params: ['build'], description: 'Build the service docker image', options: [{param:'no-cache', description:'Don\'t use cached images'}] },
         { params: ['push'], description: 'Push the service docker image' },
         { params: ['clean'], description: 'Clean up service temporary docker images', options: [{param:'force', description:'Force clean'}] },
         { params: ['purge'], description: 'Remove all service docker images', options: [{param:'force', description:'Force purge'}] },
-        { params: ['edit'], description: 'Edit the Dockerfile' },
+        { params: ['edit', 'config', 'configure'], description: 'Edit the Dockerfile' },
     ];
 }
 

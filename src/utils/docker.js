@@ -39,7 +39,6 @@ function getDockerfileContents (in_serviceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
     let serviceConfigService = serviceConfig.service || {};
 
     let baseImage = serviceConfigDockerImage.base || 'ubuntu:trusty';

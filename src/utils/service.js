@@ -1,6 +1,14 @@
 'use strict'; // JS: ES6
 
 // ******************************
+// Constants:
+// ******************************
+
+// TODO - remove TM specific image
+const k_DEFAULT_PYTHON_IMAGE = 'trademe/base-python-anaconda:python-version-2.7.13_anaconda-4.3.1';
+const k_DEFAULT_IMAGE = 'ubuntu:trusty';
+
+// ******************************
 // Requires:
 // ******************************
 
@@ -69,7 +77,7 @@ function getServiceConfig (in_folderName) {
             docker: {
                 image: {
                     language: 'python',
-                    base: 'trademe/base-python-anaconda:python-version-2.7.13_anaconda-4.3.1'
+                    base: k_DEFAULT_PYTHON_IMAGE
                 }
             }
         });
@@ -80,11 +88,10 @@ function getServiceConfig (in_folderName) {
             username: 'my-docker-username',
             image: {
                 name: path.basename(sourceFolder),
-                language: 'none',
-                base: 'ubuntu:trusty',
+                base: k_DEFAULT_IMAGE,
                 work_directory: '/root',
                 tag_with_date: true,
-                version: '1.0.0'
+                version: '0.1.0'
             },
             container: {
                 memory_limit: 1500,
@@ -136,6 +143,27 @@ function copyServiceConfig (in_source, in_destination) {
     }
 
     return destination;
+}
+
+// ******************************
+
+function replaceServiceConfigReferences (in_serviceConfig, in_string) {
+    let serviceConfig = in_serviceConfig || {};
+    let replacements = {
+        'SERVICE_NAME': `${serviceConfig.service.name}`,
+        'MODEL_VERSION': `${serviceConfig.model.version}`,
+        'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`,
+        'CPU_CORE_COUNT': `${serviceConfig.docker.container.cpu_core_count}`
+    };
+
+    let replaced = in_string || '';
+
+    Object.keys(replacements).forEach(search => {
+        let replace = replacements[search];
+        replaced = replaced.replace(new RegExp("\\\$" + search), replace);
+    });
+
+    return replaced;
 }
 
 // ******************************
@@ -282,13 +310,15 @@ function _getServiceConfigSchema () {
                 "ports": [
                     {
                         "container": "NUMBER",
-                        "host": "NUMBER"
+                        "host": "NUMBER",
+                        "env": "STRING"
                     }
                 ],
                 "volumes": [
                     {
                         "container": "STRING",
-                        "host": "STRING"
+                        "host": "STRING",
+                        "name": "STRING"
                     }
                 ]
             },
@@ -320,6 +350,11 @@ function _getServiceConfigSchema () {
                     }
                 ],
                 "language": "STRING",
+                "python": {
+                    "constants": [
+                        "STRING"
+                    ]
+                },
                 "log": "BOOLEAN",
                 "name": "STRING",
                 "nginx": {
@@ -405,5 +440,6 @@ module.exports['getConfig'] = getServiceConfig;
 module.exports['copyConfig'] = copyServiceConfig;
 module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
+module.exports['replaceServiceConfigReferences'] = replaceServiceConfigReferences;
 
 // ******************************
