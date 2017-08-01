@@ -7,6 +7,7 @@
 let path = require('path');
 let cprint = require('color-print');
 
+let ini = require('./ini');
 let env = require('./env');
 let exec = require('./exec');
 let fs = require('./filesystem');
@@ -64,6 +65,54 @@ function getAwsDockerCredentials (in_serviceConfig) {
         username: responseMatch[1],
         password: responseMatch[2]
     };
+}
+
+// ******************************
+
+function getAwsServiceConfig () {
+    let serviceConfig = {};
+    let homeFolder = env.getShellHome();
+
+    serviceConfig.aws = serviceConfig.aws || {};
+
+    let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
+    let awsConfig = ini.parseFile(awsConfigFile);
+    if (awsConfig.default && awsConfig.default.region) {
+        serviceConfig.aws.region = awsConfig.default.region;
+    }
+
+    let awsCredentialsFile = path.resolve(homeFolder, '.aws', 'credentials');
+    let awsCredentials = ini.parseFile(awsCredentialsFile);
+    if (awsCredentials.default && awsCredentials.default.aws_access_key_id) {
+        serviceConfig.aws.access_key = awsCredentials.default.aws_access_key_id;
+    }
+
+    return serviceConfig;
+}
+
+// ******************************
+
+function getAwsRepositoryServiceConfig () {
+    let serviceConfig = {};
+
+    serviceConfig.docker = serviceConfig.docker || {};
+    serviceConfig.docker.other_repositories = serviceConfig.docker.other_repositories || [];
+    serviceConfig.docker.other_repositories.push({
+        'type': 'AWS'
+    });
+
+    if (awsInstalled()) {
+        let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], true);
+        if (!awsCmdResult.hasErrors) {
+            serviceConfig.aws = serviceConfig.aws || {};
+            let awsStats = JSON.parse(awsCmdResult.result);
+            if (awsStats && awsStats.Account) {
+                serviceConfig.aws.account_id = parseInt(awsStats.Account);
+            }
+        }
+    }
+
+    return serviceConfig;
 }
 
 // ******************************
@@ -187,6 +236,8 @@ module.exports['installed'] = awsInstalled;
 module.exports['version'] = awsVersion;
 module.exports['login'] = awsLogin;
 module.exports['cmd'] = awsCmd;
+module.exports['getServiceConfig'] = getAwsServiceConfig;
+module.exports['getRepositoryServiceConfig'] = getAwsRepositoryServiceConfig;
 module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepository'] = getAwsDockerRepository;

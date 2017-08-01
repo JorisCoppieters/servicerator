@@ -16,122 +16,86 @@ let bash = require('./bash');
 // ******************************
 
 function getServiceConfig (in_folderName) {
-    let bashEnvFile = path.resolve(in_folderName, '_env.sh');
     let sourceFolder = false;
 
-    if (bashEnvFile && fs.fileExists(bashEnvFile)) {
-        let dockerFolder = path.resolve(bashEnvFile, '../');
+    let dockerFolder = docker.getFolder(in_folderName);
+    if (dockerFolder) {
         if (path.dirname(dockerFolder) === 'docker') {
             sourceFolder = path.resolve(dockerFolder, '../');
-        } else {
+        } else if (path.dirname(path.resolve(dockerFolder, '../')) === 'docker') {
             sourceFolder = path.resolve(dockerFolder, '../../');
+        } else {
+            sourceFolder = dockerFolder;
         }
     } else {
-        let dockerFolder = path.resolve(in_folderName, 'docker');
-        if (dockerFolder && fs.fileExists(dockerFolder)) {
-
-            bashEnvFile = path.resolve(dockerFolder, '_env.sh');
-            sourceFolder = path.resolve(dockerFolder, '../');
-
-            if (!bashEnvFile || !fs.fileExists(bashEnvFile)) {
-                let folders = fs.folders(dockerFolder)
-                    .map(f => path.resolve(dockerFolder, f))
-                    .filter(fs.folderExists)
-                    .filter(fs.isFolder);
-
-                bashEnvFile = folders
-                    .map(f => path.resolve(f, '_env.sh'))
-                    .find(fs.fileExists);
-
-                sourceFolder = path.resolve(dockerFolder, '../');
-            }
-        }
+        sourceFolder = in_folderName;
     }
 
+    let serviceConfig = {};
+
+    if (fs.folderExists(sourceFolder)) {
+        serviceConfig.cwd = sourceFolder;
+    }
+
+    let bashEnvFile = path.resolve(sourceFolder, '_env.sh');
     if (bashEnvFile && fs.fileExists(bashEnvFile)) {
         let bashServiceConfig = bash.parseEnvFile(bashEnvFile);
         if (bashServiceConfig) {
-            bashServiceConfig.build = {
-                language: 'bash'
-            };
-            bashServiceConfig.cwd = sourceFolder;
-
-            let pythonFolder = path.resolve(in_folderName, 'python');
-            if (pythonFolder && fs.folderExists(pythonFolder)) {
-                if (!bashServiceConfig.docker || !bashServiceConfig.docker.env) {
-                    bashServiceConfig.docker = bashServiceConfig.docker || {};
-                    bashServiceConfig.docker.image = bashServiceConfig.docker.image || {};
-                    bashServiceConfig.docker.image.language = 'python';
-                    bashServiceConfig.docker.image.base = 'trademe/base-python-anaconda:python-version-2.7.13_anaconda-4.3.1';
+            serviceConfig = copyServiceConfig(bashServiceConfig, serviceConfig);
+            serviceConfig = copyServiceConfig(serviceConfig, {
+                build: {
+                    language: 'bash'
                 }
-            }
-
-            checkServiceConfigSchema(bashServiceConfig);
-
-            return bashServiceConfig;
+            });
         }
     }
 
-    let serviceFolder = path.resolve(in_folderName);
-    let dockerFile = path.resolve(in_folderName, 'Dockerfile');
-
-    if (fs.fileExists(dockerFile)) {
-        let dockerFolder = path.resolve(in_folderName, '../');
-        if (path.basename(dockerFolder) === 'docker') {
-            serviceFolder = path.resolve(dockerFolder, '../');
-        } else {
-            serviceFolder = path.resolve(dockerFolder, '../../');
-        }
-    } else {
-        let dockerFolder = path.resolve(in_folderName, 'docker');
-        if (fs.fileExists(dockerFolder)) {
-            dockerFile = path.resolve(dockerFolder, 'Dockerfile');
-            if (!fs.fileExists(dockerFile)) {
-                let folders = fs.folders(dockerFolder);
-                let firstFolder = path.resolve(dockerFolder, folders[0]);
-                if (fs.folderExists(firstFolder)) {
-                    dockerFile = path.resolve(firstFolder, 'Dockerfile');
-                }
-            }
-        }
-    }
-
-    let serviceConfig = _getBaseServiceConfig(in_folderName);
-
-    if (fs.fileExists(dockerFile) && fs.folderExists(serviceFolder)) {
-        let dockerServiceConfig = docker.parseDockerfile(dockerFile);
+    let dockerfile = docker.getDockerfile(in_folderName);
+    if (dockerfile && fs.fileExists(dockerfile)) {
+        let dockerServiceConfig = docker.parseDockerfile(dockerfile);
         if (dockerServiceConfig) {
-            Object.assign(serviceConfig, dockerServiceConfig);
-
-            serviceConfig.docker = serviceConfig.docker || {};
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.name = path.basename(serviceFolder);
-
-            serviceConfig.service = serviceConfig.service || {};
-            serviceConfig.service.name = path.basename(serviceFolder);
+            serviceConfig = copyServiceConfig(serviceConfig, dockerServiceConfig);
         }
     }
 
-    if (fs.folderExists(serviceFolder)) {
-        serviceConfig.cwd = serviceFolder;
+    let pythonFolder = path.resolve(sourceFolder, 'python');
+    if (pythonFolder && fs.folderExists(pythonFolder)) {
+        serviceConfig = copyServiceConfig(serviceConfig, {
+            docker: {
+                image: {
+                    language: 'python',
+                    base: 'trademe/base-python-anaconda:python-version-2.7.13_anaconda-4.3.1'
+                }
+            }
+        });
     }
 
-    let pythonFolder = path.resolve(in_folderName, 'python');
-    if (fs.folderExists(pythonFolder)) {
-        if (!serviceConfig.docker || !serviceConfig.docker.env) {
-            serviceConfig.docker = serviceConfig.docker || {};
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.language = 'python';
-            serviceConfig.docker.image.base = 'trademe/base-python-anaconda:python-version-2.7.13_anaconda-4.3.1';
+    serviceConfig = copyServiceConfig(serviceConfig, {
+        docker: {
+            username: 'my-docker-username',
+            image: {
+                name: path.basename(sourceFolder),
+                language: 'none',
+                base: 'ubuntu:trusty',
+                work_directory: '.',
+                tag_with_date: true,
+                version: '1.0.0'
+            },
+            container: {
+                memory_limit: 1500,
+                cpu_core_count: 1
+            }
+        },
+        service: {
+            name: path.basename(sourceFolder)
         }
-    }
+    });
 
     if (!serviceConfig.service || !serviceConfig.service.name) {
         return false;
     }
 
     checkServiceConfigSchema(serviceConfig);
-
     return serviceConfig;
 }
 
@@ -147,6 +111,29 @@ function checkServiceConfigSchema (in_serviceConfig) {
 function getServiceConfigSchema () {
     let schema = _getServiceConfigSchema();
     return schema;
+}
+
+// ******************************
+
+function copyServiceConfig (in_source, in_destination) {
+    let source = in_source || {};
+    let destination = in_destination || {};
+
+    if (Array.isArray(source)) {
+        destination = source;
+    } else {
+        Object.keys(source).forEach(k => {
+            let v = source[k];
+            if (typeof(v) === 'object') {
+                destination[k] = copyServiceConfig(v, destination[k]);
+                return;
+            }
+
+            destination[k] = v;
+        });
+    }
+
+    return destination;
 }
 
 // ******************************
@@ -378,7 +365,7 @@ function _getServiceConfigSchema () {
             },
             "other_repositories": [
                 {
-                    "type": "URL"
+                    "type": "STRING"
                 }
             ],
             "password": "STRING",
@@ -409,34 +396,11 @@ function _getServiceConfigSchema () {
 }
 
 // ******************************
-
-function _getBaseServiceConfig (in_folderName) {
-    let imageName = path.basename(in_folderName);
-
-    return {
-        docker: {
-            username: 'my-docker-username',
-            image: {
-                name: imageName,
-                base: 'ubuntu:trusty',
-                language: 'none',
-                work_directory: '.',
-                tag_with_date: true,
-                version: '1.0.0'
-            },
-            container: {
-                memory_limit: 1500,
-                cpu_core_count: 1
-            }
-        }
-    };
-}
-
-// ******************************
 // Exports:
 // ******************************
 
 module.exports['getConfig'] = getServiceConfig;
+module.exports['copyConfig'] = copyServiceConfig;
 module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
 

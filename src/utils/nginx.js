@@ -19,6 +19,10 @@ function getNginxFileContents (in_serviceConfig) {
     let workerProcesses = 4;
     let workerConnections = 1024;
 
+    if (workdir === '.') {
+        workdir = '/root';
+    }
+
     let dockerAuthDir = workdir + '/auth';
     let nginxServers = serviceConfigDockerImageNginx.servers || [];
 

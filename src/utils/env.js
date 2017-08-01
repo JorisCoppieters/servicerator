@@ -40,7 +40,11 @@ function getServiceConfig () {
 
     let serviceConfig;
     try {
-        serviceConfig = JSON.parse(fs.readFile(serviceConfigFile));
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (!serviceConfigContents.trim()) {
+            return false;
+        }
+        serviceConfig = JSON.parse(serviceConfigContents);
     } catch (e) {
         cprint.red('Failed to parse "' + serviceConfigFile + '":\n  ' + e);
         return false;

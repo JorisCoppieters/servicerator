@@ -4,8 +4,8 @@
 // Requires:
 // ******************************
 
-let print = require('./print');
 let fs = require('./filesystem');
+let print = require('./print');
 
 // ******************************
 // Functions:
@@ -119,7 +119,6 @@ function parseBashEnvContents (in_bashEnvContents) {
                 'container': parseInt(val)
             });
 
-            serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.image = serviceConfig.docker.image || {};
             serviceConfig.docker.image.ports = serviceConfig.docker.image.ports || [];
             serviceConfig.docker.image.ports.push(parseInt(val));
@@ -133,7 +132,6 @@ function parseBashEnvContents (in_bashEnvContents) {
                 'container': parseInt(val)
             });
 
-            serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.image = serviceConfig.docker.image || {};
             serviceConfig.docker.image.ports = serviceConfig.docker.image.ports || [];
             serviceConfig.docker.image.ports.push(parseInt(val));
@@ -151,6 +149,14 @@ function parseBashEnvContents (in_bashEnvContents) {
                 ],
                 'cmd': true
             });
+
+            serviceConfig.docker.container = serviceConfig.docker.container || {};
+            serviceConfig.docker.container.commands = serviceConfig.docker.container.commands || [];
+            serviceConfig.docker.container.commands.push({
+                'env': 'test',
+                'val': './scripts/start-test.sh'
+            });
+
         } else if (key === 'DOCKER_CONTAINER_START_COMMAND') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.image = serviceConfig.docker.image || {};
@@ -163,6 +169,14 @@ function parseBashEnvContents (in_bashEnvContents) {
                     'cd python; python api-prod.py'
                 ]
             });
+
+            serviceConfig.docker.container = serviceConfig.docker.container || {};
+            serviceConfig.docker.container.commands = serviceConfig.docker.container.commands || [];
+            serviceConfig.docker.container.commands.push({
+                'env': 'prod',
+                'val': './scripts/start-prod.sh'
+            });
+
         } else if (key === 'DOCKER_VERIFY_API_COMMAND') {
         } else if (key === 'DOCKER_VERIFY_API_EXPECTED_RESULT') {
         } else if (key === 'DOCKER_EXTRA_TAG') {
@@ -194,11 +208,13 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.name = val;
         } else if (key === 'AWS_SERVICE_INSTANCE_TYPE') {
+            serviceConfig.aws = serviceConfig.aws || {};
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.cluster = serviceConfig.service.cluster || {};
             serviceConfig.service.cluster.instance = serviceConfig.service.cluster.instance || {};
             serviceConfig.service.cluster.instance.type = val;
         } else if (key === 'AWS_SERVICE_INSTANCE_VOLUME_SIZE') {
+            serviceConfig.aws = serviceConfig.aws || {};
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.cluster = serviceConfig.service.cluster || {};
             serviceConfig.service.cluster.instance = serviceConfig.service.cluster.instance || {};

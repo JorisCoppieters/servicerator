@@ -204,9 +204,6 @@ function getDockerfileContents (in_serviceConfig) {
         );
     }
 
-    if (serviceConfigDockerImage.log) {
-    }
-
     filesystem = firstFilesystem.concat(filesystem);
     envVariables = _uniqueByField(firstEnvVariables.concat(envVariables));
 
@@ -225,7 +222,7 @@ function getDockerfileContents (in_serviceConfig) {
         `#`,
         `# ----------------------`].join('\n') +
     (envVariables.length ?
-        '\n\n' + envVariables.map(v => `    ENV ${v.key} '${v.val}'`).join('\n') : ''
+        '\n\n' + envVariables.map(v => `    ENV ${v.key} "${v.val}"`).join('\n') : ''
     ) +
     (imagePorts.length ?
         '\n\n' + imagePorts.map(p => `    EXPOSE ${p}`).join('\n') : ''
@@ -255,7 +252,7 @@ function getDockerfileContents (in_serviceConfig) {
             ``].join('\n') +
         aptGetPackages
             .map(p => {
-                return `        '${p}'`;
+                return `        "${p}"`;
             }).join(' \\\n')
         : '') +
     (pipPackages.length ?
@@ -272,7 +269,7 @@ function getDockerfileContents (in_serviceConfig) {
             ``].join('\n') +
         pipPackages
             .map(p => {
-                return `        '${p}'`;
+                return `        "${p}"`;
             }).join(' \\\n')
         : '') +
     (commands.length ?
@@ -313,28 +310,28 @@ function getDockerfileContents (in_serviceConfig) {
         filesystem
             .map(f => {
                 if (f.type === 'folder') {
-                    return `    RUN mkdir -p '${f.path}'`;
+                    return `    RUN mkdir -p "${f.path}"`;
                 } else if (f.type === 'copy_folder') {
-                    return `    COPY '${f.source}' '${f.destination}'`;
+                    return `    COPY "${f.source}" "${f.destination}"`;
                 } else if (f.type === 'copy_file') {
-                    return `    COPY '${f.source}' '${f.destination}'`;
+                    return `    COPY "${f.source}" "${f.destination}"`;
                 } else if (f.type === 'file') {
-                    let command = `    RUN touch '${f.path}'`;
+                    let command = `    RUN touch "${f.path}"`;
 
                     if (f.permissions) {
-                        command += ` && chmod ${f.permissions} '${f.path}'`
+                        command += ` && chmod ${f.permissions} "${f.path}"`
                     }
 
                     if (f.contents && f.contents.length) {
                         command += '\n    RUN \\' +
                         f.contents
-                            .map(c => `\n        echo "${c}" >> '${f.path}'`)
+                            .map(c => `\n        echo "${c}" >> "${f.path}"`)
                             .join(' && \\');
                     }
 
                     return command;
                 } else if (f.type === 'link') {
-                    return `    RUN ln -s '${f.source}' '${f.destination}'`;
+                    return `    RUN ln -s "${f.source}" "${f.destination}"`;
                 }
             }).join('\n')
         : '') +
@@ -387,8 +384,7 @@ function getDockerfileContents (in_serviceConfig) {
 // ******************************
 
 function getDockerFolder (in_sourceFolder) {
-    let sourceFolder = in_sourceFolder;
-
+    let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
         return;
@@ -403,6 +399,10 @@ function getDockerFolder (in_sourceFolder) {
         return dockerFolder;
     }
 
+    if (path.basename(sourceFolder) === 'docker') {
+        dockerFolder = sourceFolder;
+    }
+
     let dockerSubFolder = fs.folders(dockerFolder)
         .map(f => path.resolve(dockerFolder, f))
         .filter(fs.folderExists)
@@ -415,7 +415,11 @@ function getDockerFolder (in_sourceFolder) {
 // ******************************
 
 function getDockerfile (in_sourceFolder) {
-    let sourceFolder = in_sourceFolder;
+    let sourceFolder = path.resolve(in_sourceFolder);
+    if (!sourceFolder) {
+        cprint.yellow('Source folder not set');
+        return;
+    }
 
     let dockerFolder = getDockerFolder(in_sourceFolder);
     if (!dockerFolder) {

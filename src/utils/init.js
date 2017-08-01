@@ -27,12 +27,17 @@ function initFolder (in_folderName, in_overwrite) {
         sourceFolder = fs.createFolder(in_folderName);
     }
 
-    let serviceConfig;
+    let serviceConfig = false;
     let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
 
     if (fs.fileExists(serviceConfigFile) && !in_overwrite) {
-        serviceConfig = JSON.parse(fs.readFile(serviceConfigFile));
-    } else {
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (serviceConfigContents.trim()) {
+            serviceConfig = JSON.parse(serviceConfigContents);
+        }
+    }
+
+    if (!serviceConfig) {
         if (in_folderName === '.') {
             cprint.cyan('Initialising folder...');
         } else {
@@ -40,7 +45,7 @@ function initFolder (in_folderName, in_overwrite) {
         }
 
         serviceConfig = service.getConfig(sourceFolder);
-        fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4), in_overwrite);
+        fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, null, 4), true);
     }
 
     serviceConfig.cwd = sourceFolder;

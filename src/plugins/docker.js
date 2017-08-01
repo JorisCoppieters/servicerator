@@ -282,6 +282,7 @@ function cleanDockerImages (in_serviceConfig, in_force) {
 
     let nonLatestImageTags = cmdResult.rows
         .filter(r => dockerImagePaths.find(p => r.match(new RegExp('^' + p + ':'))))
+        .filter(r => !r.match(/<none>/))
         .filter(r => dockerImageTaggedPaths.indexOf(r.split(/\t/)[0]) < 0)
         .map(r => r.split(/\t/)[0]);
 
@@ -450,7 +451,10 @@ function startDockerContainer (in_serviceConfig) {
     let serviceConfigDockerContainerPorts = serviceConfigDockerContainer.ports || [];
     let serviceConfigDockerContainerVolumes = serviceConfigDockerContainer.volumes || [];
     let serviceConfigDockerContainerCommands = serviceConfigDockerContainer.commands || [];
+    let serviceConfigService = serviceConfig.service || {};
     let sourceFolder = serviceConfig.cwd || false;
+
+    let serviceName = serviceConfigService.name || 'service';
 
     let dockerFolder = docker.getFolder(sourceFolder);
 
@@ -495,15 +499,19 @@ function startDockerContainer (in_serviceConfig) {
         }
 
         let volumeHost = path.resolve(dockerFolder, volume.host);
+        let volumeContainer = volume.container
+            .replace(/\$SERVICE_NAME/, serviceName);
 
         args.push('--volume');
-        args.push(volumeHost + ':' + volume.container);
+        args.push(volumeHost + ':' + volumeContainer);
     });
 
     args.push(dockerImagePath);
     args.push(dockerImageStartCommand);
 
-    removeDockerContainer(in_serviceConfig);
+    if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_UNKNOWN) {
+        removeDockerContainer(in_serviceConfig);
+    }
 
     cprint.cyan('Starting Docker container "' + containerName + '"...');
     let cmdResult = docker.cmd(args);
@@ -600,13 +608,13 @@ function removeDockerContainer (in_serviceConfig) {
     let dockerImageIds = _getDockerImageIds(in_serviceConfig);
     dockerImageIds.forEach(id => removeDockerImageIdContainer(id));
 
-    if (getDockerContainerState(in_serviceConfig) == docker.k_STATE_UNKNOWN) {
+    if (getDockerContainerState(in_serviceConfig) === docker.k_STATE_UNKNOWN) {
         cprint.yellow('No stopped container found');
         return;
     }
 
     stopDockerContainer(in_serviceConfig);
-    if (getDockerContainerState(in_serviceConfig) == docker.k_STATE_UNKNOWN) {
+    if (getDockerContainerState(in_serviceConfig) === docker.k_STATE_UNKNOWN) {
         return;
     }
 
@@ -1034,6 +1042,8 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             break;
         case 'start':
         case 'start-container':
+        case 'run':
+        case 'run-container':
             startDockerContainer(in_serviceConfig);
             break;
         case 'enter':
@@ -1078,7 +1088,7 @@ function getCommands () {
             {param:'M', description:'Increment major version (i.e 1.0.0 -> 2.0.0)'},
             {param:'m', description:'Increment minor version (i.e 2.9.0 -> 2.10.0)'},
             {param:'b', description:'Increment bug version (i.e 1.2.5 -> 1.2.6)'}] },
-        { params: ['start-container', 'start'], description: 'Start the service docker container' },
+        { params: ['start-container', 'start', 'run', 'run-container'], description: 'Start the service docker container' },
         { params: ['enter-container', 'enter', 'interact', 'interactive'], description: 'Enter the running service docker container' },
         { params: ['stop-container', 'stop'], description: 'Stop the service docker container' },
         { params: ['remove-container', 'remove', 'rm'], description: 'Remove the service docker container' },

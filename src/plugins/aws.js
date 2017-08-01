@@ -7,6 +7,8 @@
 let cprint = require('color-print');
 
 let aws = require('../utils/aws');
+let init = require('../utils/init');
+let service = require('../utils/service');
 let docker = require('../utils/docker');
 let print = require('../utils/print');
 
@@ -26,7 +28,10 @@ function printAwsServiceInfo (in_serviceConfig, in_prod) {
         awsSecretKey = aws.getSecretKey(serviceConfig);
     }
 
+    let awsAccountId = serviceConfigAws.account_id || false;
+
     cprint.magenta('-- AWS --');
+    print.keyVal('AWS Account Id', awsAccountId || '(Not Set)');
     print.keyVal('AWS Access Key', awsAccessKey || '(Not Set)');
     print.keyVal('AWS Secret Key', awsSecretKey ? '*******' : '(Not Set)');
     print.out('\n');
@@ -56,6 +61,20 @@ function printAwsServiceInfo (in_serviceConfig, in_prod) {
 
 function awsLogin (in_serviceConfig) {
     aws.login(in_serviceConfig);
+}
+
+// ******************************
+
+function awsConfigure (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+
+    let awsServiceConfig = aws.getServiceConfig();
+    service.copyConfig(awsServiceConfig, serviceConfig);
+
+    let awsRepositoryServiceConfig = aws.getRepositoryServiceConfig();
+    service.copyConfig(awsRepositoryServiceConfig, serviceConfig);
+
+    init.saveServiceConfig(serviceConfig);
 }
 
 // ******************************
@@ -224,6 +243,11 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             printAwsServiceInfo(in_serviceConfig, prod);
             break;
 
+        case 'config':
+        case 'configure':
+            awsConfigure(in_serviceConfig);
+            break;
+
         case 'setup':
         case 'login':
             awsLogin(in_serviceConfig);
@@ -258,7 +282,8 @@ function getBaseCommands () {
 function getCommands () {
     return [
         { params: ['', 'info', 'state', 'service'], description: 'Print AWS state information', options: [{param:'prod', description:'Include production information'}] },
-        { params: ['setup', 'login'], description: 'Setup AWS login information' },
+        { params: ['config', 'configure'], description: 'Configure AWS' },
+        { params: ['setup', 'login'], description: 'Log into AWS' },
         { params: ['docker-login'], description: 'Log into AWS docker repository' },
         { params: ['start-cluster'], description: 'Start AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
         { params: ['stop-cluster'], description: 'Stop AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
