@@ -57,7 +57,7 @@ function getDockerfileContents (in_serviceConfig) {
     let pipUpdate = serviceConfigDockerImage.pip_update || false;
     let filesystem = serviceConfigDockerImage.filesystem || [];
     let commands = serviceConfigDockerImage.commands || [];
-    let workdir = serviceConfigDockerImage.work_directory || './';
+    let workdir = serviceConfigDockerImage.work_directory || '.';
 
     let firstFilesystem = [];
     let firstEnvVariables = [];
@@ -176,6 +176,13 @@ function getDockerfileContents (in_serviceConfig) {
                 'type': 'folder'
             }
         );
+        firstFilesystem.push(
+            {
+                'source': 'python',
+                'destination': '$PYTHON_DIR',
+                'type': 'copy_folder'
+            }
+        );
     } else if (serviceConfigDockerImage.language === 'node') {
         firstEnvVariables.push({
             key: 'NODE_DIR',
@@ -188,6 +195,16 @@ function getDockerfileContents (in_serviceConfig) {
                 'type': 'folder'
             }
         );
+        firstFilesystem.push(
+            {
+                'source': 'node',
+                'destination': '$NODE_DIR',
+                'type': 'copy_folder'
+            }
+        );
+    }
+
+    if (serviceConfigDockerImage.log) {
     }
 
     filesystem = firstFilesystem.concat(filesystem);
@@ -311,7 +328,7 @@ function getDockerfileContents (in_serviceConfig) {
                     if (f.contents && f.contents.length) {
                         command += '\n    RUN \\' +
                         f.contents
-                            .map(c => `\n        echo '${c}' >> '${f.path}'`)
+                            .map(c => `\n        echo "${c}" >> '${f.path}'`)
                             .join(' && \\');
                     }
 
@@ -340,10 +357,10 @@ function getDockerfileContents (in_serviceConfig) {
                         ``,
                         `    RUN touch ${s.key} && chmod +x ${s.key}`,
                         `    RUN \\`,
-                        `        echo '#! /bin/bash' > ${s.key} && \\`,
+                        `        echo "#! /bin/bash" > ${s.key} && \\`,
                     ].join('\n') +
                     s.commands
-                        .map(c => `\n        echo '${c}' >> ${s.key}`)
+                        .map(c => `\n        echo "${c}" >> ${s.key}`)
                         .join(' && \\');
                 }
             }).join('\n')

@@ -118,6 +118,12 @@ function parseBashEnvContents (in_bashEnvContents) {
                 'host': parseInt(val),
                 'container': parseInt(val)
             });
+
+            serviceConfig.docker = serviceConfig.docker || {};
+            serviceConfig.docker.image = serviceConfig.docker.image || {};
+            serviceConfig.docker.image.ports = serviceConfig.docker.image.ports || [];
+            serviceConfig.docker.image.ports.push(parseInt(val));
+
         } else if (key === 'DOCKER_CONTAINER_SECURE_PORT') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.container = serviceConfig.docker.container || {};
@@ -126,6 +132,12 @@ function parseBashEnvContents (in_bashEnvContents) {
                 'host': parseInt(val),
                 'container': parseInt(val)
             });
+
+            serviceConfig.docker = serviceConfig.docker || {};
+            serviceConfig.docker.image = serviceConfig.docker.image || {};
+            serviceConfig.docker.image.ports = serviceConfig.docker.image.ports || [];
+            serviceConfig.docker.image.ports.push(parseInt(val));
+
         } else if (key === 'DOCKER_CONTAINER_TEST_START_COMMAND') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.image = serviceConfig.docker.image || {};

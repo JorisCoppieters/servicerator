@@ -10,9 +10,10 @@ let Promise = require('bluebird');
 
 let aws = require('../utils/aws');
 let docker = require('../utils/docker');
+let edit = require('../utils/edit');
 let exec = require('../utils/exec');
-let print = require('../utils/print');
 let init = require('../utils/init');
+let print = require('../utils/print');
 let sync = require('../utils/sync');
 
 // ******************************
@@ -769,6 +770,26 @@ function printDockerContainerStats (in_serviceConfig) {
     return false;
 }
 
+
+// ******************************
+
+function editServiceDockerfile (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        cprint.yellow("Source folder not set");
+        return;
+    }
+
+    let serviceDockerfile = docker.getDockerfile(sourceFolder);
+    if (!serviceDockerfile) {
+        cprint.yellow("Service Dockerfile not set");
+        return;
+    }
+
+    edit.file(serviceDockerfile);
+}
+
 // ******************************
 // Helper Functions:
 // ******************************
@@ -1031,6 +1052,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             removeDockerContainer(in_serviceConfig);
             break;
 
+        case 'edit':
+            editServiceDockerfile(in_serviceConfig);
+            break;
+
         default:
             return false;
     }
@@ -1063,6 +1088,7 @@ function getCommands () {
         { params: ['push'], description: 'Push the service docker image' },
         { params: ['clean'], description: 'Clean up service temporary docker images', options: [{param:'force', description:'Force clean'}] },
         { params: ['purge'], description: 'Remove all service docker images', options: [{param:'force', description:'Force purge'}] },
+        { params: ['edit'], description: 'Edit the Dockerfile' },
     ];
 }
 

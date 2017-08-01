@@ -144,6 +144,15 @@ function checkServiceConfigSchema (in_serviceConfig) {
 
 // ******************************
 
+function getServiceConfigSchema () {
+    let schema = _getServiceConfigSchema();
+    return schema;
+}
+
+// ******************************
+// Helper Functions:
+// ******************************
+
 function _checkObjectAgainstSchema (in_path, in_obj, in_schema) {
     if (!in_obj) {
         cprint.yellow('Object isn\'t set for path "' + in_path + '"');
@@ -195,6 +204,30 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal) {
         return;
     }
 
+    if (schemaVal === 'PATH') {
+        if (typeof(objVal) !== 'string') {
+            cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+            return;
+        }
+
+        if (!objVal.match(/^([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
+            cprint.yellow('Not a valid filesystem reference format (' + typeof(objVal) + ') in path "' + in_path + '": ' + objVal);
+            return;
+        }
+    }
+
+    if (schemaVal === 'URL') {
+        if (typeof(objVal) !== 'string') {
+            cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+            return;
+        }
+
+        if (!objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
+            cprint.yellow('Not a valid url format (' + typeof(objVal) + ') in path "' + in_path + '": ' + objVal);
+            return;
+        }
+    }
+
     if (schemaVal === 'NUMBER' && typeof(objVal) !== 'number') {
         cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
         return;
@@ -223,8 +256,6 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal) {
 }
 
 // ******************************
-// Helper Functions:
-// ******************************
 
 function _getServiceConfigSchema () {
     return {
@@ -232,8 +263,8 @@ function _getServiceConfigSchema () {
             "certificate": "STRING",
             "disableAutoPopulate": "BOOLEAN",
             "key": "STRING",
-            "rootCAKey": "STRING",
-            "rootCACertificate": "STRING",
+            "rootCAKey": "PATH",
+            "rootCACertificate": "PATH",
             "type": "STRING"
         },
         "aws": {
@@ -292,10 +323,10 @@ function _getServiceConfigSchema () {
                         "contents": [
                             "STRING"
                         ],
-                        "destination": "STRING",
-                        "path": "STRING",
+                        "destination": "PATH",
+                        "path": "PATH",
                         "permissions": "STRING",
-                        "source": "STRING",
+                        "source": "PATH",
                         "type": "STRING"
                     }
                 ],
@@ -305,18 +336,18 @@ function _getServiceConfigSchema () {
                 "nginx": {
                     "servers": [
                         {
-                            "access_log": "STRING",
-                            "error_log": "STRING",
+                            "access_log": "PATH",
+                            "error_log": "PATH",
                             "locations": [
                                 {
-                                    "location": "STRING",
-                                    "pass_through": "STRING"
+                                    "location": "PATH",
+                                    "pass_through": "URL"
                                 }
                             ],
                             "port": "NUMBER",
                             "ssl": {
-                                "certificate": "STRING",
-                                "key": "STRING"
+                                "certificate": "PATH",
+                                "key": "PATH"
                             }
                         }
                     ]
@@ -343,11 +374,11 @@ function _getServiceConfigSchema () {
                     "STRING"
                 ],
                 "version": "STRING",
-                "work_directory": "STRING"
+                "work_directory": "PATH"
             },
             "other_repositories": [
                 {
-                    "type": "STRING"
+                    "type": "URL"
                 }
             ],
             "password": "STRING",
@@ -406,6 +437,7 @@ function _getBaseServiceConfig (in_folderName) {
 // ******************************
 
 module.exports['getConfig'] = getServiceConfig;
+module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
 
 // ******************************

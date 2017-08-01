@@ -8,6 +8,7 @@ let cprint = require('color-print');
 let path = require('path');
 
 let exec = require('../utils/exec');
+let docker = require('../utils/docker');
 let openssl = require('../utils/openssl');
 let fs = require('../utils/filesystem');
 
@@ -25,7 +26,17 @@ function printAuthInfo (in_serviceConfig) {
         return;
     }
 
-    let authFolder = path.resolve(sourceFolder, 'auth');
+    let dockerFolder = docker.getFolder(sourceFolder);
+    if (!dockerFolder || !fs.folderExists(dockerFolder)) {
+        cprint.yellow('Docker folder not set up: ' + dockerFolder);
+        return;
+    }
+
+    let authFolder = path.resolve(dockerFolder, 'auth');
+    if (!authFolder || !fs.folderExists(authFolder)) {
+        fs.createFolder(authFolder);
+    }
+
     if (!authFolder || !fs.folderExists(authFolder)) {
         cprint.yellow('Auth folder not set up: ' + authFolder);
         return;
@@ -69,7 +80,17 @@ function generateAuthFiles (in_serviceConfig) {
         return;
     }
 
-    let authFolder = path.resolve(sourceFolder, 'auth');
+    let dockerFolder = docker.getFolder(sourceFolder);
+    if (!dockerFolder || !fs.folderExists(dockerFolder)) {
+        cprint.yellow('Docker folder not set up: ' + dockerFolder);
+        return;
+    }
+
+    let authFolder = path.resolve(dockerFolder, 'auth');
+    if (!authFolder || !fs.folderExists(authFolder)) {
+        fs.createFolder(authFolder);
+    }
+
     if (!authFolder || !fs.folderExists(authFolder)) {
         cprint.yellow('Auth folder not set up: ' + authFolder);
         return;

@@ -57,13 +57,11 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigDockerBuild = serviceConfigDocker.build || {};
 
-    if (serviceConfig.auth) {
-        let authFolder = path.resolve(sourceFolder, 'auth');
-        fs.createFolder(authFolder);
+    let dockerFolder = docker.getFolder(sourceFolder)
+    if (!dockerFolder || !fs.folderExists(dockerFolder)) {
+        dockerFolder = path.resolve(sourceFolder, 'docker');
+        fs.createFolder(dockerFolder);
     }
-
-    let dockerFolder = path.resolve(sourceFolder, 'docker');
-    fs.createFolder(dockerFolder);
 
     let dockerFileContents = docker.getDockerfileContents(serviceConfig);
     if (dockerFileContents) {
