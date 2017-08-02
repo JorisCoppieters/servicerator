@@ -42,7 +42,6 @@ function getDockerfileContents (in_serviceConfig) {
     let serviceConfigService = serviceConfig.service || {};
 
     let baseImage = serviceConfigDockerImage.base || 'ubuntu:trusty';
-    let serviceName = serviceConfigService.name || 'service';
     let envVariables = serviceConfigDockerImage.env_variables || [];
     let imagePorts = serviceConfigDockerImage.ports || [];
     let scripts = (serviceConfigDockerImage.scripts || []);
@@ -54,6 +53,9 @@ function getDockerfileContents (in_serviceConfig) {
     let aptGetUpdate = serviceConfigDockerImage.apt_get_update || false;
     let pipPackages = serviceConfigDockerImage.pip_packages || [];
     let pipUpdate = serviceConfigDockerImage.pip_update || false;
+    let condaPackages = serviceConfigDockerImage.conda_packages || [];
+    let condaChannels = serviceConfigDockerImage.conda_channels || [];
+    let condaUpdate = serviceConfigDockerImage.conda_update || false;
     let filesystem = serviceConfigDockerImage.filesystem || [];
     let commands = serviceConfigDockerImage.commands || [];
     let workdir = serviceConfigDockerImage.work_directory || '.';
@@ -61,10 +63,13 @@ function getDockerfileContents (in_serviceConfig) {
     let firstFilesystem = [];
     let firstEnvVariables = [];
 
-    firstEnvVariables.push({
-        key: 'SERVICE_NAME',
-        val: serviceName
-    });
+    if (serviceConfigService.name) {
+        firstEnvVariables.push({
+            key: 'SERVICE_NAME',
+            val: serviceConfigService.name
+        });
+    }
+
     firstEnvVariables.push({
         key: 'BASE_DIR',
         val: workdir
@@ -267,6 +272,39 @@ function getDockerfileContents (in_serviceConfig) {
             `    RUN ${pipUpdate ? 'pip install pip --upgrade && ' : ''}pip install \\`,
             ``].join('\n') +
         pipPackages
+            .map(p => {
+                return `        "${p}"`;
+            }).join(' \\\n')
+        : '') +
+    (condaChannels.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# CONDA CHANNELS`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            ``].join('\n') +
+        condaChannels
+            .map(c => {
+                return `    RUN conda config --add channels "${c}"`;
+            }).join(' \\\n')
+        : '') +
+    (condaPackages.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# CONDA PACKAGES`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            `    RUN conda install -y \\`,
+            ``].join('\n') +
+        condaPackages
             .map(p => {
                 return `        "${p}"`;
             }).join(' \\\n')

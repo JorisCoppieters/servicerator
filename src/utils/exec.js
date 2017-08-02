@@ -141,7 +141,7 @@ function _printLogLine (in_line, in_indent) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/success:[0-9]/i)) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
-    } else if (line.match(/OK/i)) {
+    } else if (line.match(/ OK/i) || line.match(/OK /i)) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
     } else {
         print.out(cprint.toLightBlue(str.indentContents(line, indent) + '\n'));

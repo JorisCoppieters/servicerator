@@ -486,9 +486,14 @@ function startDockerContainer (in_serviceConfig) {
         }
     });
 
+    if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_UNKNOWN) {
+        removeDockerContainer(in_serviceConfig);
+    }
+
+    let runWithGitBash = false;
+
     if (!dockerImageStartCommand) {
-        cprint.yellow('No start command for container');
-        return false;
+        runWithGitBash = true;
     }
 
     let containerName = getDockerContainerName(in_serviceConfig);
@@ -498,7 +503,13 @@ function startDockerContainer (in_serviceConfig) {
     args.push('--rm');
     args.push('--name');
     args.push(containerName);
-    args.push('--detach');
+
+    if (runWithGitBash) {
+        args.push('--interactive');
+        args.push('--tty');
+    } else {
+        args.push('--detach');
+    }
 
     serviceConfigDockerContainerPorts.forEach(port => {
         if (!port.host || !port.container) {
@@ -516,7 +527,13 @@ function startDockerContainer (in_serviceConfig) {
             return;
         }
 
-        let volumeHost = path.resolve(dockerFolder, volume.host);
+        let volumeHost = path.resolve(volume.host);
+        if (!fs.folderExists(volumeHost)) {
+            volumeHost = path.resolve(dockerFolder, volume.host);
+        }
+
+        volumeHost = volumeHost.replace(new RegExp('\\\\', 'g'), '/');
+
         let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
 
         args.push('--volume');
@@ -524,18 +541,31 @@ function startDockerContainer (in_serviceConfig) {
     });
 
     args.push(dockerImagePath);
-    args.push(dockerImageStartCommand);
 
-    if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_UNKNOWN) {
-        removeDockerContainer(in_serviceConfig);
+    if (runWithGitBash) {
+        args.push('bash');
     }
 
-    cprint.cyan('Starting Docker container "' + containerName + '"...');
-    let cmdResult = docker.cmd(args);
-    if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+    if (runWithGitBash) {
+        cprint.cyan('Starting Docker container "' + containerName + '"...');
+
+        let gitbashArgs = ['-c', 'docker ' + args.join(' ')];
+
+        let cmdResult = gitbash.cmd(gitbashArgs);
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+        } else {
+            cmdResult.printResult('  ');
+        }
+
     } else {
-        cmdResult.printResult('  ');
+        cprint.cyan('Starting Docker container "' + containerName + '"...');
+        let cmdResult = docker.cmd(args);
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+        } else {
+            cmdResult.printResult('  ');
+        }
     }
 }
 

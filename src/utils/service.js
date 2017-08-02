@@ -149,11 +149,17 @@ function copyServiceConfig (in_source, in_destination) {
 
 function replaceServiceConfigReferences (in_serviceConfig, in_string) {
     let serviceConfig = in_serviceConfig || {};
+    let serviceConfigService = serviceConfig.service || {};
+    let serviceConfigModel = serviceConfig.model || {};
+    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
+
     let replacements = {
-        'SERVICE_NAME': `${serviceConfig.service.name}`,
-        'MODEL_VERSION': `${serviceConfig.model.version}`,
-        'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`,
-        'CPU_CORE_COUNT': `${serviceConfig.docker.container.cpu_core_count}`
+        'SERVICE_NAME': `${serviceConfigService.name}`,
+        'MODEL_VERSION': `${serviceConfigModel.version}`,
+        'DOCKER_IMAGE_VERSION': `${serviceConfigDockerImage.version}`,
+        'CPU_CORE_COUNT': `${serviceConfigDockerContainer.cpu_core_count}`
     };
 
     let replaced = in_string || '';
@@ -380,6 +386,13 @@ function _getServiceConfigSchema () {
                     "STRING"
                 ],
                 "pip_update": "BOOLEAN",
+                "conda_channels": [
+                    "STRING"
+                ],
+                "conda_packages": [
+                    "STRING"
+                ],
+                "conda_update": "BOOLEAN",
                 "ports": [
                     "NUMBER"
                 ],
