@@ -45,7 +45,14 @@ function initFolder (in_folderName, in_overwrite) {
         }
 
         serviceConfig = service.getConfig(sourceFolder);
-        fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
+        if (serviceConfig) {
+            fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
+        }
+    }
+
+    if (!serviceConfig) {
+        cprint.yellow('Failed to create service config');
+        return;
     }
 
     serviceConfig.cwd = sourceFolder;

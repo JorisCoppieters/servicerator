@@ -65,7 +65,7 @@ function getServiceConfig (in_folderName) {
             serviceConfig = copyServiceConfig(serviceConfig, dockerServiceConfig);
             serviceConfig = copyServiceConfig(serviceConfig, {
                 service: {
-                    name: path.basename(sourceFolder)
+                    name: path.basename(path.resolve(sourceFolder))
                 }
             });
         }
@@ -79,6 +79,9 @@ function getServiceConfig (in_folderName) {
                     language: 'python',
                     base: k_DEFAULT_PYTHON_IMAGE
                 }
+            },
+            service: {
+                name: path.basename(path.resolve(sourceFolder))
             }
         });
     }
@@ -87,7 +90,7 @@ function getServiceConfig (in_folderName) {
         docker: {
             username: 'my-docker-username',
             image: {
-                name: path.basename(sourceFolder),
+                name: path.basename(path.resolve(sourceFolder)),
                 base: k_DEFAULT_IMAGE,
                 work_directory: '/root',
                 tag_with_date: true,
