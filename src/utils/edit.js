@@ -29,6 +29,10 @@ function editFiles (in_paths) {
     let isSublime = editor.match(/sublime/i);
     let args = in_paths;
 
+    if (!Array.isArray(args)) {
+        args = [args];
+    }
+
     if (isSublime) {
         args = ['-a'].concat(args);
     }
