@@ -13,16 +13,7 @@ $ npm install -g servicerator
 ```
 
 To run it, simply type ```svr``` in your service folder to get information on your service
+
 Run ```svr init``` to create service.json, which is your configuration file
 
-```sh
-$ svr
-```
-
-Run
-
-```sh
-$ svr help
-```
-
-To see more options
+Run ```svr help``` to see more options

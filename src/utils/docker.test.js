@@ -33,8 +33,7 @@ function runTests () {
         '#',
         '# ----------------------',
         '',
-        '    ENV SERVICE_NAME \'service\'',
-        '    ENV BASE_DIR \'./\''
+        '    ENV BASE_DIR "."'
     ].join('\n'), docker.getDockerfileContents({}));
     test.assertEquals('docker file with service configured', [
         '# ----------------------',
@@ -51,8 +50,8 @@ function runTests () {
         '#',
         '# ----------------------',
         '',
-        '    ENV SERVICE_NAME \'test-service\'',
-        '    ENV BASE_DIR \'mydir\'',
+        '    ENV SERVICE_NAME "test-service"',
+        '    ENV BASE_DIR "mydir"',
         '',
         '# ----------------------',
         '#',
