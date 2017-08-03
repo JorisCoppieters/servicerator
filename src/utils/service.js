@@ -371,7 +371,11 @@ function _getServiceConfigSchema () {
                             "locations": [
                                 {
                                     "location": "PATH",
-                                    "pass_through": "URL"
+                                    "location_params": [
+                                        "STRING"
+                                    ],
+                                    "pass_through": "URL",
+                                    "uwsgi_pass": "STRING"
                                 }
                             ],
                             "port": "NUMBER",
@@ -380,7 +384,8 @@ function _getServiceConfigSchema () {
                                 "key": "PATH"
                             }
                         }
-                    ]
+                    ],
+                    "daemon_off": "BOOLEAN"
                 },
                 "pip_packages": [
                     "STRING"

@@ -50,7 +50,8 @@ function getAwsDockerCredentials (in_serviceConfig) {
     awsLogin(in_serviceConfig);
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], true);
-    if (awsCmdResult.hasErrors) {
+    if (awsCmdResult.hasError) {
+        awsCmdResult.printError();
         return false;
     }
 
@@ -103,7 +104,7 @@ function getAwsRepositoryServiceConfig () {
 
     if (awsInstalled()) {
         let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], true);
-        if (!awsCmdResult.hasErrors) {
+        if (!awsCmdResult.hasError) {
             serviceConfig.aws = serviceConfig.aws || {};
             let awsStats = JSON.parse(awsCmdResult.result);
             if (awsStats && awsStats.Account) {

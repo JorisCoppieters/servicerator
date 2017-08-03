@@ -202,39 +202,6 @@ function awsDeploy (in_serviceConfig) {
     } else {
         cmdResult.printResult('  ');
     }
-
-    /*
-
-
-
-            printCyan "Retrieving cluster task service name for service '"$AWS_SERVICE_NAME"'...";
-            AWS_SERVICE_TEST_CLUSTER_TASK_SERVICE_ARN=`aws ecs list-services --cluster $AWS_SERVICE_TEST_CLUSTER_NAME | jq -r '.serviceArns[0]'`;
-            if [[ "$AWS_SERVICE_TEST_CLUSTER_TASK_SERVICE_ARN" != 'arn'* ]]; then
-                printYellow "AWS cluster task service isn't set up: $AWS_SERVICE_TEST_CLUSTER_NAME";
-            fi
-
-            if [[ "$AWS_SERVICE_TEST_CLUSTER_TASK_SERVICE_ARN" == 'arn'* ]]; then
-
-                printCyan "Updating cluster service '"$AWS_SERVICE_TEST_CLUSTER_NAME"' with new task...";
-
-                AWS_UPDATE_CLUSTER_SERVICE_RESULTS=`
-                    aws ecs update-service \
-                        --service $AWS_SERVICE_TEST_CLUSTER_TASK_SERVICE_ARN \
-                        --task-definition $AWS_TASK_DEFINITION_ARN \
-                        --cluster $AWS_SERVICE_TEST_CLUSTER_ARN \
-                        --desired-count $AWS_SERVICE_INSTANCE_COUNT`;
-
-                if [[ $AWS_UPDATE_CLUSTER_SERVICE_RESULTS != *'{'*'taskDefinition'*'}'* ]]; then
-                    printRed "Updating cluster service failed:";
-                    printRed "$AWS_UPDATE_CLUSTER_SERVICE_RESULTS";
-                    exit;
-                fi
-
-                printGreen "Open $AWS_CLUSTERS_VIEW_URL";
-            fi
-        fi
-
-    */
 }
 
 // ******************************

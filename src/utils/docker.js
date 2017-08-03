@@ -347,7 +347,13 @@ function getDockerfileContents (in_serviceConfig) {
         filesystem
             .map(f => {
                 if (f.type === 'folder') {
-                    return `    RUN mkdir -p "${f.path}"`;
+                    let command = `    RUN mkdir -p "${f.path}"`;
+
+                    if (f.permissions) {
+                        command += ` && chmod ${f.permissions} "${f.path}"`;
+                    }
+
+                    return command;
                 } else if (f.type === 'copy_folder') {
                     return `    COPY "${f.source}" "${f.destination}"`;
                 } else if (f.type === 'copy_file') {
@@ -356,7 +362,7 @@ function getDockerfileContents (in_serviceConfig) {
                     let command = `    RUN touch "${f.path}"`;
 
                     if (f.permissions) {
-                        command += ` && chmod ${f.permissions} "${f.path}"`
+                        command += ` && chmod ${f.permissions} "${f.path}"`;
                     }
 
                     if (f.contents && f.contents.length) {

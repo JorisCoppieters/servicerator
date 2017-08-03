@@ -36,16 +36,45 @@ function getNginxFileContents (in_serviceConfig) {
             authContent.push(`        ssl_certificate_key ${dockerAuthKeyFile};`);
         }
 
-        let serverLocations = s.locations.map(l => {
-            let serverLocationContent = [
-                ``,
-                `        location ${l.location} {`,
-                `            proxy_pass ${l.pass_through};`,
-                `            proxy_set_header X-Real-IP $remote_addr;`,
-                `        }`,
-            ];
+        let serverLocations = (s.locations || []).map(l => {
+            if (l.pass_through) {
+                let serverLocationContent = [
+                    ``,
+                    `        location ${l.location} {`,
+                    `            proxy_pass ${l.pass_through};`,
+                    `            proxy_set_header X-Real-IP $remote_addr;`,
+                    `        }`,
+                ];
 
-            return serverLocationContent.join('\n');
+                return serverLocationContent.join('\n');
+            }
+
+            if (l.uwsgi_pass) {
+                let serverLocationContent = [
+                    ``,
+                    `        location ${l.location} {`,
+                    `            include uwsgi_params;`,
+                    `            uwsgi_pass ${l.uwsgi_pass};`,
+                    `        }`,
+                ];
+
+                return serverLocationContent.join('\n');
+            }
+
+            if (l.location_params && l.location_params.length) {
+                let serverLocationContent = [
+                    ``,
+                    `        location ${l.location} {`,
+                ]
+                .concat(l.location_params.map(p => {
+                    return `            ${p};`
+                }))
+                .concat([
+                    `        }`
+                ]);
+
+                return serverLocationContent.join('\n');
+            }
         });
 
         return [
@@ -64,7 +93,7 @@ function getNginxFileContents (in_serviceConfig) {
             .join('\n');
     }).join('\n');
 
-    return [
+    let nginxContents = [
         `worker_processes ${workerProcesses};`,
         ``,
         `events { worker_connections ${workerConnections}; }`,
@@ -73,9 +102,14 @@ function getNginxFileContents (in_serviceConfig) {
         ``,
         `    sendfile on;`,
         nginxServersContent,
-        `}`,
-        `daemon off;`,
-    ].join('\n');
+        `}`
+    ];
+
+    if (serviceConfigDockerImageNginx.daemon_off) {
+        nginxContents.push(`daemon off;`);
+    }
+
+    return nginxContents.join('\n');
 }
 
 // ******************************
