@@ -12,6 +12,7 @@ let exec = require('./exec');
 // Globals:
 // ******************************
 
+// TODO - Make this a proper editor
 let g_EDITOR = "D:/Dropbox/System/Utils/Windows/Sublime/sublime_text.exe";
 
 // ******************************
@@ -25,7 +26,14 @@ function editFiles (in_paths) {
         return false;
     }
 
-    exec.cmd(editor, ['-a'].concat(in_paths));
+    let isSublime = editor.match(/sublime/i);
+    let args = in_paths;
+
+    if (isSublime) {
+        args = ['-a'].concat(args);
+    }
+
+    exec.cmd(editor, args);
 }
 
 // ******************************

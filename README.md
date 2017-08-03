@@ -1,6 +1,6 @@
 # servicerator
 
-servicerator is a Node utility for creating/deploying services really quickly
+servicerator is a Node utility for creating/deploying/managing services really quickly
 
 ### Installation
 
@@ -12,7 +12,8 @@ Then:
 $ npm install -g servicerator
 ```
 
-To run it, simply type in your service folder
+To run it, simply type ```svr``` in your service folder to get information on your service
+Run ```svr init``` to create service.json, which is your configuration file
 
 ```sh
 $ svr
