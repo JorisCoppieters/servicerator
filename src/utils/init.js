@@ -27,16 +27,7 @@ function initFolder (in_folderName, in_overwrite) {
         sourceFolder = fs.createFolder(in_folderName);
     }
 
-    let serviceConfig = false;
-    let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
-
-    if (fs.fileExists(serviceConfigFile) && !in_overwrite) {
-        let serviceConfigContents = fs.readFile(serviceConfigFile);
-        if (serviceConfigContents.trim()) {
-            serviceConfig = JSON.parse(serviceConfigContents);
-        }
-    }
-
+    let serviceConfig = loadServiceConfig(sourceFolder);
     if (!serviceConfig) {
         if (in_folderName === '.') {
             cprint.cyan('Initialising folder...');
@@ -45,6 +36,8 @@ function initFolder (in_folderName, in_overwrite) {
         }
 
         serviceConfig = service.getConfig(sourceFolder);
+        serviceConfig.cwd = sourceFolder;
+
         if (serviceConfig) {
             fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
         }
@@ -55,9 +48,24 @@ function initFolder (in_folderName, in_overwrite) {
         return;
     }
 
-    serviceConfig.cwd = sourceFolder;
-
     edit.file(serviceConfigFile);
+
+    return serviceConfig;
+}
+
+// ******************************
+
+function loadServiceConfig (in_sourceFolder) {
+    let serviceConfig = false;
+    let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+
+    if (fs.fileExists(serviceConfigFile)) {
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (serviceConfigContents.trim()) {
+            serviceConfig = JSON.parse(serviceConfigContents);
+            serviceConfig.cwd = in_sourceFolder;
+        }
+    }
 
     return serviceConfig;
 }
@@ -78,6 +86,25 @@ function saveServiceConfig (in_serviceConfig) {
 }
 
 // ******************************
+
+function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let sourceFolder = serviceConfig.cwd;
+
+    let updatedServiceConfig;
+
+    let savedServiceConfig = loadServiceConfig(sourceFolder);
+    if (savedServiceConfig) {
+        updatedServiceConfig = service.copyConfig(in_newServiceConfig, savedServiceConfig);
+        saveServiceConfig(updatedServiceConfig);
+        return updatedServiceConfig;
+    }
+
+    updatedServiceConfig = service.copyConfig(in_newServiceConfig, serviceConfig);
+    return serviceConfig;
+}
+
+// ******************************
 // Helper Functions:
 // ******************************
 
@@ -88,6 +115,12 @@ function _serviceConfigReplacer (in_key, in_val) {
     if (in_key === 'cwd') {
         return undefined;
     }
+    if (in_key === 'secret_key') {
+        return undefined;
+    }
+    if (in_key === 'password') {
+        return undefined;
+    }
     return in_val;
 }
 // ******************************
@@ -96,5 +129,6 @@ function _serviceConfigReplacer (in_key, in_val) {
 
 module.exports['folder'] = initFolder;
 module.exports['saveServiceConfig'] = saveServiceConfig;
+module.exports['updateServiceConfig'] = updateServiceConfig;
 
 // ******************************

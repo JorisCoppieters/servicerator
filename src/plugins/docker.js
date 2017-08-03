@@ -13,7 +13,7 @@ let docker = require('../utils/docker');
 let edit = require('../utils/edit');
 let exec = require('../utils/exec');
 let fs = require('../utils/filesystem');
-let gitbash = require('../utils/gitbash');
+let gitBash = require('../utils/gitbash');
 let init = require('../utils/init');
 let print = require('../utils/print');
 let service = require('../utils/service');
@@ -493,6 +493,11 @@ function startDockerContainer (in_serviceConfig) {
     let runWithGitBash = false;
 
     if (!dockerImageStartCommand) {
+        if (!gitBash.installed()) {
+            cprint.yellow('GitBash isn\'t installed');
+            return false;
+        }
+
         runWithGitBash = true;
     }
 
@@ -549,9 +554,9 @@ function startDockerContainer (in_serviceConfig) {
     if (runWithGitBash) {
         cprint.cyan('Starting Docker container "' + containerName + '"...');
 
-        let gitbashArgs = ['-c', 'docker ' + args.join(' ')];
+        let gitBashArgs = ['-c', 'docker ' + args.join(' ')];
 
-        let cmdResult = gitbash.cmd(gitbashArgs);
+        let cmdResult = gitBash.cmd(gitBashArgs);
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
         } else {
@@ -577,7 +582,7 @@ function enterDockerContainer (in_serviceConfig) {
         return false;
     }
 
-    if (!gitbash.installed()) {
+    if (!gitBash.installed()) {
         cprint.yellow('GitBash isn\'t installed');
         return false;
     }
@@ -589,7 +594,7 @@ function enterDockerContainer (in_serviceConfig) {
     }
 
     let args = ['-c', 'docker exec --interactive --tty ' + runningDockerContainerId + ' bash'];
-    gitbash.cmd(args);
+    gitBash.cmd(args);
 }
 
 // ******************************

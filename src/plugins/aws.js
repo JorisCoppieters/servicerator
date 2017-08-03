@@ -18,7 +18,7 @@ let str = require('../utils/string');
 // ******************************
 
 function printAwsServiceInfo (in_serviceConfig, in_prod) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = _getAwsServiceConfig(in_serviceConfig);
     let serviceConfigService = serviceConfig.service || {};
     let serviceConfigAws = serviceConfig.aws || {};
 
@@ -60,14 +60,8 @@ function printAwsServiceInfo (in_serviceConfig, in_prod) {
 
 // ******************************
 
-function awsLogin (in_serviceConfig) {
-    aws.login(in_serviceConfig);
-}
-
-// ******************************
-
 function awsDeploy (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = _getAwsServiceConfig(in_serviceConfig);
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigService = serviceConfig.service || {};
@@ -207,7 +201,7 @@ function awsDeploy (in_serviceConfig) {
 // ******************************
 
 function awsCreateTaskDefinition (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = _getAwsServiceConfig(in_serviceConfig);
     let serviceConfigService = serviceConfig.service || {};
     let serviceConfigDocker = serviceConfig.docker || {};
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
@@ -383,38 +377,48 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
 // ******************************
 
-function awsConfigure (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+// function awsConfigure (in_serviceConfig) {
+//     let serviceConfig = in_serviceConfig || {};
 
-    let awsServiceConfig = aws.getServiceConfig();
-    service.copyConfig(awsServiceConfig, serviceConfig);
+//     let awsServiceConfig = aws.getServiceConfig();
+//     service.copyConfig(awsServiceConfig, serviceConfig);
 
-    let awsRepositoryServiceConfig = aws.getRepositoryServiceConfig();
-    service.copyConfig(awsRepositoryServiceConfig, serviceConfig);
+//     let awsRepositoryServiceConfig = aws.getRepositoryServiceConfig();
+//     service.copyConfig(awsRepositoryServiceConfig, serviceConfig);
 
-    init.saveServiceConfig(serviceConfig);
-}
+//     init.saveServiceConfig(serviceConfig);
+// }
 
 // ******************************
 
 function awsDockerLogin (in_serviceConfig) {
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
-    let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
+    let serviceConfig = _getAwsServiceConfig(in_serviceConfig);
+
+    let awsDockerCredentials = aws.getDockerCredentials(serviceConfig);
+    serviceConfig = init.updateServiceConfig(serviceConfig, {
+        aws: {
+            account_id: awsDockerCredentials.account_id,
+            region: awsDockerCredentials.region
+        }
+    });
+
+    let awsDockerRepository = aws.getDockerRepository(serviceConfig);
     docker.login(awsDockerCredentials.username, awsDockerCredentials.password, awsDockerRepository);
 }
 
 // ******************************
 
 function awsStartCluster (in_serviceConfig, in_prod) {
+    let serviceConfig = _getAwsServiceConfig(in_serviceConfig);
     let environment = (in_prod) ? 'prod' : 'test';
-    let desiredCapacity = _getAwsClusterCapacity(in_serviceConfig, environment);
+    let desiredCapacity = _getAwsClusterCapacity(serviceConfig, environment);
     if (desiredCapacity < 0) {
         cprint.yellow('AWS cluster doesn\'t exist');
         return;
     }
     if (desiredCapacity == 0) {
         cprint.cyan('Starting AWS cluster...');
-        _setAwsClusterCapacity(in_serviceConfig, environment, 2);
+        _setAwsClusterCapacity(serviceConfig, environment, 2);
     } else {
         cprint.green('AWS cluster already started');
     }
@@ -423,15 +427,16 @@ function awsStartCluster (in_serviceConfig, in_prod) {
 // ******************************
 
 function awsStopCluster (in_serviceConfig, in_prod) {
+    let serviceConfig = _getAwsServiceConfig(in_serviceConfig);
     let environment = (in_prod) ? 'prod' : 'test';
-    let desiredCapacity = _getAwsClusterCapacity(in_serviceConfig, environment);
+    let desiredCapacity = _getAwsClusterCapacity(serviceConfig, environment);
     if (desiredCapacity < 0) {
         cprint.yellow('AWS cluster doesn\'t exist');
         return;
     }
     if (desiredCapacity > 0) {
         cprint.cyan('Stopping AWS cluster...');
-        _setAwsClusterCapacity(in_serviceConfig, environment, 0);
+        _setAwsClusterCapacity(serviceConfig, environment, 0);
     } else {
         cprint.green('AWS cluster already stopped');
     }
@@ -472,7 +477,8 @@ function _getAwsClusterCapacity (in_serviceConfig, in_environment) {
 // ******************************
 
 function _getAwsClusterState (in_serviceConfig, in_environment) {
-    let desiredCapacity = _getAwsClusterCapacity(in_serviceConfig, in_environment);
+    let serviceConfig = in_serviceConfig || {};
+    let desiredCapacity = _getAwsClusterCapacity(serviceConfig, in_environment);
     let testClusterState;
 
     if (desiredCapacity > 0) {
@@ -532,6 +538,15 @@ function _parseCmdResult (in_cmdResult) {
 }
 
 // ******************************
+
+function _getAwsServiceConfig (in_serviceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let awsServiceConfig = aws.getServiceConfig();
+    service.copyConfig(awsServiceConfig, serviceConfig);
+    return serviceConfig;
+}
+
+// ******************************
 // Plugin Functions:
 // ******************************
 
@@ -559,16 +574,6 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         case 'state':
         case 'service':
             printAwsServiceInfo(in_serviceConfig, prod);
-            break;
-
-        case 'config':
-        case 'configure':
-            awsConfigure(in_serviceConfig);
-            break;
-
-        case 'setup':
-        case 'login':
-            awsLogin(in_serviceConfig);
             break;
 
         case 'docker-login':
@@ -608,8 +613,6 @@ function getBaseCommands () {
 function getCommands () {
     return [
         { params: ['', 'info', 'state', 'service'], description: 'Print AWS state information', options: [{param:'prod', description:'Include production information'}] },
-        { params: ['config', 'configure'], description: 'Configure AWS' },
-        { params: ['setup', 'login'], description: 'Log into AWS' },
         { params: ['docker-login'], description: 'Log into AWS docker repository' },
         { params: ['create-task-definition'], description: 'Create task definition for service' },
         { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'prod', description:'Production cluster'}] },

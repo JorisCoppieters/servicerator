@@ -33,7 +33,7 @@ function getAwsDockerRepository (in_serviceConfig) {
 
     let awsRegion = serviceConfigAws.region || 'ap-southeast-2';
 
-    return serviceConfigAws.account_id + '.dkr.ecr.' + awsRegion + '.amazonaws.com';
+    return 'https://' + serviceConfigAws.account_id + '.dkr.ecr.' + awsRegion + '.amazonaws.com';
 }
 
 // ******************************
@@ -56,15 +56,27 @@ function getAwsDockerCredentials (in_serviceConfig) {
     }
 
     let response = awsCmdResult.result;
-    let responseRegExp = new RegExp('docker login -u (AWS) -p ([\\S]+)');
+    let responseRegExp = new RegExp('docker login -u (AWS) -p ([\\S]+) -e (.*?) (https?:\/\/.*)');
     let responseMatch = response.match(responseRegExp);
-    if (!responseMatch || responseMatch.length !== 3) {
+    if (!responseMatch || responseMatch.length !== 5) {
         return false;
+    }
+
+    let accountId = -1;
+    let region = '';
+
+    let address = responseMatch[4] || '';
+    let addressMatch = address.match(/https?:\/\/([0-9]+)\.dkr\.ecr\.(.*)\.amazonaws\.com/);
+    if (addressMatch && addressMatch.length === 3) {
+        accountId = parseInt(addressMatch[1]);
+        region = addressMatch[2];
     }
 
     return {
         username: responseMatch[1],
-        password: responseMatch[2]
+        password: responseMatch[2],
+        account_id: accountId,
+        region: region
     };
 }
 
@@ -86,6 +98,7 @@ function getAwsServiceConfig () {
     let awsCredentials = ini.parseFile(awsCredentialsFile);
     if (awsCredentials.default && awsCredentials.default.aws_access_key_id) {
         serviceConfig.aws.access_key = awsCredentials.default.aws_access_key_id;
+        serviceConfig.aws.secret_key = awsCredentials.default.aws_secret_access_key;
     }
 
     return serviceConfig;

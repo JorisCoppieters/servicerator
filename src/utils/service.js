@@ -15,9 +15,10 @@ const k_DEFAULT_IMAGE = 'ubuntu:trusty';
 let cprint = require('color-print');
 let path = require('path');
 
-let fs = require('./filesystem');
-let docker = require('./docker');
+let aws = require('./aws');
 let bash = require('./bash');
+let docker = require('./docker');
+let fs = require('./filesystem');
 
 // ******************************
 // Functions:
