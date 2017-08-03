@@ -14,7 +14,7 @@
     "url": "git+https://github.com/JorisCoppieters/servicerator.git"
   },
   "author": "Joris Coppieters",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/JorisCoppieters/servicerator/issues"
   },
