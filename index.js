@@ -5,7 +5,7 @@
 // ******************************
 //
 //
-// SERVICERATOR v0.4.7
+// SERVICERATOR v0.4.8
 //
 // 0.1.0
 // - Initial release
