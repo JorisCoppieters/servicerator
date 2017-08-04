@@ -105,6 +105,25 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
 }
 
 // ******************************
+
+function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
+    let serviceConfig = in_serviceConfig || {};
+    let sourceFolder = serviceConfig.cwd;
+
+    let updatedServiceConfig;
+
+    let savedServiceConfig = loadServiceConfig(sourceFolder);
+    if (savedServiceConfig) {
+        updatedServiceConfig = service.removeConfig(in_removeServiceConfig, savedServiceConfig);
+        saveServiceConfig(updatedServiceConfig);
+        return updatedServiceConfig;
+    }
+
+    updatedServiceConfig = service.removeConfig(in_removeServiceConfig, serviceConfig);
+    return serviceConfig;
+}
+
+// ******************************
 // Helper Functions:
 // ******************************
 
@@ -130,5 +149,6 @@ function _serviceConfigReplacer (in_key, in_val) {
 module.exports['folder'] = initFolder;
 module.exports['saveServiceConfig'] = saveServiceConfig;
 module.exports['updateServiceConfig'] = updateServiceConfig;
+module.exports['removeServiceConfig'] = removeServiceConfig;
 
 // ******************************

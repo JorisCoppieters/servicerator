@@ -142,7 +142,45 @@ function copyServiceConfig (in_source, in_destination) {
                 return;
             }
 
+            if (typeof(destination) !== 'object') {
+                destination = {};
+            }
+
             destination[k] = v;
+        });
+    }
+
+    return destination;
+}
+
+// ******************************
+
+function removeServiceConfig (in_source, in_destination) {
+    let source = in_source || {};
+    let destination = in_destination;
+    if (!destination) {
+        return undefined;
+    }
+
+    if (Array.isArray(source)) {
+        destination = [];
+    } else {
+        Object.keys(source).forEach(k => {
+            let v = source[k];
+            if (!destination[k]) {
+                return;
+            }
+
+            if (typeof(v) === 'object') {
+                destination[k] = removeServiceConfig(v, destination[k]);
+                return;
+            }
+
+            if (typeof(destination) !== 'object') {
+                return;
+            }
+
+            delete destination[k];
         });
     }
 
@@ -295,10 +333,8 @@ function _getServiceConfigSchema () {
             "type": "STRING"
         },
         "aws": {
-            "access_key": "STRING",
             "account_id": "NUMBER",
-            "region": "STRING",
-            "secret_key": "STRING"
+            "region": "STRING"
         },
         "build": {
             "language": "STRING"
@@ -460,6 +496,7 @@ function _getServiceConfigSchema () {
 
 module.exports['getConfig'] = getServiceConfig;
 module.exports['copyConfig'] = copyServiceConfig;
+module.exports['removeConfig'] = removeServiceConfig;
 module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
 module.exports['replaceServiceConfigReferences'] = replaceServiceConfigReferences;
