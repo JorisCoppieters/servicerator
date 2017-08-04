@@ -32,9 +32,19 @@ function indentContents (in_contents, in_indent) {
 }
 
 // ******************************
+
+function toTitleCase (in_contents) {
+    return in_contents
+        .replace(/\w\S*/g, (txt) => {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+}
+
+// ******************************
 // Exports:
 // ******************************
 
 module.exports['indentContents'] = indentContents;
+module.exports['toTitleCase'] = toTitleCase;
 
 // ******************************

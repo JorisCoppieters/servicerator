@@ -33,7 +33,7 @@ function getAwsDockerRepository (in_serviceConfig) {
 
     let awsRegion = serviceConfigAws.region || 'ap-southeast-2';
 
-    return 'https://' + serviceConfigAws.account_id + '.dkr.ecr.' + awsRegion + '.amazonaws.com';
+    return serviceConfigAws.account_id + '.dkr.ecr.' + awsRegion + '.amazonaws.com';
 }
 
 // ******************************
@@ -46,8 +46,6 @@ function getAwsDockerCredentials (in_serviceConfig) {
 
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
-
-    awsLogin(in_serviceConfig);
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], true);
     if (awsCmdResult.hasError) {
