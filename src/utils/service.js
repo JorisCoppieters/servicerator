@@ -93,7 +93,7 @@ function getServiceConfig (in_folderName) {
             image: {
                 name: path.basename(path.resolve(sourceFolder)),
                 base: k_DEFAULT_IMAGE,
-                work_directory: '/root',
+                working_directory: '/root',
                 tag_with_date: true,
                 version: '0.1.0'
             },
@@ -456,7 +456,7 @@ function _getServiceConfigSchema () {
                     "STRING"
                 ],
                 "version": "STRING",
-                "work_directory": "PATH"
+                "working_directory": "PATH"
             },
             "other_repositories": [
                 {

@@ -38,17 +38,13 @@ function initFolder (in_folderName, in_overwrite) {
         serviceConfig = service.getConfig(sourceFolder);
         serviceConfig.cwd = sourceFolder;
 
-        if (serviceConfig) {
-            fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
-        }
+        saveServiceConfig(serviceConfig);
     }
 
     if (!serviceConfig) {
         cprint.yellow('Failed to create service config');
         return;
     }
-
-    edit.file(serviceConfigFile);
 
     return serviceConfig;
 }

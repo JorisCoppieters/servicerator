@@ -14,7 +14,7 @@ function getNginxFileContents (in_serviceConfig) {
     let serviceConfigDockerImage = serviceConfigDocker.image || {};
     let serviceConfigDockerImageNginx = serviceConfigDockerImage.nginx || {};
     let serviceConfigDockerContainer = serviceConfigDocker.container || {};
-    let workdir = serviceConfigDockerImage.work_directory || '.';
+    let workdir = serviceConfigDockerImage.working_directory || '.';
 
     let workerProcesses = 4;
     let workerConnections = 1024;

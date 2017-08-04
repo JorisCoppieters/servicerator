@@ -58,7 +58,7 @@ function getDockerfileContents (in_serviceConfig) {
     let condaUpdate = serviceConfigDockerImage.conda_update || false;
     let filesystem = serviceConfigDockerImage.filesystem || [];
     let commands = serviceConfigDockerImage.commands || [];
-    let workdir = serviceConfigDockerImage.work_directory || '.';
+    let workdir = serviceConfigDockerImage.working_directory || '.';
 
     let firstFilesystem = [];
     let firstEnvVariables = [];

@@ -66,7 +66,7 @@ function runTests () {
         },
         docker: {
             image: {
-                work_directory: 'mydir'
+                working_directory: 'mydir'
             }
         }
     }));
