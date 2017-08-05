@@ -26,6 +26,7 @@ let help = require('./src/help');
 let env = require('./src/utils/env');
 let init = require('./src/utils/init');
 let service = require('./src/utils/service');
+let print = require('./src/utils/print');
 let plugins = env.getPlugins();
 
 // ******************************
@@ -82,8 +83,22 @@ if (g_ARGV['help']) {
                 return;
             }
 
-            if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
-                pluginHandled = true;
+            try {
+                if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
+                    pluginHandled = true;
+                    return;
+                }
+            } catch (e) {
+                let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
+                print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
+                print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow('  ' + errorTitle + '  ', true), true)) + '\n');
+                print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
+                print.out('\n');
+                print.out(cprint.toMagenta('Please send the following to') + ' ' + cprint.toBold(cprint.toLightMagenta('joris.coppieters@gmail.com', true)) + '\n');
+                print.out('\n');
+                print.out(cprint.toYellow('Script Command: [' + process.argv.slice(2).join(', ') + ']') + '\n');
+                print.out(cprint.toYellow('Error Stack Trace: '));
+                print.out(cprint.toRed(e.stack) + '\n');
                 return;
             }
         }

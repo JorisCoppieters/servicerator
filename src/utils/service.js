@@ -121,9 +121,41 @@ function checkServiceConfigSchema (in_serviceConfig) {
 
 // ******************************
 
+function accessServiceConfig (in_serviceConfig, in_accessConfig) {
+    let schema = _getServiceConfigSchema();
+    _checkObjectAgainstSchema('ACCESS', in_accessConfig, schema, true);
+    return maskServiceConfig(in_serviceConfig, in_accessConfig);
+}
+
+// ******************************
+
 function getServiceConfigSchema () {
     let schema = _getServiceConfigSchema();
     return schema;
+}
+
+// ******************************
+
+function maskServiceConfig (in_source, in_mask) {
+    let source = in_source || {};
+    let mask = in_mask || {};
+    let result = {};
+
+    if (Array.isArray(source)) {
+        return source;
+    }
+
+    Object.keys(mask).forEach(k => {
+        let v = source[k];
+        if (typeof(v) === 'object') {
+            result[k] = maskServiceConfig(v, mask[k]);
+            return;
+        }
+
+        result[k] = v;
+    });
+
+    return result;
 }
 
 // ******************************
@@ -189,7 +221,7 @@ function removeServiceConfig (in_source, in_destination) {
 
 // ******************************
 
-function replaceServiceConfigReferences (in_serviceConfig, in_string) {
+function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigService = serviceConfig.service || {};
     let serviceConfigModel = serviceConfig.model || {};
@@ -203,6 +235,12 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string) {
         'DOCKER_IMAGE_VERSION': `${serviceConfigDockerImage.version}`,
         'CPU_CORE_COUNT': `${serviceConfigDockerContainer.cpu_core_count}`
     };
+
+    if (in_replacements) {
+        Object.keys(in_replacements).forEach(k => {
+            replacements[k] = in_replacements[k];
+        });
+    }
 
     let replaced = in_string || '';
 
@@ -218,7 +256,7 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string) {
 // Helper Functions:
 // ******************************
 
-function _checkObjectAgainstSchema (in_path, in_obj, in_schema) {
+function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsType) {
     if (!in_obj) {
         cprint.yellow('Object isn\'t set for path "' + in_path + '"');
         return;
@@ -244,13 +282,13 @@ function _checkObjectAgainstSchema (in_path, in_obj, in_schema) {
     objKeys.forEach(k => {
         let objVal = in_obj[k];
         let schemaVal = in_schema[k];
-        return _checkArrayElementAgainstSchema(in_path + ' > ' + k, objVal, schemaVal);
+        return _checkArrayElementAgainstSchema(in_path + ' > ' + k, objVal, schemaVal, in_checkValueAsType);
     });
 }
 
 // ******************************
 
-function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal) {
+function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_checkValueAsType) {
     if (in_objVal === undefined) {
         cprint.yellow('Object value isn\'t set for path "' + in_path + '"');
         return;
@@ -262,61 +300,66 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal) {
     }
 
     let objVal = in_objVal;
+    let objValType = typeof(objVal);
+    if (in_checkValueAsType && objValType !== 'object') {
+        objValType = objVal.toLowerCase();
+    }
+
     let schemaVal = in_schemaVal;
 
-    if (schemaVal === 'STRING' && typeof(objVal) !== 'string') {
-        cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+    if (schemaVal === 'STRING' && objValType !== 'string') {
+        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
         return;
     }
 
     if (schemaVal === 'PATH') {
-        if (typeof(objVal) !== 'string') {
-            cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+        if (objValType !== 'string') {
+            cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
             return;
         }
 
         if (!objVal.match(/^([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
-            cprint.yellow('Not a valid filesystem reference format (' + typeof(objVal) + ') in path "' + in_path + '": ' + objVal);
+            cprint.yellow('Not a valid filesystem reference format (' + objValType + ') in path "' + in_path + '": ' + objVal);
             return;
         }
     }
 
     if (schemaVal === 'URL') {
-        if (typeof(objVal) !== 'string') {
-            cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+        if (objValType !== 'string') {
+            cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
             return;
         }
 
         if (!objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
-            cprint.yellow('Not a valid url format (' + typeof(objVal) + ') in path "' + in_path + '": ' + objVal);
+            cprint.yellow('Not a valid url format (' + objValType + ') in path "' + in_path + '": ' + objVal);
             return;
         }
     }
 
-    if (schemaVal === 'NUMBER' && typeof(objVal) !== 'number') {
-        cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+    if (schemaVal === 'NUMBER' && objValType !== 'number') {
+        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
         return;
     }
 
-    if (schemaVal === 'BOOLEAN' && typeof(objVal) !== 'boolean') {
-        cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+    if (schemaVal === 'BOOLEAN' && objValType !== 'boolean') {
+        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
         return;
     }
 
     if (Array.isArray(schemaVal) && !Array.isArray(objVal)) {
-        cprint.yellow('Found incorrect type (' + typeof(objVal) + ') in path "' + in_path + '":');
+        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
         return;
     }
 
     if (Array.isArray(objVal)) {
         objVal.forEach(elem => {
-            _checkArrayElementAgainstSchema(in_path + '[]', elem, schemaVal[0]);
+            _checkArrayElementAgainstSchema(in_path + '[]', elem, schemaVal[0], in_checkValueAsType);
         })
         return;
     }
 
-    if (typeof(objVal) === 'object') {
-        return _checkObjectAgainstSchema(in_path, objVal, schemaVal);
+    if (objValType === 'object') {
+        return _checkObjectAgainstSchema(in_path, objVal, schemaVal, in_checkValueAsType);
     }
 }
 
@@ -333,7 +376,9 @@ function _getServiceConfigSchema () {
             "type": "STRING"
         },
         "aws": {
+            "__allow_prod_access__": "BOOLEAN",
             "account_id": "NUMBER",
+            "access_key": "STRING",
             "region": "STRING"
         },
         "build": {
@@ -472,20 +517,48 @@ function _getServiceConfigSchema () {
             "version": "STRING"
         },
         "service": {
-            "cluster": {
-                "instance": {
-                    "count": "NUMBER",
-                    "type": "STRING",
-                    "volume_size": "NUMBER"
+            "clusters": [
+                {
+                    "environment": "STRING",
+                    "url": "STRING",
+                    "vpc_name": "STRING",
+                    "vpc_subnet_name": "STRING",
+                    "task_definition_name": "STRING",
+                    "launch_configuration_name": "STRING",
+                    "auto_scaling_group_name": "STRING",
+                    "name": "STRING",
+                    "service_name": "STRING",
+                    "identity_file": "STRING",
+                    "instance": {
+                        "count": "NUMBER",
+                        "type": "STRING",
+                        "volumes": [
+                            {
+                                "DeviceName": "STRING",
+                                "Ebs": {
+                                    "Encrypted": "BOOLEAN",
+                                    "DeleteOnTermination": "BOOLEAN",
+                                    "SnapshotId": "STRING",
+                                    "VolumeSize": "NUMBER",
+                                    "VolumeType": "STRING"
+                                }
+                            }
+                        ],
+                        "ami": "STRING",
+                        "iam_role": "STRING",
+                        "user_data": [
+                            "STRING"
+                        ]
+                    }
                 }
-            },
-            "name": "STRING",
+            ],
             "urls": [
                 {
                     "env": "STRING",
                     "val": "STRING"
                 }
-            ]
+            ],
+            "name": "STRING"
         }
     };
 }
@@ -496,8 +569,10 @@ function _getServiceConfigSchema () {
 
 module.exports['getConfig'] = getServiceConfig;
 module.exports['copyConfig'] = copyServiceConfig;
+module.exports['maskConfig'] = maskServiceConfig;
 module.exports['removeConfig'] = removeServiceConfig;
 module.exports['getConfigSchema'] = getServiceConfigSchema;
+module.exports['accessConfig'] = accessServiceConfig;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
 module.exports['replaceServiceConfigReferences'] = replaceServiceConfigReferences;
 

@@ -86,17 +86,18 @@ function saveServiceConfig (in_serviceConfig) {
 function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let sourceFolder = serviceConfig.cwd;
-
-    let updatedServiceConfig;
+    if (!sourceFolder) {
+        cprint.yellow('Invalid source folder: ' + sourceFolder);
+        return false;
+    }
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
-        updatedServiceConfig = service.copyConfig(in_newServiceConfig, savedServiceConfig);
+        let updatedServiceConfig = service.copyConfig(in_newServiceConfig, savedServiceConfig);
         saveServiceConfig(updatedServiceConfig);
-        return updatedServiceConfig;
     }
 
-    updatedServiceConfig = service.copyConfig(in_newServiceConfig, serviceConfig);
+    serviceConfig = service.copyConfig(in_newServiceConfig, serviceConfig);
     return serviceConfig;
 }
 
@@ -105,17 +106,18 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
 function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let sourceFolder = serviceConfig.cwd;
-
-    let updatedServiceConfig;
+    if (!sourceFolder) {
+        cprint.yellow('Invalid source folder: ' + sourceFolder);
+        return false;
+    }
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
-        updatedServiceConfig = service.removeConfig(in_removeServiceConfig, savedServiceConfig);
+        let updatedServiceConfig = service.removeConfig(in_removeServiceConfig, savedServiceConfig);
         saveServiceConfig(updatedServiceConfig);
-        return updatedServiceConfig;
     }
 
-    updatedServiceConfig = service.removeConfig(in_removeServiceConfig, serviceConfig);
+    serviceConfig = service.removeConfig(in_removeServiceConfig, serviceConfig);
     return serviceConfig;
 }
 

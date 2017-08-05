@@ -16,7 +16,8 @@ function getIgnoreFileContents (in_serviceConfig) {
 
     let ignoreFiles = [
         'syntax: glob',
-        'docker/.aws_cache/*'
+        'docker/.aws_cache/*',
+        '.cache'
     ];
 
     if (serviceConfigDockerImage.language === 'node') {

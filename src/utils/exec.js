@@ -29,9 +29,15 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
         errorResult = '';
     }
 
+    let cmdResultObj = {};
+    try {
+        cmdResultObj = JSON.parse(cmdResult);
+    } catch (e) {}
+
     return {
         error: errorResult,
         result: cmdResult,
+        resultObj: cmdResultObj,
         printError: (in_indent) => cprint.red(str.indentContents(errorResult, in_indent)),
         printResult: (in_indent) => _printLogLines(cmdResult, in_indent),
         rows: rows,
