@@ -89,6 +89,8 @@ if (g_ARGV['help']) {
                     return;
                 }
             } catch (e) {
+                let stack = e.stack.replace(/[\\]/g, "\\$&");
+
                 let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
                 print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
                 print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow('  ' + errorTitle + '  ', true), true)) + '\n');
@@ -98,7 +100,7 @@ if (g_ARGV['help']) {
                 print.out('\n');
                 print.out(cprint.toYellow('Script Command: [' + process.argv.slice(2).join(', ') + ']') + '\n');
                 print.out(cprint.toYellow('Error Stack Trace: '));
-                print.out(cprint.toRed(e.stack) + '\n');
+                print.out(cprint.toRed(stack) + '\n');
                 return;
             }
         }

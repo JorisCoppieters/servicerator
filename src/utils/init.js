@@ -69,7 +69,10 @@ function loadServiceConfig (in_sourceFolder) {
 // ******************************
 
 function saveServiceConfig (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
         cprint.yellow('Invalid source folder: ' + sourceFolder);
@@ -78,13 +81,17 @@ function saveServiceConfig (in_serviceConfig) {
 
     cprint.cyan('Saving service config...');
     let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
-    fs.writeFile(serviceConfigFile, JSON.stringify(serviceConfig, _serviceConfigReplacer, 4), true);
+    let serviceConfigContents = JSON.stringify(in_serviceConfig, _serviceConfigReplacer, 4);
+    fs.writeFile(serviceConfigFile, serviceConfigContents, true);
 }
 
 // ******************************
 
 function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
         cprint.yellow('Invalid source folder: ' + sourceFolder);
@@ -97,14 +104,17 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
         saveServiceConfig(updatedServiceConfig);
     }
 
-    serviceConfig = service.copyConfig(in_newServiceConfig, serviceConfig);
-    return serviceConfig;
+    let updatedServiceConfig = service.copyConfig(in_newServiceConfig, in_serviceConfig);
+    return updatedServiceConfig;
 }
 
 // ******************************
 
 function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
         cprint.yellow('Invalid source folder: ' + sourceFolder);
@@ -117,8 +127,8 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
         saveServiceConfig(updatedServiceConfig);
     }
 
-    serviceConfig = service.removeConfig(in_removeServiceConfig, serviceConfig);
-    return serviceConfig;
+    let updatedServiceConfig = service.removeConfig(in_removeServiceConfig, in_serviceConfig);
+    return updatedServiceConfig;
 }
 
 // ******************************

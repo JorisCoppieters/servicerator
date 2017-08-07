@@ -7,13 +7,14 @@
 let path = require('path');
 let cprint = require('color-print');
 
-let init = require('../utils/init');
-let nginx = require('../utils/nginx');
 let bash = require('../utils/bash');
 let docker = require('../utils/docker');
+let fs = require('../utils/filesystem');
 let git = require('../utils/git');
 let hg = require('../utils/mercurial');
-let fs = require('../utils/filesystem');
+let init = require('../utils/init');
+let nginx = require('../utils/nginx');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
@@ -42,7 +43,20 @@ function hgSetupFolder (in_serviceConfig, in_overwrite) {
 // ******************************
 
 function setupFolder (in_serviceConfig, in_overwrite) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        auth: {},
+        model: {},
+        corpus: {},
+        docker: {
+            image: {
+                nginx: {},
+                log: 'BOOLEAN',
+                language: 'STRING'
+            }
+        },
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
@@ -51,49 +65,42 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 
     cprint.cyan('Setting up "' + sourceFolder + '"...');
 
-    let serviceConfigModel = serviceConfig.model || {};
-    let serviceConfigCorpus = serviceConfig.corpus || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerBuild = serviceConfigDocker.build || {};
-
     let dockerFolder = docker.getFolder(sourceFolder)
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
         dockerFolder = path.resolve(sourceFolder, 'docker');
         fs.createFolder(dockerFolder);
     }
 
-    let dockerFileContents = docker.getDockerfileContents(serviceConfig);
+    let dockerFileContents = docker.getDockerfileContents(in_serviceConfig);
     if (dockerFileContents) {
         fs.writeFile(path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, in_overwrite);
     }
 
-    let dockerIgnoreFileContents = docker.getIgnoreDockerContents(serviceConfig);
+    let dockerIgnoreFileContents = docker.getIgnoreDockerContents(in_serviceConfig);
     if (dockerIgnoreFileContents) {
         fs.writeFile(path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, in_overwrite);
     }
 
-    if (serviceConfigDockerImage.nginx) {
-        let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-        fs.writeFile(nginxFile, nginx.getFileContents(serviceConfig), in_overwrite);
+    if (Object.keys(serviceConfig.docker.image).length) {
+        if (Object.keys(serviceConfig.docker.image.nginx).length) {
+            let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+            fs.writeFile(nginxFile, nginx.getFileContents(in_serviceConfig), in_overwrite);
+        }
+
+        if (serviceConfig.docker.image.log) {
+            fs.createFolder(path.resolve(dockerFolder, 'logs'));
+        }
+
+        if (serviceConfig.docker.image.language === 'python') {
+            fs.createFolder(path.resolve(dockerFolder, 'python'));
+        }
     }
 
-    if (serviceConfigDockerImage.log) {
-        fs.createFolder(path.resolve(dockerFolder, 'logs'));
-    }
-
-    if (serviceConfig.auth) {
+    if (Object.keys(serviceConfig.auth).length) {
         fs.createFolder(path.resolve(dockerFolder, 'auth'));
     }
 
-    if (serviceConfigDockerImage.language === 'python') {
-        fs.createFolder(path.resolve(dockerFolder, 'python'));
-    } else if (serviceConfigDockerBuild.language === 'bash') {
-        let bashEnvFile = path.resolve(dockerFolder, '_env.sh');
-        fs.writeFile(bashEnvFile, bash.getEnvContents(serviceConfig), in_overwrite);
-    }
-
-    if (serviceConfig.model) {
+    if (Object.keys(serviceConfig.model).length) {
         fs.createFolder(path.resolve(dockerFolder, 'model'));
         fs.createFolder(path.resolve(sourceFolder, 'model'));
 
@@ -102,12 +109,8 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         }
     }
 
-    if (serviceConfig.corpus) {
+    if (Object.keys(serviceConfig.corpus).length) {
         fs.createFolder(path.resolve(sourceFolder, 'corpus'));
-    }
-
-    if (serviceConfig.downloads) {
-        fs.createFolder(path.resolve(sourceFolder, 'downloads'));
     }
 
     return sourceFolder;

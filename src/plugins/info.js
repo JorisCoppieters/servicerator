@@ -7,28 +7,39 @@
 let cprint = require('color-print');
 
 let docker = require('../utils/docker');
-let print = require('../utils/print');
 let env = require('../utils/env');
+let print = require('../utils/print');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
 // ******************************
 
 function printServiceInfo (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
-    let serviceConfigService = serviceConfig.service || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            username: 'STRING',
+            image: {
+                name: 'STRING',
+                version: 'STRING',
+                language: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING'
+        },
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd || false;
 
     let serviceConfigFile = env.getServiceConfigFile();
 
-    let serviceName = serviceConfigService.name || false;
-    let dockerUsername = serviceConfigDocker.username || false;
-    let dockerImageName = serviceConfigDockerImage.name || false;
-    let dockerImageVersion = serviceConfigDockerImage.version || false;
-    let dockerImageLanguage = serviceConfigDockerImage.language || false;
+    let serviceName = serviceConfig.service.name || false;
+    let dockerUsername = serviceConfig.docker.username || false;
+    let dockerImageName = serviceConfig.docker.image.name || false;
+    let dockerImageVersion = serviceConfig.docker.image.version || false;
+    let dockerImageLanguage = serviceConfig.docker.image.language || false;
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
     let dockerfile = docker.getDockerfile(sourceFolder);
 

@@ -8,32 +8,38 @@ let cprint = require('color-print');
 
 let docker = require('../utils/docker');
 let print = require('../utils/print');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
 // ******************************
 
 function printServiceSummary (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
-    let serviceConfigService = serviceConfig.service || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING'
+        }
+    });
 
     let output = '';
 
-    if (serviceConfigService.name) {
+    if (serviceConfig.service.name) {
         if (output) { output += ' '; }
-        output += cprint.toCyan('[service - ' + serviceConfigService.name + ']');
+        output += cprint.toCyan('[service - ' + serviceConfig.service.name + ']');
     }
 
-    if (serviceConfigDockerImage.name) {
+    if (serviceConfig.docker.image.name) {
         if (output) { output += ' '; }
 
         let dockerImageTags = docker.getImageTags(in_serviceConfig);
         let tag = dockerImageTags[0];
 
-        output += cprint.toLightBlue('[image - ' + serviceConfigDockerImage.name + ':' + tag + ']');
+        output += cprint.toLightBlue('[image - ' + serviceConfig.docker.image.name + ':' + tag + ']');
     }
 
     output = cprint.toMagenta('>> ') + output;

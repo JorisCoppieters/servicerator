@@ -11,7 +11,7 @@ let date = require('./date');
 let env = require('./env');
 let exec = require('./exec');
 let fs = require('./filesystem');
-let test = require('./test');
+let service = require('./service');
 
 // ******************************
 // Constants:
@@ -25,48 +25,124 @@ const k_STATE_EXITED = 1;
 const k_STATE_FAILED = 5;
 const k_STATE_RUNNING = 10;
 
+const k_TEST_TYPE_URL = 'URL';
+
+const knownCmdErrors = [
+    new RegExp(/WARNING: Error loading config file:.* - open .*: The process cannot access the file because it is being used by another process./),
+    new RegExp(/Error response from daemon: conflict: unable to delete .* \(cannot be forced\) - image has dependent child images/),
+    new RegExp(/Error response from daemon: manifest for .* not found/),
+    'Error response from daemon: invalid reference format'
+];
+
 // ******************************
 // Globals:
 // ******************************
 
 let g_DOCKER_INSTALLED = undefined;
+let g_DOCKER_RUNNING = undefined;
 
 // ******************************
 // Functions:
 // ******************************
 
 function getDockerfileContents (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigService = serviceConfig.service || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        auth: {
+            disableAutoPopulate: 'BOOLEAN',
+            type: 'STRING',
+            certificate: 'PATH',
+            key: 'PATH'
+        },
+        model: {
+            disableAutoPopulate: 'BOOLEAN',
+            type: 'STRING',
+            source: 'STRING'
+        },
+        docker: {
+            image: {
+                base: 'STRING',
+                env_variables: [
+                    {
+                        key: 'STRING',
+                        val: 'STRING'
+                    }
+                ],
+                ports: [
+                    'NUMBER'
+                ],
+                scripts: [
+                    {
+                        cmd: 'BOOLEAN',
+                        commands: [
+                            'STRING'
+                        ],
+                        name: 'STRING',
+                        language: 'STRING'
+                    }
+                ],
+                apt_get_packages: [
+                    'STRING'
+                ],
+                apt_get_update: 'BOOLEAN',
+                pip_packages: [
+                    'STRING'
+                ],
+                pip_update: 'BOOLEAN',
+                conda_packages: [
+                    'STRING'
+                ],
+                conda_channels: [
+                    'STRING'
+                ],
+                conda_update: 'BOOLEAN',
+                filesystem: [
+                    {
+                        path: 'PATH',
+                        permissions: 'STRING',
+                        type: 'STRING',
+                        destination: 'PATH',
+                        source: 'PATH'
+                    }
 
-    let baseImage = serviceConfigDockerImage.base || 'ubuntu:trusty';
-    let envVariables = serviceConfigDockerImage.env_variables || [];
-    let imagePorts = serviceConfigDockerImage.ports || [];
-    let scripts = (serviceConfigDockerImage.scripts || []);
+                ],
+                commands: [
+                    'STRING'
+                ],
+                working_directory: 'PATH',
+                nginx: {
+                    servers: []
+                },
+                language: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING'
+        }
+    });
 
-    let enableS3cmd = serviceConfigDockerImage.s3cmd;
-    let enableAuth = serviceConfigDockerImage.auth;
+    let baseImage = serviceConfig.docker.image.base || 'ubuntu:trusty';
+    let envVariables = serviceConfig.docker.image.env_variables || [];
+    let imagePorts = serviceConfig.docker.image.ports || [];
+    let scripts = (serviceConfig.docker.image.scripts || []);
 
-    let aptGetPackages = serviceConfigDockerImage.apt_get_packages || [];
-    let aptGetUpdate = serviceConfigDockerImage.apt_get_update || false;
-    let pipPackages = serviceConfigDockerImage.pip_packages || [];
-    let pipUpdate = serviceConfigDockerImage.pip_update || false;
-    let condaPackages = serviceConfigDockerImage.conda_packages || [];
-    let condaChannels = serviceConfigDockerImage.conda_channels || [];
-    let condaUpdate = serviceConfigDockerImage.conda_update || false;
-    let filesystem = serviceConfigDockerImage.filesystem || [];
-    let commands = serviceConfigDockerImage.commands || [];
-    let workdir = serviceConfigDockerImage.working_directory || '.';
+    let aptGetPackages = serviceConfig.docker.image.apt_get_packages || [];
+    let aptGetUpdate = serviceConfig.docker.image.apt_get_update || false;
+    let pipPackages = serviceConfig.docker.image.pip_packages || [];
+    let pipUpdate = serviceConfig.docker.image.pip_update || false;
+    let condaPackages = serviceConfig.docker.image.conda_packages || [];
+    let condaChannels = serviceConfig.docker.image.conda_channels || [];
+    let condaUpdate = serviceConfig.docker.image.conda_update || false;
+    let filesystem = serviceConfig.docker.image.filesystem || [];
+    let commands = serviceConfig.docker.image.commands || [];
+    let workdir = serviceConfig.docker.image.working_directory || '.';
 
     let firstFilesystem = [];
     let firstEnvVariables = [];
 
-    if (serviceConfigService.name) {
+    if (serviceConfig.service.name) {
         firstEnvVariables.push({
             key: 'SERVICE_NAME',
-            val: serviceConfigService.name
+            val: serviceConfig.service.name
         });
     }
 
@@ -99,7 +175,7 @@ function getDockerfileContents (in_serviceConfig) {
         );
     }
 
-    if (serviceConfig.model && !serviceConfig.model.disableAutoPopulate) {
+    if (Object.keys(serviceConfig.model).length && !serviceConfig.model.disableAutoPopulate) {
         firstEnvVariables.push({
             key: 'MODEL_DIR',
             val: '$BASE_DIR/model'
@@ -144,7 +220,7 @@ function getDockerfileContents (in_serviceConfig) {
             }
         );
 
-        if (serviceConfig.auth.type === 'self-signed' && serviceConfig.auth.certificate && serviceConfig.auth.key) {
+        if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
             firstFilesystem.push(
                 {
                     'source': `${serviceConfig.auth.certificate}`,
@@ -163,12 +239,12 @@ function getDockerfileContents (in_serviceConfig) {
     }
 
     let enableNginx = false;
-    if (serviceConfigDockerImage.nginx) {
+    if (Object.keys(serviceConfig.docker.image.nginx).length) {
         enableNginx = true;
         aptGetPackages.push('nginx');
     }
 
-    if (serviceConfigDockerImage.language === 'python') {
+    if (serviceConfig.docker.image.language === 'python') {
         firstEnvVariables.push({
             key: 'PYTHON_DIR',
             val: '$BASE_DIR/python'
@@ -187,7 +263,7 @@ function getDockerfileContents (in_serviceConfig) {
                 'type': 'copy_folder'
             }
         );
-    } else if (serviceConfigDockerImage.language === 'node') {
+    } else if (serviceConfig.docker.image.language === 'node') {
         firstEnvVariables.push({
             key: 'NODE_DIR',
             val: '$BASE_DIR/node'
@@ -501,32 +577,45 @@ function parseDockerfileContents (in_dockerFileContents) {
 // ******************************
 
 function getIgnoreDockerContents (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerBuild = serviceConfigDocker.build || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        model: {
+            disableAutoPopulate: 'BOOLEAN',
+            source: 'STRING',
+            type: 'STRING',
+            version: 'STRING'
+        },
+        docker: {
+            image: {
+                language: 'STRING',
+                log: 'BOOLEAN'
+            }
+        },
+        build: {
+            language: 'STRING'
+        }
+    });
 
     let ignoreFiles = [];
 
-    if (serviceConfigDockerImage.language === 'node') {
+    if (serviceConfig.docker.image.language === 'node') {
         ignoreFiles.push('node/node_modules/*');
     }
 
-    if (serviceConfigDockerImage.language === 'python') {
+    if (serviceConfig.docker.image.language === 'python') {
         ignoreFiles.push('*.pyc');
     }
 
-    if (serviceConfigDockerImage.log) {
+    if (serviceConfig.docker.image.log) {
         ignoreFiles.push('logs/*');
     }
 
-    if (serviceConfigDockerBuild.language === 'bash') {
+    if (serviceConfig.build.language === 'bash') {
         ignoreFiles.push('setup-aws-infrastructure.sh');
         ignoreFiles.push('create-docker-image.sh');
         ignoreFiles.push('_env.sh');
     }
 
-    if (serviceConfig.model) {
+    if (Object.keys(serviceConfig.model).length) {
         ignoreFiles.push('model/*');
     }
 
@@ -542,11 +631,15 @@ function getDefaultDockerRepository () {
 // ******************************
 
 function getDockerPassword (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            username: 'STRING',
+            password: 'STRING'
+        }
+    });
 
-    let dockerUsername = serviceConfigDocker.username;
-    let dockerPassword = serviceConfigDocker.password;
+    let dockerUsername = serviceConfig.docker.username;
+    let dockerPassword = serviceConfig.docker.password;
 
     if (!dockerUsername) {
         cprint.yellow('Docker username not set');
@@ -563,15 +656,25 @@ function getDockerPassword (in_serviceConfig) {
 // ******************************
 
 function getDockerImageTags (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigModel = serviceConfig.model || {};
-    let serviceConfigCorpus = serviceConfig.corpus || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        model: {
+            version: 'STRING'
+        },
+        corpus: {
+            version: 'STRING'
+        },
+        docker: {
+            image: {
+                version: 'STRING',
+                tags: [],
+                tag_with_date: 'BOOLEAN'
+            }
+        }
+    });
 
-    let dockerImageTags = serviceConfigDockerImage.tags || [];
+    let dockerImageTags = serviceConfig.docker.image.tags || [];
 
-    let dockerImageVersion = serviceConfigDockerImage.version;
+    let dockerImageVersion = serviceConfig.docker.image.version;
     if (dockerImageVersion) {
         let dockerImageVersionTag = dockerImageVersion;
         if (dockerImageTags.indexOf(dockerImageVersionTag) < 0) {
@@ -579,14 +682,14 @@ function getDockerImageTags (in_serviceConfig) {
         }
     }
 
-    if (serviceConfigDockerImage.tag_with_date) {
+    if (serviceConfig.docker.image.tag_with_date) {
         let dockerImageDateTag = date.getTag();
         if (dockerImageTags.indexOf(dockerImageDateTag) < 0) {
             dockerImageTags.push(dockerImageDateTag);
         }
     }
 
-    let modelVersion = serviceConfigModel.version;
+    let modelVersion = serviceConfig.model.version;
     if (modelVersion) {
         let modelVersionTag = 'model-version-' + modelVersion;
         if (dockerImageTags.indexOf(modelVersionTag) < 0) {
@@ -594,7 +697,7 @@ function getDockerImageTags (in_serviceConfig) {
         }
     }
 
-    let corpusVersion = serviceConfigCorpus.version;
+    let corpusVersion = serviceConfig.corpus.version;
     if (corpusVersion) {
         let corpusVersionTag = 'corpus-version-' + corpusVersion;
         if (dockerImageTags.indexOf(corpusVersionTag) < 0) {
@@ -658,7 +761,7 @@ function dockerInfo () {
 
 // ******************************
 
-function dockerCmd (in_args, in_hide) {
+function dockerCmd (in_args, in_hide, in_async, in_asyncCb) {
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
         return false;
@@ -672,7 +775,13 @@ function dockerCmd (in_args, in_hide) {
         in_args = [in_args]
     }
 
-    return exec.cmdSync('docker', in_args, '  ', !in_hide);
+    let errToOut = false;
+
+    if (in_async) {
+        return exec.cmd('docker', in_args, '  ', !in_hide, knownCmdErrors, in_asyncCb);
+    }
+
+    return exec.cmdSync('docker', in_args, '  ', !in_hide, errToOut, knownCmdErrors);
 }
 
 // ******************************
@@ -686,8 +795,28 @@ function dockerInstalled () {
 
 // ******************************
 
+function dockerRunning () {
+    if (g_DOCKER_RUNNING === undefined) {
+        g_DOCKER_RUNNING = !!dockerInfo();
+    }
+    return g_DOCKER_RUNNING;
+}
+
+// ******************************
+
 function dockerVersion () {
     let cmdResult = exec.cmdSync('docker', ['--version'], '', false);
+    if (cmdResult.hasError) {
+        return false;
+    } else {
+        return cmdResult.result;
+    }
+}
+
+// ******************************
+
+function dockerInfo (in_arg) {
+    let cmdResult = exec.cmdSync('docker', ['info'], '', false);
     if (cmdResult.hasError) {
         return false;
     } else {
@@ -729,8 +858,11 @@ module.exports['k_STATE_RUNNING'] = k_STATE_RUNNING;
 module.exports['k_STATE_FAILED'] = k_STATE_FAILED;
 module.exports['k_STATE_EXITED'] = k_STATE_EXITED;
 
+module.exports['k_TEST_TYPE_URL'] = k_TEST_TYPE_URL;
+
 module.exports['login'] = dockerLogin;
 module.exports['installed'] = dockerInstalled;
+module.exports['running'] = dockerRunning;
 module.exports['version'] = dockerVersion;
 module.exports['info'] = dockerInfo;
 module.exports['cmd'] = dockerCmd;

@@ -4,23 +4,53 @@
 // Requires:
 // ******************************
 
+let service = require('./service');
+
 // ******************************
 // Functions:
 // ******************************
 
 function getNginxFileContents (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerImageNginx = serviceConfigDockerImage.nginx || {};
-    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
-    let workdir = serviceConfigDockerImage.working_directory || '.';
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            image: {
+                nginx: {
+                    servers: [
+                        {
+                            access_log: 'PATH',
+                            error_log: 'PATH',
+                            locations: [
+                                {
+                                    location: 'PATH',
+                                    location_params: [
+                                        'STRING'
+                                    ],
+                                    pass_through: 'URL',
+                                    uwsgi_pass: 'STRING'
+                                }
+                            ],
+                            port: 'NUMBER',
+                            ssl: {
+                                certificate: 'PATH',
+                                key: 'PATH'
+                            }
+                        }
+                    ],
+                    daemon_off: 'BOOLEAN'
+                },
+                working_directory: 'PATH'
+            },
+            container: {}
+        }
+    });
+
+    let workdir = serviceConfig.docker.image.working_directory || '.';
 
     let workerProcesses = 4;
     let workerConnections = 1024;
 
     let dockerAuthDir = workdir + '/auth';
-    let nginxServers = serviceConfigDockerImageNginx.servers || [];
+    let nginxServers = serviceConfig.docker.image.nginx.servers || [];
 
     let nginxServersContent = nginxServers.map(s => {
         let authContent = [];
@@ -105,7 +135,7 @@ function getNginxFileContents (in_serviceConfig) {
         `}`
     ];
 
-    if (serviceConfigDockerImageNginx.daemon_off) {
+    if (serviceConfig.docker.image.nginx.daemon_off) {
         nginxContents.push(`daemon off;`);
     }
 

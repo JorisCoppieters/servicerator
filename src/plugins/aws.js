@@ -46,7 +46,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
     let awsAccessKey = serviceConfig.aws.access_key || false;
     let awsSecretKey = false;
     if (awsAccessKey) {
-        awsSecretKey = aws.getSecretKey(serviceConfig);
+        awsSecretKey = aws.getSecretKey(in_serviceConfig);
     }
 
     let awsAccountId = serviceConfig.aws.account_id || false;
@@ -59,7 +59,12 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
     print.keyVal('AWS Secret Key', awsSecretKey ? '*******' : '(Not Set)');
     print.out('\n');
 
-    if (awsAccessKey && awsSecretKey) {
+    let awsInstalled = aws.installed();
+    if (!awsInstalled) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+    }
+
+    if (awsInstalled && awsAccessKey && awsSecretKey) {
 
         let clusters = serviceConfig.service.clusters
             .filter(c => {
@@ -201,6 +206,11 @@ function awsDeploy (in_serviceConfig, in_prod) {
         cwd: 'STRING'
     });
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('No service name set');
@@ -220,7 +230,7 @@ function awsDeploy (in_serviceConfig, in_prod) {
 
     let dockerImageName = serviceConfig.docker.image.name || 'image';
     let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
-    let awsDockerRepository = aws.getDockerRepository(serviceConfig);
+    let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
     let awsTaskDefinitionImagePath = awsDockerRepository + '/' + dockerImageName + ':' + dockerImageVersion;
     let awsTaskDefinitionName = cluster.task_definition_name;
     let awsClusterName = cluster.name;
@@ -306,10 +316,15 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         return false;
     }
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
     let dockerImageName = serviceConfig.docker.image.name || 'image';
     let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
 
-    let awsDockerRepository = aws.getDockerRepository(serviceConfig);
+    let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
 
     let awsTaskDefinitionImagePath = awsDockerRepository + '/' + dockerImageName + ':' + dockerImageVersion;
     let awsTaskDefinitionName = serviceName + '-task-definition';
@@ -379,8 +394,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        let volumeContainer = service.replaceServiceConfigReferences(serviceConfig, volume.container);
-        let volumeName = service.replaceServiceConfigReferences(serviceConfig, volume.name || volume.host);
+        let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
+        let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
         serviceContainerDefinition.mountPoints = serviceContainerDefinition.mountPoints || [];
         serviceContainerDefinition.mountPoints.push({
@@ -407,8 +422,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        let volumeContainer = service.replaceServiceConfigReferences(serviceConfig, volume.container);
-        let volumeName = service.replaceServiceConfigReferences(serviceConfig, volume.name || volume.host);
+        let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
+        let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
         filebeatContainerDefinition.mountPoints = filebeatContainerDefinition.mountPoints || [];
         filebeatContainerDefinition.mountPoints.push({
@@ -432,15 +447,15 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     serviceConfig.docker.container.volumes
         .concat(awsTaskDefinitionFilebeatVolumes)
         .forEach(volume => {
-            let volumeName = service.replaceServiceConfigReferences(serviceConfig, volume.name || volume.host);
+            let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
             uniqueHosts[volumeName] = volume;
         });
 
     Object.keys(uniqueHosts)
         .forEach(host => {
             let volume = uniqueHosts[host];
-            let volumeContainer = service.replaceServiceConfigReferences(serviceConfig, volume.container);
-            let volumeName = service.replaceServiceConfigReferences(serviceConfig, volume.name || volume.host);
+            let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
+            let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
             awsTaskDefinitionStructure.volumes = awsTaskDefinitionStructure.volumes || [];
             awsTaskDefinitionStructure.volumes.push({
@@ -512,6 +527,11 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
         return false;
     }
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
     let environment = (in_prod) ? 'prod' : 'test';
     let environmentNameLong = (in_prod) ? 'production' : 'test';
     let cluster = (serviceConfig.service.clusters || []).find(c => {
@@ -572,7 +592,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Id', awsVpcSubnetId);
 
     let userData = (cluster.instance.user_data || []).join('\n');
-    userData = service.replaceServiceConfigReferences(serviceConfig, userData, {
+    userData = service.replaceServiceConfigReferences(in_serviceConfig, userData, {
         'ENVIRONMENT': environment,
         'AWS_CLUSTER_NAME': awsClusterName
     });
@@ -632,15 +652,20 @@ function awsDockerLogin (in_serviceConfig) {
         cwd: 'STRING'
     });
 
-    let awsDockerCredentials = aws.getDockerCredentials(serviceConfig);
-    serviceConfig = init.updateServiceConfig(serviceConfig, {
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    serviceConfig = init.updateServiceConfig(in_serviceConfig, {
         aws: {
             account_id: awsDockerCredentials.account_id,
             region: awsDockerCredentials.region
         }
     });
 
-    let awsDockerRepository = aws.getDockerRepository(serviceConfig);
+    let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
     docker.login(awsDockerCredentials.username, awsDockerCredentials.password, awsDockerRepository);
 }
 
@@ -667,6 +692,11 @@ function awsStartCluster (in_serviceConfig, in_prod) {
         return false;
     }
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
     let environment = (in_prod) ? 'prod' : 'test';
     let environmentNameLong = (in_prod) ? 'production' : 'test';
     let cluster = (serviceConfig.service.clusters || []).find(c => {
@@ -687,7 +717,7 @@ function awsStartCluster (in_serviceConfig, in_prod) {
         cprint.green('AWS cluster already started');
     }
 
-    cache.save(in_serviceConfig.cwd, 'aws', awsCache);
+    cache.save(serviceConfig.cwd, 'aws', awsCache);
 }
 
 // ******************************
@@ -713,6 +743,11 @@ function awsStopCluster (in_serviceConfig, in_prod) {
         return false;
     }
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
     let environment = (in_prod) ? 'prod' : 'test';
     let environmentNameLong = (in_prod) ? 'production' : 'test';
     let cluster = (serviceConfig.service.clusters || []).find(c => {
@@ -733,7 +768,7 @@ function awsStopCluster (in_serviceConfig, in_prod) {
         cprint.green('AWS cluster already stopped');
     }
 
-    cache.save(in_serviceConfig.cwd, 'aws', awsCache);
+    cache.save(serviceConfig.cwd, 'aws', awsCache);
 }
 
 // ******************************

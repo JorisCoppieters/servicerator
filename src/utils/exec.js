@@ -10,11 +10,18 @@ let cprint = require('color-print');
 let str = require('./string');
 let print = require('./print');
 
+let knownErrors = [
+    new RegExp(/WARNING: Error loading config file:.* - open .*: The process cannot access the file because it is being used by another process./),
+    new RegExp(/Error response from daemon: conflict: unable to delete .* \(cannot be forced\) - image has dependent child images/),
+    new RegExp(/Error response from daemon: manifest for .* not found/),
+    'Error response from daemon: invalid reference format'
+];
+
 // ******************************
 // Functions:
 // ******************************
 
-function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
+function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut, in_knownErrors) {
     in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
     if (in_printCmd) {
         cprint.white('  EXEC-SYNC: ' + in_cmd + ' ' + _flatArgs(in_args));
@@ -39,7 +46,7 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
         result: cmdResult,
         resultObj: cmdResultObj,
         printError: (in_indent) => cprint.red(str.indentContents(errorResult, in_indent)),
-        printResult: (in_indent) => _printLogLines(cmdResult, in_indent),
+        printResult: (in_indent) => _printLogLines(cmdResult, in_indent, in_knownErrors),
         rows: rows,
         hasError: !!errorResult.trim(),
         toString: () => errorResult.trim() ? errorResult : cmdResult
@@ -48,31 +55,24 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut) {
 
 // ******************************
 
-function execCmd (in_cmd, in_args, in_indent, in_printCmd, in_doneCb) {
+function execCmd (in_cmd, in_args, in_indent, in_printCmd, in_knownErrors, in_doneCb) {
     in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
     if (in_printCmd) {
         cprint.white('  EXEC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
     let indent = in_indent || '  ';
     let child = child_process.spawn(in_cmd, in_args);
-    let seenError = false;
 
     child.stdout.on('data', chunk => {
-        // if (seenError) {
-        //     return;
-        // }
-
-        _printLogLine(chunk, indent);
+        _printLogLine(chunk, indent, in_knownErrors);
     });
 
     child.stderr.on('data', chunk => {
-        print.out(cprint.toRed(str.indentContents(chunk, indent) + '\n'));
-        seenError = true;
+        _printLogLine(chunk, indent, in_knownErrors);
     });
 
     child.on('error', error => {
-        print.out(cprint.toRed(str.indentContents(error, indent) + '\n'));
-        seenError = true;
+        _printLogLine(error, indent, in_knownErrors);
     });
 
     child.on('close', close => {
@@ -111,17 +111,26 @@ function _flatArgs (in_args) {
 
 // ******************************
 
-function _printLogLines (in_lines, in_indent) {
+function _printLogLines (in_lines, in_indent, in_knownErrors) {
     in_lines
         .split(/(?:\n|(?:\r\n?))+/)
-        .forEach(l => _printLogLine(l, in_indent));
+        .forEach(l => _printLogLine(l, in_indent, in_knownErrors));
 }
 
 // ******************************
 
-function _printLogLine (in_line, in_indent) {
+function _printLogLine (in_line, in_indent, in_knownErrors) {
     let line = in_line.toString();
     let indent = in_indent || '';
+
+    if (!line.trim()) {
+        return;
+    }
+
+    let knownErrorMatch = (in_knownErrors || []).find(e => line.match(e));
+    if (knownErrorMatch) {
+        return;
+    }
 
     if (line.match(/error[:=-]? /i)) {
         print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
@@ -130,6 +139,10 @@ function _printLogLine (in_line, in_indent) {
     } else if (line.match(/unable to/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/no such/i)) {
+        print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
+    } else if (line.match(/does not exist/i)) {
+        print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
+    } else if (line.match(/doesn't exist/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/couldn't/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));

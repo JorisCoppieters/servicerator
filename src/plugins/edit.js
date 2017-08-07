@@ -6,10 +6,11 @@
 
 let cprint = require('color-print');
 
-let edit = require('../utils/edit');
 let docker = require('../utils/docker');
+let edit = require('../utils/edit');
 let env = require('../utils/env');
 let init = require('../utils/init');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
@@ -32,7 +33,10 @@ function editServiceConfigFile () {
 // ******************************
 
 function editServiceDockerfile (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
         cprint.yellow("Source folder not set");
@@ -51,7 +55,10 @@ function editServiceDockerfile (in_serviceConfig) {
 // ******************************
 
 function editServiceFolder (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
         cprint.yellow("Source folder not set");

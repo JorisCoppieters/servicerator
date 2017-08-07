@@ -136,23 +136,53 @@ function getServiceConfigSchema () {
 
 // ******************************
 
-function maskServiceConfig (in_source, in_mask) {
-    let source = in_source || {};
-    let mask = in_mask || {};
+function maskServiceConfig (in_source, in_mask, in_k) {
+    let source = in_source;
+    let mask = in_mask;
     let result = {};
+    let resultIsArray = false;
 
-    if (Array.isArray(source)) {
+    if (Array.isArray(mask)) {
+        if (!mask.length) {
+            return [];
+        }
+
+        if (!source || !mask.length) {
+            return [];
+        }
+
+        let mv = mask[0];
+
+        if (Array.isArray(source) && source.length) {
+            result = source.map(sv => {
+                return maskServiceConfig(sv, mv);
+            });
+        }
+    }
+
+    if (typeof(mask) === 'object' && ! in_source) {
+        source = {};
+    }
+
+    if (typeof(mask) !== 'object') {
         return source;
     }
 
     Object.keys(mask).forEach(k => {
-        let v = source[k];
-        if (typeof(v) === 'object') {
-            result[k] = maskServiceConfig(v, mask[k]);
+        let sv = source[k];
+        let mv = mask[k];
+
+        if (typeof(mv) === 'object') {
+            result[k] = maskServiceConfig(sv, mv, k);
             return;
         }
 
-        result[k] = v;
+        if (sv === 'undefined') {
+            cprint.red('Source value undefined for: ' + k);
+            return;
+        }
+
+        result[k] = sv;
     });
 
     return result;
@@ -303,9 +333,23 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
     let objValType = typeof(objVal);
     if (in_checkValueAsType && objValType !== 'object') {
         objValType = objVal.toLowerCase();
+        objVal = undefined;
+        if (objValType === 'path') {
+            objValType = 'string';
+            objVal = 'path/';
+        }
+
+        if (objValType === 'url') {
+            objValType = 'string';
+            objVal = 'http://url';
+        }
     }
 
     let schemaVal = in_schemaVal;
+
+    if (schemaVal === 'ANY') {
+        return;
+    }
 
     if (schemaVal === 'STRING' && objValType !== 'string') {
         cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
@@ -318,8 +362,8 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
             return;
         }
 
-        if (!objVal.match(/^([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
-            cprint.yellow('Not a valid filesystem reference format (' + objValType + ') in path "' + in_path + '": ' + objVal);
+        if (!objVal || !objVal.match(/^([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
+            cprint.yellow('Not a valid filesystem reference format (' + objVal + ') in path "' + in_path + '": ' + objVal);
             return;
         }
     }
@@ -330,8 +374,8 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
             return;
         }
 
-        if (!objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
-            cprint.yellow('Not a valid url format (' + objValType + ') in path "' + in_path + '": ' + objVal);
+        if (!objVal || !objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
+            cprint.yellow('Not a valid url format (' + objVal + ') in path "' + in_path + '": ' + objVal);
             return;
         }
     }
@@ -379,6 +423,7 @@ function _getServiceConfigSchema () {
             "__allow_prod_access__": "BOOLEAN",
             "account_id": "NUMBER",
             "access_key": "STRING",
+            "secret_key": "STRING",
             "region": "STRING"
         },
         "build": {
@@ -397,6 +442,7 @@ function _getServiceConfigSchema () {
                     }
                 ],
                 "cpu_core_count": "NUMBER",
+                "name": "STRING",
                 "memory_limit": "NUMBER",
                 "ports": [
                     {
@@ -501,7 +547,17 @@ function _getServiceConfigSchema () {
                     "STRING"
                 ],
                 "version": "STRING",
-                "working_directory": "PATH"
+                "working_directory": "PATH",
+                "tests": [
+                    {
+                        "name": "STRING",
+                        "type": "STRING",
+                        "url": "STRING",
+                        "method": "STRING",
+                        "request_data": "ANY",
+                        "expected": "STRING"
+                    }
+                ]
             },
             "other_repositories": [
                 {
@@ -513,6 +569,7 @@ function _getServiceConfigSchema () {
         },
         "model": {
             "disableAutoPopulate": "BOOLEAN",
+            "source": "STRING",
             "type": "STRING",
             "version": "STRING"
         },
@@ -550,12 +607,6 @@ function _getServiceConfigSchema () {
                             "STRING"
                         ]
                     }
-                }
-            ],
-            "urls": [
-                {
-                    "env": "STRING",
-                    "val": "STRING"
                 }
             ],
             "name": "STRING"

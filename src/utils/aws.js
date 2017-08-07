@@ -7,10 +7,11 @@
 let path = require('path');
 let cprint = require('color-print');
 
-let ini = require('./ini');
 let env = require('./env');
 let exec = require('./exec');
 let fs = require('./filesystem');
+let ini = require('./ini');
+let service = require('./service');
 
 // ******************************
 // Globals:
@@ -23,17 +24,19 @@ let g_AWS_CLI_INSTALLED = undefined;
 // ******************************
 
 function getAwsDockerRepository (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigAws = serviceConfig.aws || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        aws: {
+            account_id: 'NUMBER',
+            region: 'STRING'
+        }
+    });
 
-    if (!serviceConfigAws.account_id) {
+    if (!serviceConfig.aws.account_id) {
         cprint.yellow("AWS account id not set");
         return false;
     }
 
-    let awsRegion = serviceConfigAws.region || 'ap-southeast-2';
-
-    return serviceConfigAws.account_id + '.dkr.ecr.' + awsRegion + '.amazonaws.com';
+    return serviceConfig.aws.account_id + '.dkr.ecr.' + (serviceConfig.aws.region || 'ap-southeast-2') + '.amazonaws.com';
 }
 
 // ******************************
@@ -43,9 +46,6 @@ function getAwsDockerCredentials (in_serviceConfig) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
-
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigAws = serviceConfig.aws || {};
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], true);
     if (awsCmdResult.hasError) {
@@ -81,10 +81,10 @@ function getAwsDockerCredentials (in_serviceConfig) {
 // ******************************
 
 function getAwsServiceConfig () {
-    let serviceConfig = {};
     let homeFolder = env.getShellHome();
-
-    serviceConfig.aws = serviceConfig.aws || {};
+    let serviceConfig = {
+        aws: {}
+    };
 
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
@@ -99,16 +99,21 @@ function getAwsServiceConfig () {
         serviceConfig.aws.secret_key = awsCredentials.default.aws_secret_access_key;
     }
 
+    service.checkConfigSchema(serviceConfig);
     return serviceConfig;
 }
 
 // ******************************
 
 function getAwsRepositoryServiceConfig () {
-    let serviceConfig = {};
+    let serviceConfig = {
+        docker: {
+            other_repositories: []
+        },
+        aws: {
+        }
+    };
 
-    serviceConfig.docker = serviceConfig.docker || {};
-    serviceConfig.docker.other_repositories = serviceConfig.docker.other_repositories || [];
     serviceConfig.docker.other_repositories.push({
         'type': 'AWS'
     });
@@ -116,7 +121,6 @@ function getAwsRepositoryServiceConfig () {
     if (awsInstalled()) {
         let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], true);
         if (!awsCmdResult.hasError) {
-            serviceConfig.aws = serviceConfig.aws || {};
             let awsStats = JSON.parse(awsCmdResult.result);
             if (awsStats && awsStats.Account) {
                 serviceConfig.aws.account_id = parseInt(awsStats.Account);
@@ -124,25 +128,26 @@ function getAwsRepositoryServiceConfig () {
         }
     }
 
+    service.checkConfigSchema(serviceConfig);
     return serviceConfig;
 }
 
 // ******************************
 
 function getAwsSecretKey (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigAws = serviceConfig.aws || {};
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        aws: {
+            access_key: 'STRING',
+            secret_key: 'STRING'
+        }
+    });
 
-    if (!serviceConfigAws.access_key) {
-        cprint.yellow("AWS access key not set");
-        return false;
-    }
-
-    let awsAccessKey = serviceConfigAws.access_key;
-    let awsSecretKey = serviceConfigAws.secret_key;
+    let awsSecretKey = serviceConfig.aws.secret_key;
 
     if (!awsSecretKey) {
-        awsSecretKey = env.getStoredSecretKey('aws', awsAccessKey);
+        if (serviceConfig.aws.access_key) {
+            awsSecretKey = env.getStoredSecretKey('aws', serviceConfig.aws.access_key);
+        }
     }
 
     if (!awsSecretKey) {
@@ -155,15 +160,19 @@ function getAwsSecretKey (in_serviceConfig) {
 // ******************************
 
 function awsLogin (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        aws: {
+            access_key: 'STRING',
+            secret_key: 'STRING'
+        }
+    });
+
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
 
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigAws = serviceConfig.aws || {};
-
-    let awsAccessKey = serviceConfigAws.access_key;
+    let awsAccessKey = serviceConfig.aws.access_key;
     if (!awsAccessKey) {
         cprint.yellow("AWS access key not set");
         return false;
@@ -175,7 +184,7 @@ function awsLogin (in_serviceConfig) {
         return false;
     }
 
-    let awsRegion = serviceConfigAws.region || 'ap-southeast-2';
+    let awsRegion = serviceConfig.aws.region || 'ap-southeast-2';
 
     let awsFolder = path.resolve(env.getShellHome(), '.aws');
     if (!fs.folderExists(awsFolder)) {

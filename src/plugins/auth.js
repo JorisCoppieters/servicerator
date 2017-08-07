@@ -7,19 +7,26 @@
 let cprint = require('color-print');
 let path = require('path');
 
-let exec = require('../utils/exec');
 let docker = require('../utils/docker');
-let openssl = require('../utils/openssl');
+let exec = require('../utils/exec');
 let fs = require('../utils/filesystem');
+let openssl = require('../utils/openssl');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
 // ******************************
 
 function printAuthInfo (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigAuth = serviceConfig.auth || {};
-    let sourceFolder = in_serviceConfig.cwd || false;
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        auth: {
+            certificate: 'STRING',
+            rootCACertificate: 'PATH'
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
 
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
@@ -42,18 +49,20 @@ function printAuthInfo (in_serviceConfig) {
         return;
     }
 
-    if (!serviceConfigAuth.rootCACertificate) {
+    if (!serviceConfig.auth.rootCACertificate) {
         cprint.yellow('Root CA certificate not set');
         return;
     }
 
-    if (!fs.fileExists(serviceConfigAuth.rootCACertificate)) {
-        cprint.yellow('Root CA certificate cannot be found: ' + serviceConfigAuth.rootCACertificate);
+    if (!fs.fileExists(serviceConfig.auth.rootCACertificate)) {
+        cprint.yellow('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
         return;
     }
 
-    let rootCACertificate = serviceConfigAuth.rootCACertificate;
-    let serviceCertificate = path.resolve(authFolder, "service.crt");
+    let rootCACertificate = serviceConfig.auth.rootCACertificate;
+
+    let serviceCertificateName = serviceConfig.auth.certificate || 'service.crt';
+    let serviceCertificate = path.resolve(authFolder, serviceCertificateName);
 
     cprint.cyan('Verifying certificate...');
     let cmdResult = openssl.cmd(['verify', '-CAfile', rootCACertificate, serviceCertificate]);
@@ -68,13 +77,28 @@ function printAuthInfo (in_serviceConfig) {
 // ******************************
 
 function generateAuthFiles (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigAuth = serviceConfig.auth || {};
-    let serviceConfigService = serviceConfig.service || {};
-    let serviceConfigServiceUrls = serviceConfigService.urls || [];
-    let serviceName = serviceConfigService.name || false;
-    let sourceFolder = in_serviceConfig.cwd || false;
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        auth: {
+            key: 'STRING',
+            certificate: 'STRING',
+            rootCAKey: 'PATH',
+            rootCACertificate: 'PATH'
+        },
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    environment: 'STRING',
+                    url: 'STRING'
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
 
+    let serviceName = serviceConfig.service.name || false;
+
+    let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
         return;
@@ -100,48 +124,52 @@ function generateAuthFiles (in_serviceConfig) {
     fs.deleteFolder(tmpAuthFolder);
     fs.createFolder(tmpAuthFolder);
 
-    let caSignDB = path.resolve(tmpAuthFolder, "tmp-db");
-    let caSignSerial = path.resolve(tmpAuthFolder, "tmp-serial");
-    let caSignConfig = path.resolve(tmpAuthFolder, "ca-sign-config.cnf");
-    let caSignExtConfig = path.resolve(tmpAuthFolder, "ca-sign-ext-config.cnf");
-    let reqCaCrtConfig = path.resolve(tmpAuthFolder, "req-ca-crt-config.cnf");
-    let reqCrtConfig = path.resolve(tmpAuthFolder, "req-crt-config.cnf");
+    let caSignDB = path.resolve(tmpAuthFolder, 'tmp-db');
+    let caSignSerial = path.resolve(tmpAuthFolder, 'tmp-serial');
+    let caSignConfig = path.resolve(tmpAuthFolder, 'ca-sign-config.cnf');
+    let caSignExtConfig = path.resolve(tmpAuthFolder, 'ca-sign-ext-config.cnf');
+    let reqCaCrtConfig = path.resolve(tmpAuthFolder, 'req-ca-crt-config.cnf');
+    let reqCrtConfig = path.resolve(tmpAuthFolder, 'req-crt-config.cnf');
 
-    let rootCAKey = path.resolve(tmpAuthFolder, "rootCA.key");
-    let rootCACertificate = path.resolve(tmpAuthFolder, "rootCA.crt");
+    let rootCAKey = path.resolve(tmpAuthFolder, 'rootCA.key');
+    let rootCACertificate = path.resolve(tmpAuthFolder, 'rootCA.crt');
 
-    if (!serviceConfigAuth.rootCAKey) {
-        cprint.red('Root CA key not set');
+    if (!serviceConfig.auth.rootCAKey) {
+        cprint.yellow('Root CA key not set');
         return;
     }
 
-    if (!fs.fileExists(serviceConfigAuth.rootCAKey)) {
-        cprint.yellow('Root CA key cannot be found: ' + serviceConfigAuth.rootCAKey);
+    if (!fs.fileExists(serviceConfig.auth.rootCAKey)) {
+        cprint.yellow('Root CA key cannot be found: ' + serviceConfig.auth.rootCAKey);
         return;
     }
 
-    if (!serviceConfigAuth.rootCACertificate) {
+    if (!serviceConfig.auth.rootCACertificate) {
         cprint.yellow('Root CA certificate not set');
         return;
     }
 
-    if (!fs.fileExists(serviceConfigAuth.rootCACertificate)) {
-        cprint.yellow('Root CA certificate cannot be found: ' + serviceConfigAuth.rootCACertificate);
+    if (!fs.fileExists(serviceConfig.auth.rootCACertificate)) {
+        cprint.yellow('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
         return;
     }
 
-    let serviceKey = path.resolve(authFolder, "service.key");
-    let serviceCertificate = path.resolve(authFolder, "service.crt");
-    let serviceSigningRequest = path.resolve(tmpAuthFolder, "service.csr");
+    let serviceKeyName = serviceConfig.auth.key || 'service.key';
+    let serviceKey = path.resolve(authFolder, serviceKeyName);
+
+    let serviceCertificateName = serviceConfig.auth.certificate || 'service.crt';
+    let serviceCertificate = path.resolve(authFolder, serviceCertificateName);
+
+    let serviceSigningRequest = path.resolve(tmpAuthFolder, 'service.csr');
 
     cprint.cyan('Setting up certificate configuration...');
 
     fs.writeFile(caSignDB, '');
     fs.writeFile(caSignSerial, '01');
 
-    fs.copyFile(serviceConfigAuth.rootCAKey, rootCAKey)
+    fs.copyFile(serviceConfig.auth.rootCAKey, rootCAKey)
     .then(() => {
-        return fs.copyFile(serviceConfigAuth.rootCACertificate, rootCACertificate);
+        return fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate);
     })
     .then(() => {
         let reqCaCrtConfigContents = [
@@ -170,9 +198,10 @@ function generateAuthFiles (in_serviceConfig) {
 
         // TODO - remove TM specific AUTH stuff
 
-        [`${serviceName}.test.trademe-ds.com`].concat(serviceConfigServiceUrls.map(u => u.val)).forEach((u, idx) => {
-            reqCaCrtConfigContents.push(`DNS.${idx} = "${u}"`);
-        });
+        [`${serviceName}.test.trademe-ds.com`].concat(serviceConfig.service.clusters
+            .map(c => c.url)).forEach((u, idx) => {
+                reqCaCrtConfigContents.push(`DNS.${idx} = "${u}"`);
+            });
 
         fs.writeFile(reqCrtConfig, reqCaCrtConfigContents.join('\n'));
 
@@ -223,9 +252,10 @@ function generateAuthFiles (in_serviceConfig) {
 
         // TODO - remove TM specific AUTH stuff
 
-        [`${serviceName}.test.trademe-ds.com`].concat(serviceConfigServiceUrls.map(u => u.val)).forEach((u, idx) => {
-            caSignExtConfigContents.push(`DNS.${idx} = "${u}"`);
-        });
+        [`${serviceName}.test.trademe-ds.com`].concat(serviceConfig.service.clusters
+            .map(c => c.url)).forEach((u, idx) => {
+                caSignExtConfigContents.push(`DNS.${idx} = "${u}"`);
+            });
 
         fs.writeFile(caSignExtConfig, caSignExtConfigContents.join('\n'));
 

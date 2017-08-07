@@ -13,7 +13,7 @@ let print = require('../utils/print');
 // Functions:
 // ******************************
 
-function printSchema (in_serviceConfig) {
+function printSchema () {
     let schema = service.getConfigSchema();
     print.out(JSON.stringify(schema, null, 4) + '\n');
 }

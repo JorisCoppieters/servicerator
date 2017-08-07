@@ -6,71 +6,10 @@
 
 let fs = require('./filesystem');
 let print = require('./print');
+let service = require('./service');
 
 // ******************************
 // Functions:
-// ******************************
-
-function getBashEnvContents (in_serviceConfig) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigModel = serviceConfig.model || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
-    let serviceConfigService = serviceConfig.service || {};
-    let serviceConfigServiceCluster = serviceConfigService.cluster || {};
-    let serviceConfigServiceClusterInstance = serviceConfigServiceCluster.instance || {};
-
-    let containerPorts = serviceConfigDockerContainer.ports || [];
-    let serviceConfigServiceUrls = serviceConfigService.urls || [];
-
-    let scripts = (serviceConfigDockerImage.scripts || []);
-
-    return [
-        `_MODEL_VERSION="${serviceConfigModel.version}";`,
-        ``,
-        `BASE_DIR="./";`,
-        `DOCKER_IMAGE_USERNAME="${serviceConfigDocker.username}";`,
-        `DOCKER_IMAGE_NAME="${serviceConfigDockerImage.name}";`,
-        `DOCKER_IMAGE_VERSION="${serviceConfigDockerImage.version}";`,
-        `DOCKER_IMAGE_MEMORY_LIMIT=${serviceConfigDockerContainer.memory_limit};`,
-        `DOCKER_CONTAINER_PORT=${
-                (containerPorts
-                    .find((p) => {return p.description==='nginx_http'}) || {}).container
-            };`,
-        `DOCKER_CONTAINER_SECURE_PORT=${
-                (containerPorts
-                    .find((p) => {return p.description==='nginx_https'}) || {}).container
-            };`,
-        `DOCKER_VERIFY_API_COMMAND="curl -s -k https://localhost:$DOCKER_CONTAINER_SECURE_PORT";`,
-        `DOCKER_VERIFY_API_EXPECTED_RESULT='{'*'container_version'*':'*$DOCKER_IMAGE_VERSION*'cpu_count'*'cpu_percent'*'model_version'*':'*$_MODEL_VERSION*'processes'*'}';`,
-        `DOCKER_EXTRA_TAG="model-version-"$_MODEL_VERSION;`,
-        `DOCKER_CONTAINER_SECURE_URL_TEST="${
-                (serviceConfigServiceUrls
-                    .find((u) => {return u.env==='test'}) || {}).val
-            }";`,
-        `DOCKER_CONTAINER_SECURE_URL_PROD="${
-                (serviceConfigServiceUrls
-                    .find((u) => {return u.env==='prod'}) || {}).val
-            }";`,
-        `DOCKER_CONTAINER_MOUNT_VOLUMES=true;`,
-        `CLUSTER_INSTANCE_COUNT=${serviceConfigServiceClusterInstance.count};`,
-        `INSTANCE_CPU_COUNT=${serviceConfigDockerContainer.cpu_core_count};`,
-        `SERVICE_NAME="${serviceConfigService.name}";`,
-        ``,
-        `AWS_SERVICE_INSTANCE_TYPE="${serviceConfigServiceClusterInstance.type}";`,
-        `AWS_SERVICE_INSTANCE_VOLUME_SIZE=${serviceConfigServiceClusterInstance.volume_size};`,
-        ``,
-        `CONSTANTS_FILE="python/constants.py";`,
-        `echo "#CONSTANTS" > "$CONSTANTS_FILE";`,
-        `echo "service_name = \\\""$SERVICE_NAME"\\\"" >> "$CONSTANTS_FILE";`,
-        `echo "log_file = \\\"/var/log/tm-services/%s/api.log\\\" % (service_name)" >> "$CONSTANTS_FILE";`,
-        `echo "model_version = \\\""$_MODEL_VERSION"\\\"" >> "$CONSTANTS_FILE";`,
-        `echo "container_version = \\\""$DOCKER_IMAGE_VERSION"\\\"" >> "$CONSTANTS_FILE";`,
-        `echo "cpu_count = "$INSTANCE_CPU_COUNT >> "$CONSTANTS_FILE";`,
-    ].join('\n');
-}
-
 // ******************************
 
 function parseBashEnvFile (in_bashEnvFile) {
@@ -85,7 +24,7 @@ function parseBashEnvContents (in_bashEnvContents) {
     let bashEnvLines = in_bashEnvContents.split(/(?:\n)|(?:\r\n?)/);
 
     bashEnvLines.forEach(l => {
-        let matches = l.match(/^(.*)="?(.*?)"?;?$/);
+        let matches = l.match(/^(.*)="?(.*?)"?;?(?: *#.*)?$/);
         if (!matches) {
             return;
         }
@@ -182,24 +121,38 @@ function parseBashEnvContents (in_bashEnvContents) {
         } else if (key === 'DOCKER_EXTRA_TAG') {
         } else if (key === 'DOCKER_CONTAINER_SECURE_URL_TEST') {
             serviceConfig.service = serviceConfig.service || {};
-            serviceConfig.service.urls = serviceConfig.service.urls || [];
-            serviceConfig.service.urls.push({
-                'env': 'test',
-                'val': val
-            });
+            serviceConfig.service.clusters = serviceConfig.service.clusters || [];
+            let cluster = serviceConfig.service.clusters
+                .find(c => c.environment === 'test');
+            if (!cluster) {
+                cluster = {
+                    environment: 'test'
+                };
+                serviceConfig.service.clusters.push(cluster);
+            }
+            cluster.url = val;
         } else if (key === 'DOCKER_CONTAINER_SECURE_URL_PROD') {
             serviceConfig.service = serviceConfig.service || {};
-            serviceConfig.service.urls = serviceConfig.service.urls || [];
-            serviceConfig.service.urls.push({
-                'env': 'prod',
-                'val': val
-            });
+            serviceConfig.service.clusters = serviceConfig.service.clusters || [];
+            let cluster = serviceConfig.service.clusters
+                .find(c => c.environment === 'production');
+            if (!cluster) {
+                cluster = {
+                    environment: 'production'
+                };
+                serviceConfig.service.clusters.push(cluster);
+            }
+            cluster.url = val;
         } else if (key === 'DOCKER_CONTAINER_MOUNT_VOLUMES') {
         } else if (key === 'CLUSTER_INSTANCE_COUNT') {
             serviceConfig.service = serviceConfig.service || {};
-            serviceConfig.service.cluster = serviceConfig.service.cluster || {};
-            serviceConfig.service.cluster.instance = serviceConfig.service.cluster.instance || {};
-            serviceConfig.service.cluster.instance.count = parseInt(val);
+            serviceConfig.service.clusters = serviceConfig.service.clusters || [];
+            if (!serviceConfig.service.clusters[0]) {
+                serviceConfig.service.clusters[0] = {};
+            }
+            let cluster = serviceConfig.service.clusters[0];
+            cluster.instance = cluster.instance || {};
+            cluster.instance.count = parseInt(val);
         } else if (key === 'INSTANCE_CPU_COUNT') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.container = serviceConfig.docker.container || {};
@@ -210,20 +163,35 @@ function parseBashEnvContents (in_bashEnvContents) {
         } else if (key === 'AWS_SERVICE_INSTANCE_TYPE') {
             serviceConfig.aws = serviceConfig.aws || {};
             serviceConfig.service = serviceConfig.service || {};
-            serviceConfig.service.cluster = serviceConfig.service.cluster || {};
-            serviceConfig.service.cluster.instance = serviceConfig.service.cluster.instance || {};
-            serviceConfig.service.cluster.instance.type = val;
+            serviceConfig.service.clusters = serviceConfig.service.clusters || [];
+            if (!serviceConfig.service.clusters[0]) {
+                serviceConfig.service.clusters[0] = {};
+            }
+            let cluster = serviceConfig.service.clusters[0];
+            cluster.instance = cluster.instance || {};
+            cluster.instance.type = val;
         } else if (key === 'AWS_SERVICE_INSTANCE_VOLUME_SIZE') {
             serviceConfig.aws = serviceConfig.aws || {};
             serviceConfig.service = serviceConfig.service || {};
-            serviceConfig.service.cluster = serviceConfig.service.cluster || {};
-            serviceConfig.service.cluster.instance = serviceConfig.service.cluster.instance || {};
-            serviceConfig.service.cluster.instance.volume_size = parseInt(val);
+            serviceConfig.service.clusters = serviceConfig.service.clusters || [];
+            if (!serviceConfig.service.clusters[0]) {
+                serviceConfig.service.clusters[0] = {};
+            }
+            let cluster = serviceConfig.service.clusters[0];
+            cluster.instance = cluster.instance || {};
+            cluster.instance.volumes = cluster.instance.volumes || [];
+            if (!cluster.instance.volumes[0]) {
+                cluster.instance.volumes[0] = {};
+            }
+            let volume = cluster.instance.volumes[0];
+            volume.Ebs = volume.Ebs || {};
+            volume.Ebs.VolumeSize = parseInt(val);
         // } else {
         //     print.keyVal(key, val);
         }
     });
 
+    service.checkConfigSchema(serviceConfig);
     return serviceConfig;
 }
 
@@ -231,7 +199,6 @@ function parseBashEnvContents (in_bashEnvContents) {
 // Exports:
 // ******************************
 
-module.exports['getEnvContents'] = getBashEnvContents;
 module.exports['parseEnvFile'] = parseBashEnvFile;
 module.exports['parseEnvContents'] = parseBashEnvContents;
 
