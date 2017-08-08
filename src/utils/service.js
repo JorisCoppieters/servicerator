@@ -319,16 +319,10 @@ function getServiceConfig (in_folderName) {
 
     serviceConfig = copyServiceConfig(serviceConfig, {
         docker: {
-            username: 'my-docker-username',
             image: {
                 name: path.basename(path.resolve(sourceFolder)),
                 base: k_DEFAULT_IMAGE,
-                tag_with_date: true,
-                version: '0.1.0'
-            },
-            container: {
-                memory_limit: 1500,
-                cpu_core_count: 1
+                tag_with_date: true
             }
         }
     });
@@ -376,7 +370,7 @@ function maskServiceConfig (in_source, in_mask, in_k) {
             return [];
         }
 
-        if (!source || !mask.length) {
+        if (!source || !source.length) {
             return [];
         }
 

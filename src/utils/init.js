@@ -35,7 +35,7 @@ function initFolder (in_folderName, in_overwrite) {
             cprint.cyan('Initialising "' + in_folderName + '"...');
         }
 
-        serviceConfig = service.getConfig(sourceFolder);
+        serviceConfig = service.getConfig(sourceFolder) || {};
         serviceConfig.cwd = sourceFolder;
 
         saveServiceConfig(serviceConfig);
