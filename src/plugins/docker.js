@@ -485,8 +485,6 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
         }
     });
 
-    let dockerImageVersion = serviceConfig.docker.image.version || false;
-
     if (in_version) {
         init.updateServiceConfig(in_serviceConfig, {
             docker: {
@@ -498,7 +496,8 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
         return true;
     }
 
-    if (!dockerImageVersion.match(/[0-9]+\.[0-9]+\.[0-9]+/)) {
+    let dockerImageVersion = serviceConfig.docker.image.version || false;
+    if (!dockerImageVersion || !dockerImageVersion.match(/[0-9]+\.[0-9]+\.[0-9]+/)) {
         cprint.yellow('Docker image version cannot be incremented');
         return false;
     }
@@ -523,7 +522,7 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
     init.updateServiceConfig(in_serviceConfig, {
         docker: {
             image: {
-                version: in_version
+                version: version
             }
         }
     });

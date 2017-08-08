@@ -24,7 +24,7 @@ function getTimestamp (in_date) {
 
 function getTimestampTag (in_date) {
     let d = in_date || _getLocaleDate();
-    return getDateTag(d) + '-' + getTimestamp(d);
+    return getDateTag(d) + '-' + parseInt(getTimestamp(d) / 1000);
 }
 
 // ******************************

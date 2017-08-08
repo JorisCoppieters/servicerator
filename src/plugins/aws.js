@@ -558,7 +558,18 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
                         user_data: [
                             'STRING'
                         ],
-                        volumes: []
+                        volumes: [
+                            {
+                                DeviceName: 'STRING',
+                                Ebs: {
+                                    Encrypted: 'BOOLEAN',
+                                    DeleteOnTermination: 'BOOLEAN',
+                                    SnapshotId: 'STRING',
+                                    VolumeSize: 'NUMBER',
+                                    VolumeType: 'STRING'
+                                }
+                            }
+                        ]
                     }
                 }
             ]
@@ -738,6 +749,7 @@ function awsStartCluster (in_serviceConfig, in_prod) {
             name: 'STRING',
             clusters: [
                 {
+                    environment: 'STRING',
                     auto_scaling_group_name: 'STRING'
                 }
             ]
@@ -763,6 +775,10 @@ function awsStartCluster (in_serviceConfig, in_prod) {
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environmentNameLong
         });
+    if (!cluster) {
+        cprint.yellow('AWS cluster doesn\'t exist');
+        return;
+    }
 
     let autoScalingGroupName = cluster.auto_scaling_group_name;
     let autoScalingGroupInstanceCount = _getAutoScalingGroupInstanceCount(autoScalingGroupName);
@@ -791,6 +807,7 @@ function awsStopCluster (in_serviceConfig, in_prod) {
             name: 'STRING',
             clusters: [
                 {
+                    environment: 'STRING',
                     auto_scaling_group_name: 'STRING'
                 }
             ]
@@ -816,6 +833,10 @@ function awsStopCluster (in_serviceConfig, in_prod) {
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environmentNameLong
         });
+    if (!cluster) {
+        cprint.yellow('AWS cluster doesn\'t exist');
+        return;
+    }
 
     let autoScalingGroupName = cluster.auto_scaling_group_name;
     let autoScalingGroupInstanceCount = _getAutoScalingGroupInstanceCount(autoScalingGroupName);
