@@ -109,24 +109,37 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                 }
 
                 if (in_extra && cluster.name) {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', '...', true);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '...', true);
                     let awsClusterServiceArn = _getClusterServiceArnForCluster(cluster.name, awsCache);
                     print.clearLine();
 
                     if (awsClusterServiceArn) {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', awsClusterServiceArn);
+                        let awsClusterServiceName = _arnToTitle(awsClusterServiceArn);
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service', awsClusterServiceName);
                     } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', '???');
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '???');
                     }
 
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', '...', true);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '...', true);
+                    let awsTaskDefinitionArn = _getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, awsCache);
+                    print.clearLine();
+
+                    if (awsTaskDefinitionArn) {
+                        let awsTaskDefinitionName = _arnToTitle(awsTaskDefinitionArn);
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '???');
+                    }
+
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
                     let awsClusterTaskArns = _getClusterTaskArnsForCluster(cluster.name, awsCache);
                     print.clearLine();
 
                     if (awsClusterTaskArns) {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', JSON.stringify(awsClusterTaskArns, null, 4));
+                        let awsClusterTaskNames = awsClusterTaskArns.map(a => _arnToTitle(a));
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskNames, null, 4));
                     } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', '???');
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '???');
                     }
                 }
 
@@ -304,33 +317,32 @@ function awsDeploy (in_serviceConfig, in_prod) {
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
     print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
 
-    print.keyVal('AWS Task Definition ARN', '...', true);
+    print.keyVal('AWS Task Definition', '...', true);
     let taskDefinitionArn = _getTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
     if (!taskDefinitionArn) {
         return;
     }
+
+    let awsClusterServiceArn = _getClusterServiceArnForCluster(awsClusterName, awsCache);
+    if (!awsClusterServiceArn) {
+        return;
+    }
+
     print.clearLine();
-    print.keyVal('AWS Task Definition ARN', taskDefinitionArn);
+    print.keyVal('AWS Task Definition', awsTaskDefinitionName);
 
     print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Instance Count', awsClusterServiceInstanceCount);
 
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', '...', true);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
     let awsClusterTaskArns = _getClusterTaskArnsForCluster(awsClusterName, awsCache);
     if (!awsClusterTaskArns) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', JSON.stringify(awsClusterTaskArns, null, 4));
-
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', '...', true);
-    let awsClusterServiceArn = _getClusterServiceArnForCluster(awsClusterName, awsCache);
-    if (!awsClusterServiceArn) {
-        return;
-    }
-    print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', awsClusterServiceArn);
+    let awsClusterTaskNames = awsClusterTaskArns.map(a => _arnToTitle(a));
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskNames, null, 4));
 
     awsClusterTaskArns.forEach(t => {
         _stopClusterTask(awsClusterName, t)
@@ -1096,6 +1108,57 @@ function _getClusterServiceArnForCluster (in_clusterName, in_cache, in_verbose) 
 
 // ******************************
 
+function _getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServiceArn, in_cache, in_verbose) {
+    if (in_verbose) {
+        cprint.cyan('Retrieving AWS Task Definition ARN for AWS Cluster Service "' + in_clusterServiceArn + '"...');
+    }
+
+    let cache = in_cache || {};
+    let cacheItem = cache['TaskDefinitionArn_' + in_clusterServiceArn];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = aws.cmd([
+        'ecs',
+        'describe-services',
+        '--cluster',
+        in_clusterName,
+        '--service',
+        in_clusterServiceArn
+    ], !in_verbose);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let awsTaskDefinitionArn;
+    let awsResult = _parseCmdResult(cmdResult);
+    if (awsResult && awsResult.services) {
+        awsTaskDefinitionArn = awsResult.services
+            .map(obj => obj.deployments || [])
+            .reduce((a,b) => a.concat(b), [])
+            .map(obj => obj.taskDefinition)
+            .find(obj => true);
+    }
+
+    if (!awsTaskDefinitionArn) {
+        cprint.yellow('Couldn\'t find AWS Task Definition ARN for AWS Cluster Service "' + in_clusterServiceArn + '"');
+        return;
+    }
+
+    cache['TaskDefinitionArn_' + in_clusterServiceArn] = {
+        val: awsTaskDefinitionArn,
+        expires: date.getTimestamp() + 120 * 1000
+    };
+
+    return awsTaskDefinitionArn;
+}
+
+// ******************************
+
 function _getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
     if (in_verbose) {
         cprint.cyan('Retrieving AWS Cluster Task ARNs for AWS Cluster "' + in_clusterName + '"...');
@@ -1402,6 +1465,18 @@ function _getTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache
     };
 
     return latestTaskDefinitionArn;
+}
+
+// ******************************
+
+function _arnToTitle (in_arn) {
+    let title = in_arn || '';
+    let match = in_arn.match(/arn:aws:[a-z]+:[a-z0-9-]+:[0-9]+:[a-z-]+\/(.*)/);
+    if (match) {
+        title = match[1];
+    }
+
+    return title;
 }
 
 // ******************************
