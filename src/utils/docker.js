@@ -111,9 +111,7 @@ function getDockerfileContents (in_serviceConfig) {
                     'STRING'
                 ],
                 working_directory: 'PATH',
-                nginx: {
-                    servers: []
-                },
+                nginx: 'ANY',
                 language: 'STRING'
             }
         },
@@ -140,7 +138,7 @@ function getDockerfileContents (in_serviceConfig) {
 
     let enableNginx = false;
 
-    if (serviceConfig.docker.image.nginx.servers.length) {
+    if (serviceConfig.docker.image.nginx) {
         enableNginx = true;
         aptGetPackages.push('nginx');
     }
@@ -436,9 +434,7 @@ function parseDockerfileContents (in_dockerFileContents) {
 
 function getIgnoreDockerContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        model: {
-            version: 'STRING'
-        },
+        model: 'ANY',
         docker: {
             image: {
                 language: 'STRING',
@@ -470,7 +466,7 @@ function getIgnoreDockerContents (in_serviceConfig) {
         ignoreFiles.push('_env.sh');
     }
 
-    if (serviceConfig.model.version) {
+    if (serviceConfig.model) {
         ignoreFiles.push('model/*');
     }
 
