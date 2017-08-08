@@ -133,7 +133,7 @@ function getServiceConfig (in_folderName) {
                 val: dockerScriptsDir
             });
 
-            scripts.forEach(s => {
+            serviceConfig.docker.image.scripts.forEach(s => {
                 let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
                 let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
                 serviceConfig.docker.image.env_variables.push({
