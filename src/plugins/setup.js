@@ -44,15 +44,9 @@ function hgSetupFolder (in_serviceConfig, in_overwrite) {
 
 function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        auth: {
-            certificate: 'PATH'
-        },
-        model: {
-            version: 'STRING'
-        },
-        corpus: {
-            version: 'STRING'
-        },
+        auth: 'ANY',
+        model: 'ANY',
+        corpus: 'ANY',
         docker: {
             image: {
                 nginx: {
@@ -105,11 +99,11 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         fs.createFolder(path.resolve(dockerFolder, 'python'));
     }
 
-    if (serviceConfig.auth.certificate) {
+    if (serviceConfig.auth) {
         fs.createFolder(path.resolve(dockerFolder, 'auth'));
     }
 
-    if (serviceConfig.model.version) {
+    if (serviceConfig.model) {
         fs.createFolder(path.resolve(dockerFolder, 'model'));
         fs.createFolder(path.resolve(sourceFolder, 'model'));
 
@@ -118,7 +112,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         }
     }
 
-    if (serviceConfig.corpus.version) {
+    if (serviceConfig.corpus) {
         fs.createFolder(path.resolve(sourceFolder, 'corpus'));
     }
 
