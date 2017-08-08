@@ -140,7 +140,7 @@ function getServiceConfig (in_folderName) {
                     key: scriptKey,
                     val: scriptPath
                 });
-                s.key = '$' + scriptKey
+                s.key = scriptKey
             });
 
             serviceConfig.docker.image.filesystem.push(

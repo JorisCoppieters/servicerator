@@ -49,7 +49,30 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         corpus: {},
         docker: {
             image: {
-                nginx: {},
+                nginx: {
+                    servers: [
+                        {
+                            access_log: 'PATH',
+                            error_log: 'PATH',
+                            locations: [
+                                {
+                                    location: 'PATH',
+                                    location_params: [
+                                        'STRING'
+                                    ],
+                                    pass_through: 'URL',
+                                    uwsgi_pass: 'STRING'
+                                }
+                            ],
+                            port: 'NUMBER',
+                            ssl: {
+                                certificate: 'PATH',
+                                key: 'PATH'
+                            }
+                        }
+                    ],
+                    daemon_off: 'BOOLEAN'
+                },
                 log: 'BOOLEAN',
                 language: 'STRING'
             }
