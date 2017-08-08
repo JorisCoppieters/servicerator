@@ -1094,9 +1094,6 @@ function _startDockerContainer (in_serviceConfig, in_useGitBash) {
 
     if (runWithGitBash) {
         args.push('bash');
-    }
-
-    if (runWithGitBash) {
         cprint.cyan('Starting Docker container "' + containerName + '"...');
 
         let gitBashArgs = ['-c', 'docker ' + args.join(' ')];
@@ -1109,6 +1106,7 @@ function _startDockerContainer (in_serviceConfig, in_useGitBash) {
         }
 
     } else {
+        args.push(dockerImageStartCommand);
         cprint.cyan('Starting Docker container "' + containerName + '"...');
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
@@ -1125,6 +1123,7 @@ function _preBuildDockerFolder (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
+                language: 'STRING',
                 python: {
                     constants: [
                         'STRING'
