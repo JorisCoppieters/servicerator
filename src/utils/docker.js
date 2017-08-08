@@ -100,7 +100,10 @@ function getDockerfileContents (in_serviceConfig) {
                         permissions: 'STRING',
                         type: 'STRING',
                         destination: 'PATH',
-                        source: 'PATH'
+                        source: 'PATH',
+                        contents: [
+                            'STRING'
+                        ]
                     }
 
                 ],
@@ -136,158 +139,11 @@ function getDockerfileContents (in_serviceConfig) {
     let workdir = serviceConfig.docker.image.working_directory || '.';
 
     let enableNginx = false;
-    if (Object.keys(serviceConfig.docker.image.nginx).length) {
+
+    if (serviceConfig.docker.image.nginx.servers.length) {
         enableNginx = true;
         aptGetPackages.push('nginx');
     }
-
-    // let additionalFilesystem = [];
-    // let additionalEnvVariables = [];
-
-    // DEPRECATED
-    // let firstFilesystem = [];
-    // if (serviceConfig.service.name) {
-    //     firstEnvVariables.push({
-    //         key: 'SERVICE_NAME',
-    //         val: serviceConfig.service.name
-    //     });
-    // }
-
-    // firstEnvVariables.push({
-    //     key: 'BASE_DIR',
-    //     val: workdir
-    // });
-
-    // if (scripts.length) {
-    //     let dockerScriptsDir = '$BASE_DIR/scripts';
-    //     additionalEnvVariables.push({
-    //         key: 'SCRIPTS_DIR',
-    //         val: dockerScriptsDir
-    //     });
-    //     scripts.forEach(s => {
-    //         let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
-    //         let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
-    //         additionalEnvVariables.push({
-    //             key: scriptKey,
-    //             val: scriptPath
-    //         });
-    //         s.key = '$' + scriptKey
-    //     });
-
-    //     additionalFilesystem.push(
-    //         {
-    //             'path': '$SCRIPTS_DIR',
-    //             'type': 'folder'
-    //         }
-    //     );
-    // }
-
-    // DEPRECATED
-    // if (Object.keys(serviceConfig.model).length && !serviceConfig.model.disableAutoPopulate) {
-    //     additionalEnvVariables.push({
-    //         key: 'MODEL_DIR',
-    //         val: '$BASE_DIR/model'
-    //     });
-
-    //     additionalFilesystem.push(
-    //         {
-    //             'path': '$MODEL_DIR',
-    //             'type': 'folder'
-    //         }
-    //     );
-
-    //     if (serviceConfig.model.type === 'bundled' && serviceConfig.model.source) {
-    //         additionalFilesystem.push(
-    //             {
-    //                 'source': `${serviceConfig.model.source}`,
-    //                 'destination': '$MODEL_DIR',
-    //                 'type': 'copy_folder'
-    //             }
-    //         );
-    //     } else if (serviceConfig.model.source) {
-    //         additionalFilesystem.push(
-    //             {
-    //                 'source': `${serviceConfig.model.source}`,
-    //                 'destination': '$MODEL_DIR',
-    //                 'type': 'link'
-    //             }
-    //         );
-    //     }
-    // }
-
-    // if (serviceConfig.auth && !serviceConfig.auth.disableAutoPopulate) {
-    //     additionalEnvVariables.push({
-    //         key: 'AUTH_DIR',
-    //         val: '$BASE_DIR/auth'
-    //     });
-
-    //     additionalFilesystem.push(
-    //         {
-    //             'path': '$AUTH_DIR',
-    //             'type': 'folder'
-    //         }
-    //     );
-
-    //     if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
-    //         additionalFilesystem.push(
-    //             {
-    //                 'source': `${serviceConfig.auth.certificate}`,
-    //                 'destination': '$AUTH_DIR',
-    //                 'type': 'copy_file'
-    //             }
-    //         );
-    //         additionalFilesystem.push(
-    //             {
-    //                 'source': `${serviceConfig.auth.key}`,
-    //                 'destination': '$AUTH_DIR',
-    //                 'type': 'copy_file'
-    //             }
-    //         );
-    //     }
-    // }
-
-    // if (serviceConfig.docker.image.language === 'python') {
-    //     additionalEnvVariables.push({
-    //         key: 'PYTHON_DIR',
-    //         val: '$BASE_DIR/python'
-    //     });
-
-    //     additionalFilesystem.push(
-    //         {
-    //             'path': '$PYTHON_DIR',
-    //             'type': 'folder'
-    //         }
-    //     );
-    //     additionalFilesystem.push(
-    //         {
-    //             'source': 'python',
-    //             'destination': '$PYTHON_DIR',
-    //             'type': 'copy_folder'
-    //         }
-    //     );
-    // } else if (serviceConfig.docker.image.language === 'node') {
-    //     additionalEnvVariables.push({
-    //         key: 'NODE_DIR',
-    //         val: '$BASE_DIR/node'
-    //     });
-
-    //     additionalFilesystem.push(
-    //         {
-    //             'path': '$NODE_DIR',
-    //             'type': 'folder'
-    //         }
-    //     );
-    //     additionalFilesystem.push(
-    //         {
-    //             'source': 'node',
-    //             'destination': '$NODE_DIR',
-    //             'type': 'copy_folder'
-    //         }
-    //     );
-    // }
-
-    // filesystem = _uniqueByField(filesystem.concat(additionalFilesystem), 'source');
-    // envVariables = _uniqueByField(envVariables.concat(additionalEnvVariables), 'key');
 
     return [
         `# ----------------------`,
@@ -581,8 +437,6 @@ function parseDockerfileContents (in_dockerFileContents) {
 function getIgnoreDockerContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         model: {
-            source: 'STRING',
-            type: 'STRING',
             version: 'STRING'
         },
         docker: {
@@ -616,7 +470,7 @@ function getIgnoreDockerContents (in_serviceConfig) {
         ignoreFiles.push('_env.sh');
     }
 
-    if (Object.keys(serviceConfig.model).length) {
+    if (serviceConfig.model.version) {
         ignoreFiles.push('model/*');
     }
 
@@ -667,7 +521,9 @@ function getDockerImageTags (in_serviceConfig) {
         docker: {
             image: {
                 version: 'STRING',
-                tags: [],
+                tags: [
+                    'STRING'
+                ],
                 tag_with_date: 'BOOLEAN'
             }
         }

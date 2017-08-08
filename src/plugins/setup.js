@@ -44,32 +44,20 @@ function hgSetupFolder (in_serviceConfig, in_overwrite) {
 
 function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        auth: {},
-        model: {},
-        corpus: {},
+        auth: {
+            certificate: 'PATH'
+        },
+        model: {
+            version: 'STRING'
+        },
+        corpus: {
+            version: 'STRING'
+        },
         docker: {
             image: {
                 nginx: {
                     servers: [
-                        {
-                            access_log: 'PATH',
-                            error_log: 'PATH',
-                            locations: [
-                                {
-                                    location: 'PATH',
-                                    location_params: [
-                                        'STRING'
-                                    ],
-                                    pass_through: 'URL',
-                                    uwsgi_pass: 'STRING'
-                                }
-                            ],
-                            port: 'NUMBER',
-                            ssl: {
-                                certificate: 'PATH',
-                                key: 'PATH'
-                            }
-                        }
+                        'ANY'
                     ],
                     daemon_off: 'BOOLEAN'
                 },
@@ -104,26 +92,24 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         fs.writeFile(path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, in_overwrite);
     }
 
-    if (Object.keys(serviceConfig.docker.image).length) {
-        if (Object.keys(serviceConfig.docker.image.nginx).length) {
-            let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-            fs.writeFile(nginxFile, nginx.getFileContents(in_serviceConfig), in_overwrite);
-        }
-
-        if (serviceConfig.docker.image.log) {
-            fs.createFolder(path.resolve(dockerFolder, 'logs'));
-        }
-
-        if (serviceConfig.docker.image.language === 'python') {
-            fs.createFolder(path.resolve(dockerFolder, 'python'));
-        }
+    if (serviceConfig.docker.image.nginx.servers.length) {
+        let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+        fs.writeFile(nginxFile, nginx.getFileContents(in_serviceConfig), in_overwrite);
     }
 
-    if (Object.keys(serviceConfig.auth).length) {
+    if (serviceConfig.docker.image.log) {
+        fs.createFolder(path.resolve(dockerFolder, 'logs'));
+    }
+
+    if (serviceConfig.docker.image.language === 'python') {
+        fs.createFolder(path.resolve(dockerFolder, 'python'));
+    }
+
+    if (serviceConfig.auth.certificate) {
         fs.createFolder(path.resolve(dockerFolder, 'auth'));
     }
 
-    if (Object.keys(serviceConfig.model).length) {
+    if (serviceConfig.model.version) {
         fs.createFolder(path.resolve(dockerFolder, 'model'));
         fs.createFolder(path.resolve(sourceFolder, 'model'));
 
@@ -132,7 +118,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         }
     }
 
-    if (Object.keys(serviceConfig.corpus).length) {
+    if (serviceConfig.corpus.version) {
         fs.createFolder(path.resolve(sourceFolder, 'corpus'));
     }
 

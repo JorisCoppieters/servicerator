@@ -16,15 +16,9 @@ let docker = require('./docker');
 function getIgnoreFileContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: {
-            certificate: 'STRING',
-            key: 'STRING',
-            rootCAKey: 'PATH',
-            rootCACertificate: 'PATH',
-            type: 'STRING'
+            certificate: 'STRING'
         },
         model: {
-            source: 'STRING',
-            type: 'STRING',
             version: 'STRING'
         },
         docker: {
@@ -60,11 +54,11 @@ function getIgnoreFileContents (in_serviceConfig) {
         ignoreFiles.push(dockerRelativePath + 'logs/*');
     }
 
-    if (Object.keys(serviceConfig.model).length) {
+    if (serviceConfig.model.version) {
         ignoreFiles.push(dockerRelativePath + 'model/*');
     }
 
-    if (Object.keys(serviceConfig.auth).length) {
+    if (serviceConfig.auth.certificate) {
         ignoreFiles.push(dockerRelativePath + 'auth/*.crt');
         ignoreFiles.push(dockerRelativePath + 'auth/*.key');
     }

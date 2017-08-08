@@ -31,9 +31,7 @@ function runTests () {
         '#',
         '# ENVIRONMENT',
         '#',
-        '# ----------------------',
-        '',
-        '    ENV BASE_DIR "."'
+        '# ----------------------'
     ].join('\n'), docker.getDockerfileContents({}));
     test.assertEquals('docker file with service configured', [
         '# ----------------------',
@@ -66,6 +64,16 @@ function runTests () {
         },
         docker: {
             image: {
+                env_variables: [
+                    {
+                        key: 'SERVICE_NAME',
+                        val: 'test-service'
+                    },
+                    {
+                        key: 'BASE_DIR',
+                        val: 'mydir'
+                    }
+                ],
                 working_directory: 'mydir'
             }
         }
@@ -102,10 +110,8 @@ function runTests () {
         'create-docker-image.sh',
         '_env.sh'
     ].join('\n'), docker.getIgnoreDockerContents({
-        docker: {
-            build: {
-                language: 'bash'
-            }
+        build: {
+            language: 'bash'
         }
     }));
     test.assertEquals('docker ignore contents with all', [
@@ -116,7 +122,13 @@ function runTests () {
         '_env.sh',
         'model/*'
     ].join('\n'), docker.getIgnoreDockerContents({
+        auth: {
+            certificate: 'mycert'
+        },
         model: {
+            version: '1.2.3'
+        },
+        corpus: {
             version: '1.2.3'
         },
         docker: {
@@ -124,9 +136,9 @@ function runTests () {
                 language: 'node',
                 log: true
             },
-            build: {
-                language: 'bash'
-            }
+        },
+        build: {
+            language: 'bash'
         }
     }));
     test.assertEquals('docker tags for empty config', ['latest'], docker.getImageTags());
