@@ -77,14 +77,16 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
             });
 
         if (serviceName) {
-            cprint.magenta('-- AWS Clusters State --');
-
             clusters.forEach(cluster => {
                 let environment = cluster.environment;
                 if (!environment) {
                     return;
                 }
+
                 let environmentTitle = str.toTitleCase(environment);
+
+                cprint.magenta('-- AWS ' + environmentTitle + ' Clusters State --');
+
                 let awsAutoScalingGroupName = cluster.auto_scaling_group_name || '(Not Set)';
                 let awsClusterName = cluster.name || '(Not Set)';
                 let awsClusterServiceName = cluster.service_name || '(Not Set)';
@@ -133,14 +135,52 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
         }
 
         if (in_extra) {
-            cprint.magenta('-- AWS Network --');
 
             clusters.forEach(cluster => {
                 let environment = cluster.environment;
                 if (!environment) {
                     return;
                 }
+
                 let environmentTitle = str.toTitleCase(environment);
+
+                let instanceIds = _getInstanceIdsWithTags([
+                    {
+                        key: "ServiceName",
+                        vals: [
+                            serviceName
+                        ]
+                    },
+                    {
+                        key: "Environment",
+                        vals: [
+                            environment
+                        ]
+                    }
+                ], null);
+
+                instanceIds.forEach(i => {
+                    cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
+                    print.keyVal('Instance Ip Address', i.IpAddress);
+                    print.keyVal('Instance Type', i.InstanceType);
+                    print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
+                    print.keyVal('Instance VpcId', i.VpcId);
+                    print.keyVal('Instance SubnetId', i.SubnetId);
+                    print.out('\n');
+                })
+
+            });
+
+            clusters.forEach(cluster => {
+                let environment = cluster.environment;
+                if (!environment) {
+                    return;
+                }
+
+                let environmentTitle = str.toTitleCase(environment);
+
+                cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
+
                 let awsVpcName = cluster.vpc_name;
                 print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
@@ -1094,6 +1134,78 @@ function _getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
     };
 
     return awsClusterTaskArns;
+}
+
+// ******************************
+
+function _getInstanceIdsWithTags (in_tags, in_cache, in_verbose) {
+    let tags = in_tags || [];
+    let tagsStr = JSON.stringify(tags);
+
+    if (in_verbose) {
+        cprint.cyan('Retrieving AWS Instance IDs for tags [' + tagsStr + ']...');
+    }
+
+    let cache = in_cache || {};
+    let cacheItem = cache['InstanceIds_' + tagsStr];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let args = [
+        'ec2',
+        'describe-instances',
+        '--filters',
+    ];
+
+    in_tags.forEach(t => {
+        if (!t.key || !t.vals) {
+            return '';
+        }
+        args.push(`Name="tag:${t.key}",Values="${t.vals.join(',')}"`);
+    });
+
+    let cmdResult = aws.cmd(args, !in_verbose);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let awsInstanceIds;
+    let awsResult = _parseCmdResult(cmdResult);
+    if (awsResult && awsResult.Reservations) {
+        awsInstanceIds = awsResult.Reservations
+            .map(obj => obj.Instances)
+            .reduce((a,b) => a.concat(b), [])
+            .map(obj => {
+                let result = {
+                    ImageId: obj.ImageId,
+                    InstanceId: obj.InstanceId,
+                    InstanceLifecycle: obj.InstanceLifecycle,
+                    InstanceType: obj.InstanceType,
+                    IpAddress: obj.PrivateIpAddress,
+                    SecurityGroups: obj.SecurityGroups,
+                    SubnetId: obj.SubnetId,
+                    Tags: obj.Tags,
+                    VpcId: obj.VpcId
+                };
+                return result;
+            });
+    }
+
+    if (!awsInstanceIds) {
+        cprint.yellow('Couldn\'t find AWS Instance IDs for tags [' + tagsStr + ']');
+        return false;
+    }
+
+    cache['InstanceIds_' + tagsStr] = {
+        val: awsInstanceIds,
+        expires: date.getTimestamp() + 600 * 1000
+    };
+
+    return awsInstanceIds;
 }
 
 // ******************************
