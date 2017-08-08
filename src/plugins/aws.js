@@ -27,6 +27,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                 {
                     name: 'STRING',
                     service_name: 'STRING',
+                    environment: 'STRING',
                     auto_scaling_group_name: 'STRING',
                     vpc_name: 'STRING',
                     vpc_subnet_name: 'STRING',
@@ -80,44 +81,50 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
             clusters.forEach(cluster => {
                 let environment = cluster.environment;
-                let awsAutoScalingGroupName = cluster.auto_scaling_group_name;
-                let awsClusterName = cluster.name;
-                let awsClusterServiceName = cluster.service_name;
-                let awsTaskDefinitionName = cluster.task_definition_name;
+                if (!environment) {
+                    return;
+                }
+                let environmentTitle = str.toTitleCase(environment);
+                let awsAutoScalingGroupName = cluster.auto_scaling_group_name || '(Not Set)';
+                let awsClusterName = cluster.name || '(Not Set)';
+                let awsClusterServiceName = cluster.service_name || '(Not Set)';
+                let awsTaskDefinitionName = cluster.task_definition_name || '(Not Set)';
 
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Name', awsClusterName);
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service Name', awsClusterServiceName);
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
 
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service State', '...', true);
-                let awsAutoScalingGroupInstanceCount = _getAutoScalingGroupInstanceCount(awsAutoScalingGroupName, awsCache);
-                print.clearLine();
+                if (cluster.auto_scaling_group_name) {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
+                    let awsAutoScalingGroupInstanceCount = _getAutoScalingGroupInstanceCount(cluster.auto_scaling_group_name, awsCache);
+                    print.clearLine();
 
-                if (awsAutoScalingGroupInstanceCount !== undefined) {
-                    let serviceState = _getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service State', serviceState);
-                } else {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service State', '???');
+                    if (awsAutoScalingGroupInstanceCount !== undefined) {
+                        let serviceState = _getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', serviceState);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '???');
+                    }
                 }
 
-                if (in_extra) {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service ARN', '...', true);
-                    let awsClusterServiceArn = _getClusterServiceArnForCluster(awsClusterName, awsCache);
+                if (in_extra && cluster.name) {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', '...', true);
+                    let awsClusterServiceArn = _getClusterServiceArnForCluster(cluster.name, awsCache);
                     print.clearLine();
 
                     if (awsClusterServiceArn) {
-                        print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service ARN', awsClusterServiceArn);
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', awsClusterServiceArn);
                     } else {
-                        print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service ARN', '???');
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', '???');
                     }
 
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Task ARNs', '...', true);
-                    let awsClusterTaskArns = _getClusterTaskArnsForCluster(awsClusterName, awsCache);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', '...', true);
+                    let awsClusterTaskArns = _getClusterTaskArnsForCluster(cluster.name, awsCache);
                     print.clearLine();
 
                     if (awsClusterTaskArns) {
-                        print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Task ARNs', JSON.stringify(awsClusterTaskArns, null, 4));
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', JSON.stringify(awsClusterTaskArns, null, 4));
                     } else {
-                        print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Task ARNs', '???');
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', '???');
                     }
                 }
 
@@ -130,40 +137,46 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
             clusters.forEach(cluster => {
                 let environment = cluster.environment;
+                if (!environment) {
+                    return;
+                }
+                let environmentTitle = str.toTitleCase(environment);
                 let awsVpcName = cluster.vpc_name;
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Name', awsVpcName);
+                print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Id', '...', true);
-                let awsVpcId = _getVpcIdForVpc(awsVpcName, awsCache);
-                print.clearLine();
+                if (cluster.vpc_name) {
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
+                    let awsVpcId = _getVpcIdForVpc(cluster.vpc_name, awsCache);
+                    print.clearLine();
 
-                if (awsVpcId) {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Id', awsVpcId);
-                } else {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Id', '???');
-                }
+                    if (awsVpcId) {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Id', '???');
+                    }
 
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Security Group Id', '...', true);
-                let awsVpcSecurityGroupId = _getVpcSecurityGroupIdForVpc(awsVpcId, awsCache);
-                print.clearLine();
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
+                    let awsVpcSecurityGroupId = _getVpcSecurityGroupIdForVpc(awsVpcId, awsCache);
+                    print.clearLine();
 
-                if (awsVpcSecurityGroupId) {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Security Group Id', awsVpcSecurityGroupId);
-                } else {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Security Group Id', '???');
-                }
+                    if (awsVpcSecurityGroupId) {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '???');
+                    }
 
-                let awsVpcSubnetName = cluster.vpc_subnet_name;
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Name', awsVpcSubnetName);
+                    let awsVpcSubnetName = cluster.vpc_subnet_name;
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
 
-                print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Id', '...', true);
-                let awsVpcSubnetId = _getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, awsCache);
-                print.clearLine();
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
+                    let awsVpcSubnetId = _getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, awsCache);
+                    print.clearLine();
 
-                if (awsVpcSubnetId) {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Id', awsVpcSubnetId);
-                } else {
-                    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Id', '???');
+                    if (awsVpcSubnetId) {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '???');
+                    }
                 }
 
                 print.out('\n');
@@ -171,7 +184,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
         }
     }
 
-    cache.save(serviceConfig.cwd, 'aws', awsCache);
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 
     cprint.magenta('----');
 }
@@ -219,6 +234,7 @@ function awsDeploy (in_serviceConfig, in_prod) {
 
     let environment = (in_prod) ? 'prod' : 'test';
     let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environmentNameLong
         });
@@ -231,6 +247,11 @@ function awsDeploy (in_serviceConfig, in_prod) {
     let dockerImageName = serviceConfig.docker.image.name || 'image';
     let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
     let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
+    if (!awsDockerRepository) {
+        cprint.yellow('Couldn\'t get aws docker repository');
+        return false;
+    }
+
     let awsTaskDefinitionImagePath = awsDockerRepository + '/' + dockerImageName + ':' + dockerImageVersion;
     let awsTaskDefinitionName = cluster.task_definition_name;
     let awsClusterName = cluster.name;
@@ -251,25 +272,25 @@ function awsDeploy (in_serviceConfig, in_prod) {
     print.clearLine();
     print.keyVal('AWS Task Definition ARN', taskDefinitionArn);
 
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Name', awsClusterName);
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service Name', awsClusterServiceName);
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service Instance Count', awsClusterServiceInstanceCount);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Instance Count', awsClusterServiceInstanceCount);
 
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Task ARNs', '...', true);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', '...', true);
     let awsClusterTaskArns = _getClusterTaskArnsForCluster(awsClusterName, awsCache);
     if (!awsClusterTaskArns) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Task ARNs', JSON.stringify(awsClusterTaskArns, null, 4));
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Task ARNs', JSON.stringify(awsClusterTaskArns, null, 4));
 
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service ARN', '...', true);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', '...', true);
     let awsClusterServiceArn = _getClusterServiceArnForCluster(awsClusterName, awsCache);
     if (!awsClusterServiceArn) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Cluster Service ARN', awsClusterServiceArn);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Service ARN', awsClusterServiceArn);
 
     awsClusterTaskArns.forEach(t => {
         _stopClusterTask(awsClusterName, t)
@@ -277,7 +298,9 @@ function awsDeploy (in_serviceConfig, in_prod) {
 
     _deployTaskDefinitionToCluster(awsClusterName, awsClusterServiceArn, taskDefinitionArn, awsClusterServiceInstanceCount);
 
-    cache.save(serviceConfig.cwd, 'aws', awsCache);
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 
     cprint.magenta('----');
 }
@@ -293,9 +316,26 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             },
             container: {
                 memory_limit: 'NUMBER',
-                ports: [],
-                volumes: [],
-                commands: []
+                ports: [
+                    {
+                        host: 'NUMBER',
+                        container: 'NUMBER',
+                        env: 'STRING'
+                    }
+                ],
+                volumes: [
+                    {
+                        container: 'STRING',
+                        host: 'STRING',
+                        name: 'STRING'
+                    }
+                ],
+                commands: [
+                    {
+                        val: 'STRING',
+                        env: 'STRING'
+                    }
+                ]
             }
         },
         service: {
@@ -325,6 +365,10 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
 
     let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
+    if (!awsDockerRepository) {
+        cprint.yellow('Couldn\'t get aws docker repository');
+        return false;
+    }
 
     let awsTaskDefinitionImagePath = awsDockerRepository + '/' + dockerImageName + ':' + dockerImageVersion;
     let awsTaskDefinitionName = serviceName + '-task-definition';
@@ -366,6 +410,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     };
 
     serviceConfig.docker.container.commands.forEach(command => {
+        // TODO - remove TM specific environment
         if (command.env === 'prod') {
             serviceContainerDefinition.command = command.val
                 .split(' ')
@@ -377,6 +422,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         if (!port.host || !port.container) {
             return;
         }
+        // TODO - remove TM specific environment
         if (port.env !== 'prod') {
             return;
         }
@@ -484,7 +530,9 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         _clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, cache);
     }
 
-    cache.save(serviceConfig.cwd, 'aws', awsCache);
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 
     cprint.magenta('----');
 }
@@ -534,6 +582,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
 
     let environment = (in_prod) ? 'prod' : 'test';
     let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environmentNameLong
         });
@@ -556,40 +605,40 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     print.keyVal('AWS AMI', awsAmi);
 
     let awsLaunchConfigurationName = cluster.launch_configuration_name + '-' + date.getTimestampTag();
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' Launch Configuration', awsLaunchConfigurationName);
+    print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', awsLaunchConfigurationName);
 
     let pemKeyName = cluster.identity_file;
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' PEM Key', pemKeyName);
+    print.keyVal('AWS ' + environmentTitle + ' PEM Key', pemKeyName);
 
     let awsVpcName = cluster.vpc_name;
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Name', awsVpcName);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Id', '...', true);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
     let awsVpcId = _getVpcIdForVpc(awsVpcName, awsCache);
     if (!awsVpcId) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Id', awsVpcId);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Security Group Id', '...', true);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
     let awsVpcSecurityGroupId = _getVpcSecurityGroupIdForVpc(awsVpcId, awsCache);
     if (!awsVpcSecurityGroupId) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Security Group Id', awsVpcSecurityGroupId);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
 
     let awsVpcSubnetName = cluster.vpc_subnet_name;
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Name', awsVpcSubnetName);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
 
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Id', '...', true);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
     let awsVpcSubnetId = _getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, awsCache);
     if (!awsVpcSubnetId) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + str.toTitleCase(environment) + ' VPC Subnet Id', awsVpcSubnetId);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
 
     let userData = (cluster.instance.user_data || []).join('\n');
     userData = service.replaceServiceConfigReferences(in_serviceConfig, userData, {
@@ -640,7 +689,9 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
         cprint.green('Created launch configuration');
     }
 
-    cache.save(serviceConfig.cwd, 'aws', awsCache);
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 
     cprint.magenta('----');
 }
@@ -657,6 +708,11 @@ function awsDockerLogin (in_serviceConfig) {
         return false;
     }
 
+    if (!docker.running()) {
+        cprint.yellow('Docker isn\'t running');
+        return false;
+    }
+
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
     serviceConfig = init.updateServiceConfig(in_serviceConfig, {
         aws: {
@@ -666,6 +722,11 @@ function awsDockerLogin (in_serviceConfig) {
     });
 
     let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
+    if (!awsDockerRepository) {
+        cprint.yellow('Couldn\'t get aws docker repository');
+        return false;
+    }
+
     docker.login(awsDockerCredentials.username, awsDockerCredentials.password, awsDockerRepository);
 }
 
@@ -717,7 +778,9 @@ function awsStartCluster (in_serviceConfig, in_prod) {
         cprint.green('AWS cluster already started');
     }
 
-    cache.save(serviceConfig.cwd, 'aws', awsCache);
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 }
 
 // ******************************
@@ -768,7 +831,9 @@ function awsStopCluster (in_serviceConfig, in_prod) {
         cprint.green('AWS cluster already stopped');
     }
 
-    cache.save(serviceConfig.cwd, 'aws', awsCache);
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 }
 
 // ******************************

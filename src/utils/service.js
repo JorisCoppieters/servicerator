@@ -87,13 +87,242 @@ function getServiceConfig (in_folderName) {
         });
     }
 
+    let nodeFolder = path.resolve(sourceFolder, 'node');
+    if (nodeFolder && fs.folderExists(nodeFolder)) {
+        serviceConfig = copyServiceConfig(serviceConfig, {
+            docker: {
+                image: {
+                    language: 'node'
+                }
+            },
+            service: {
+                name: path.basename(path.resolve(sourceFolder))
+            }
+        });
+    }
+
+    if (serviceConfig.docker) {
+        serviceConfig = copyServiceConfig(serviceConfig, {
+            docker: {
+                image: {
+                    env_variables: [],
+                    scripts: [],
+                    filesystem: [],
+                    working_directory: '/root'
+                }
+            }
+        });
+
+        if (serviceConfig.service.name) {
+            serviceConfig.docker.image.env_variables.push({
+                key: 'SERVICE_NAME',
+                val: serviceConfig.service.name
+            });
+        }
+
+        serviceConfig.docker.image.env_variables.push({
+            key: 'BASE_DIR',
+            val: serviceConfig.docker.image.working_directory
+        });
+
+        if (serviceConfig.docker.image.scripts) {
+            let dockerScriptsDir = '$BASE_DIR/scripts';
+
+            serviceConfig.docker.image.env_variables.push({
+                key: 'SCRIPTS_DIR',
+                val: dockerScriptsDir
+            });
+
+            scripts.forEach(s => {
+                let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
+                let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
+                serviceConfig.docker.image.env_variables.push({
+                    key: scriptKey,
+                    val: scriptPath
+                });
+                s.key = '$' + scriptKey
+            });
+
+            serviceConfig.docker.image.filesystem.push(
+                {
+                    'path': '$SCRIPTS_DIR',
+                    'type': 'folder'
+                }
+            );
+        }
+
+        if (serviceConfig.auth) {
+            serviceConfig.docker.image.env_variables.push({
+                key: 'AUTH_DIR',
+                val: '$BASE_DIR/auth'
+            });
+
+            serviceConfig.docker.image.filesystem.push(
+                {
+                    'path': '$AUTH_DIR',
+                    'type': 'folder'
+                }
+            );
+
+            if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
+                serviceConfig.docker.image.filesystem.push(
+                    {
+                        'source': `${serviceConfig.auth.certificate}`,
+                        'destination': '$AUTH_DIR',
+                        'type': 'copy_file'
+                    }
+                );
+                serviceConfig.docker.image.filesystem.push(
+                    {
+                        'source': `${serviceConfig.auth.key}`,
+                        'destination': '$AUTH_DIR',
+                        'type': 'copy_file'
+                    }
+                );
+            }
+        }
+
+        if (serviceConfig.aws) {
+            serviceConfig = copyServiceConfig(serviceConfig, {
+                docker: {
+                    image: {
+                        log: true,
+                        filesystem: []
+                    },
+                    other_repositories: [],
+                    container: {
+                        volumes: []
+                    }
+                }
+            });
+
+            // TODO - Remove TM specific logging path
+            serviceConfig.docker.container.volumes.push({
+                container: '/var/log/tm-services/$SERVICE_NAME',
+                host: 'logs',
+                name: '$SERVICE_NAME-logs'
+            });
+
+            serviceConfig.docker.image.filesystem.push({
+                path: '/var/log/tm-services/$SERVICE_NAME',
+                type: 'folder'
+            });
+
+            serviceConfig.docker.image.filesystem.push({
+                path: '/var/log/tm-services/$SERVICE_NAME/api.log',
+                type: 'file'
+            });
+
+            serviceConfig.docker.other_repositories.push({
+                type: 'AWS'
+            })
+        }
+
+        if (serviceConfig.docker.image.language === 'python') {
+            serviceConfig.docker.image.env_variables.push({
+                key: 'PYTHON_DIR',
+                val: '$BASE_DIR/python'
+            });
+
+            serviceConfig.docker.image.filesystem.push(
+                {
+                    'path': '$PYTHON_DIR',
+                    'type': 'folder'
+                }
+            );
+            serviceConfig.docker.image.filesystem.push(
+                {
+                    'source': 'python',
+                    'destination': '$PYTHON_DIR',
+                    'type': 'copy_folder'
+                }
+            );
+        } else if (serviceConfig.docker.image.language === 'node') {
+            serviceConfig.docker.image.env_variables.push({
+                key: 'NODE_DIR',
+                val: '$BASE_DIR/node'
+            });
+
+            serviceConfig.docker.image.filesystem.push(
+                {
+                    'path': '$NODE_DIR',
+                    'type': 'folder'
+                }
+            );
+            serviceConfig.docker.image.filesystem.push(
+                {
+                    'source': 'node',
+                    'destination': '$NODE_DIR',
+                    'type': 'copy_folder'
+                }
+            );
+        }
+    }
+
+    let bundledModel = false;
+    let modelFolder = path.resolve(sourceFolder, 'model');
+    if (!modelFolder || !fs.folderExists(modelFolder)) {
+        let bundledModelFolder = path.resolve(sourceFolder, 'bundled_model');
+        if (bundledModelFolder && fs.folderExists(bundledModelFolder)) {
+            modelFolder = bundledModelFolder;
+            bundledModel = true;
+        }
+    }
+
+    if (modelFolder && fs.folderExists(modelFolder)) {
+        serviceConfig = copyServiceConfig(serviceConfig, {
+            model: {
+                source: path.relative(sourceFolder, modelFolder),
+                type: bundledModel ? 'bundled' : 'model_store'
+            },
+            docker: {
+                container: {
+                    volumes: []
+                },
+                image: {
+                    env_variables: [],
+                    filesystem: []
+                }
+            }
+        });
+
+        serviceConfig.docker.image.env_variables.push({
+            key: 'MODEL_DIR',
+            val: '$BASE_DIR/model'
+        });
+
+        if (bundledModel) {
+            serviceConfig.docker.image.filesystem.push({
+                'path': '$MODEL_DIR',
+                'type': 'folder'
+            });
+
+            serviceConfig.docker.image.filesystem.push({
+                'source': `${serviceConfig.model.source}`,
+                'destination': '$MODEL_DIR',
+                'type': 'copy_folder'
+            });
+        } else {
+            serviceConfig.docker.image.filesystem.push({
+                'source': '/model',
+                'destination': '$MODEL_DIR',
+                'type': 'link'
+            });
+
+            serviceConfig.docker.container.volumes.push({
+                container: '/model',
+                host: 'model',
+                name: 'model'
+            });
+        }
+    }
+
     serviceConfig = copyServiceConfig(serviceConfig, {
         docker: {
             username: 'my-docker-username',
             image: {
                 name: path.basename(path.resolve(sourceFolder)),
                 base: k_DEFAULT_IMAGE,
-                working_directory: '/root',
                 tag_with_date: true,
                 version: '0.1.0'
             },
@@ -413,7 +642,6 @@ function _getServiceConfigSchema () {
     return {
         "auth": {
             "certificate": "STRING",
-            "disableAutoPopulate": "BOOLEAN",
             "key": "STRING",
             "rootCAKey": "PATH",
             "rootCACertificate": "PATH",
@@ -534,6 +762,7 @@ function _getServiceConfigSchema () {
                 ],
                 "scripts": [
                     {
+                        "key": "STRING",
                         "cmd": "BOOLEAN",
                         "commands": [
                             "STRING"
@@ -568,7 +797,6 @@ function _getServiceConfigSchema () {
             "username": "STRING"
         },
         "model": {
-            "disableAutoPopulate": "BOOLEAN",
             "source": "STRING",
             "type": "STRING",
             "version": "STRING"

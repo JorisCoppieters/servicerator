@@ -55,7 +55,14 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.container.ports = serviceConfig.docker.container.ports || [];
             serviceConfig.docker.container.ports.push({
                 'host': parseInt(val),
-                'container': parseInt(val)
+                'container': parseInt(val),
+                'env': 'test'
+            });
+
+            serviceConfig.docker.container.ports.push({
+                'host': 80,
+                'container': parseInt(val),
+                'env': 'prod'
             });
 
             serviceConfig.docker.image = serviceConfig.docker.image || {};
@@ -68,7 +75,14 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.container.ports = serviceConfig.docker.container.ports || [];
             serviceConfig.docker.container.ports.push({
                 'host': parseInt(val),
-                'container': parseInt(val)
+                'container': parseInt(val),
+                'env': 'test'
+            });
+
+            serviceConfig.docker.container.ports.push({
+                'host': 443,
+                'container': parseInt(val),
+                'env': 'prod'
             });
 
             serviceConfig.docker.image = serviceConfig.docker.image || {};
@@ -186,13 +200,43 @@ function parseBashEnvContents (in_bashEnvContents) {
             let volume = cluster.instance.volumes[0];
             volume.Ebs = volume.Ebs || {};
             volume.Ebs.VolumeSize = parseInt(val);
-        // } else {
-        //     print.keyVal(key, val);
         }
     });
 
+    if (serviceConfig.service && serviceConfig.service.name) {
+        let serviceName = serviceConfig.service.name;
+
+        serviceConfig.service = serviceConfig.service || {};
+        serviceConfig.service.clusters = serviceConfig.service.clusters || [];
+        serviceConfig.service.clusters.forEach(c => {
+            if (!c.environment) {
+                return;
+            }
+
+            let environment = c.environment;
+            if (environment === 'production') {
+                environment = 'prod';
+            }
+
+            _setIfNotSet(c, 'name', serviceName + '-' + environment + '-cluster');
+            _setIfNotSet(c, 'service_name', serviceName + '-' + environment + '-service');
+            _setIfNotSet(c, 'task_definition_name', serviceName + '-task-definition');
+            _setIfNotSet(c, 'launch_configuration_name', serviceName + '-' + environment + '-launch-configuration');
+            _setIfNotSet(c, 'auto_scaling_group_name', serviceName + '-' + environment + '-auto-scaling-group');
+            _setIfNotSet(c, 'instance', serviceConfig.service.clusters[0].instance);
+        });
+    }
+
     service.checkConfigSchema(serviceConfig);
     return serviceConfig;
+}
+
+// ******************************
+// Helper Functions:
+// ******************************
+
+function _setIfNotSet (in_object, in_field, in_value) {
+    in_object[in_field] = in_object[in_field] || in_value;
 }
 
 // ******************************

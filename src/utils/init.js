@@ -68,6 +68,22 @@ function loadServiceConfig (in_sourceFolder) {
 
 // ******************************
 
+function hasServiceConfigFile (in_sourceFolder) {
+    let serviceConfig = false;
+    let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+
+    if (fs.fileExists(serviceConfigFile)) {
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (serviceConfigContents.trim()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// ******************************
+
 function saveServiceConfig (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         cwd: 'STRING'
@@ -155,6 +171,7 @@ function _serviceConfigReplacer (in_key, in_val) {
 // ******************************
 
 module.exports['folder'] = initFolder;
+module.exports['hasServiceConfigFile'] = hasServiceConfigFile;
 module.exports['saveServiceConfig'] = saveServiceConfig;
 module.exports['updateServiceConfig'] = updateServiceConfig;
 module.exports['removeServiceConfig'] = removeServiceConfig;

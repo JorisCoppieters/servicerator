@@ -4,7 +4,10 @@
 // Requires:
 // ******************************
 
+let path = require('path');
+
 let service = require('./service');
+let docker = require('./docker');
 
 // ******************************
 // Functions:
@@ -14,14 +17,12 @@ function getIgnoreFileContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: {
             certificate: 'STRING',
-            disableAutoPopulate: 'BOOLEAN',
             key: 'STRING',
             rootCAKey: 'PATH',
             rootCACertificate: 'PATH',
             type: 'STRING'
         },
         model: {
-            disableAutoPopulate: 'BOOLEAN',
             source: 'STRING',
             type: 'STRING',
             version: 'STRING'
@@ -34,41 +35,44 @@ function getIgnoreFileContents (in_serviceConfig) {
         },
         build: {
             language: 'STRING'
-        }
+        },
+        cwd: 'STRING'
     });
+
+    let dockerFolder = docker.getFolder(serviceConfig.cwd) || 'docker';
+    let dockerRelativePath = path.relative(serviceConfig.cwd, dockerFolder);
+    dockerRelativePath = (dockerRelativePath ? dockerRelativePath + '/' : '');
 
     let ignoreFiles = [
         'syntax: glob',
-        'docker/.aws_cache/*',
-        '.cache'
+        dockerRelativePath + '.cache'
     ];
 
     if (serviceConfig.docker.image.language === 'node') {
-        ignoreFiles.push('docker/node/node_modules/*');
+        ignoreFiles.push(dockerRelativePath + 'node/node_modules/*');
     }
 
     if (serviceConfig.docker.image.language === 'python') {
-        ignoreFiles.push('docker/python/*.pyc');
+        ignoreFiles.push(dockerRelativePath + 'python/*.pyc');
     }
 
     if (serviceConfig.docker.image.log) {
-        ignoreFiles.push('docker/logs/*');
+        ignoreFiles.push(dockerRelativePath + 'logs/*');
     }
 
     if (Object.keys(serviceConfig.model).length) {
-        ignoreFiles.push('docker/model/*');
+        ignoreFiles.push(dockerRelativePath + 'model/*');
     }
 
     if (Object.keys(serviceConfig.auth).length) {
-        ignoreFiles.push('auth/*.crt');
-        ignoreFiles.push('auth/*.key');
-        ignoreFiles.push('docker/auth/*.crt');
-        ignoreFiles.push('docker/auth/*.key');
+        ignoreFiles.push(dockerRelativePath + 'auth/*.crt');
+        ignoreFiles.push(dockerRelativePath + 'auth/*.key');
     }
 
     if (serviceConfig.build.language === 'bash') {
-        ignoreFiles.push('docker/setup-aws-infrastructure.sh');
-        ignoreFiles.push('docker/create-docker-image.sh');
+        ignoreFiles.push(dockerRelativePath + '.aws_cache/*');
+        ignoreFiles.push(dockerRelativePath + 'setup-aws-infrastructure.sh');
+        ignoreFiles.push(dockerRelativePath + 'create-docker-image.sh');
     }
 
     return ignoreFiles.join('\n');

@@ -1440,6 +1440,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         case 'verify-container':
         case 'test':
         case 'test-container':
+        case 'tests':
             verifyDockerContainer(in_serviceConfig);
             break;
 
@@ -1475,7 +1476,7 @@ function getCommands () {
         { params: ['enter-container', 'enter', 'interact', 'interactive'], description: 'Enter the running service docker container' },
         { params: ['stop-container', 'stop'], description: 'Stop the service docker container' },
         { params: ['remove-container', 'remove', 'rm'], description: 'Remove the service docker container' },
-        { params: ['verify-container', 'verify', 'test-container', 'test'], description: 'Verify the service docker container' },
+        { params: ['verify-container', 'verify', 'test-container', 'test', 'tests'], description: 'Verify the service docker container' },
         { params: ['container', 'stats', 'state', 'running'], description: 'Print the current state of the service docker container' },
         { params: ['pull'], description: 'Pull the service docker image' },
         { params: ['build'], description: 'Build the service docker image', options: [{param:'no-cache', description:'Don\'t use cached images'}] },

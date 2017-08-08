@@ -48,13 +48,11 @@ let g_DOCKER_RUNNING = undefined;
 function getDockerfileContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: {
-            disableAutoPopulate: 'BOOLEAN',
             type: 'STRING',
             certificate: 'PATH',
             key: 'PATH'
         },
         model: {
-            disableAutoPopulate: 'BOOLEAN',
             type: 'STRING',
             source: 'STRING'
         },
@@ -72,6 +70,7 @@ function getDockerfileContents (in_serviceConfig) {
                 ],
                 scripts: [
                     {
+                        key: 'STRING',
                         cmd: 'BOOLEAN',
                         commands: [
                             'STRING'
@@ -136,156 +135,159 @@ function getDockerfileContents (in_serviceConfig) {
     let commands = serviceConfig.docker.image.commands || [];
     let workdir = serviceConfig.docker.image.working_directory || '.';
 
-    let firstFilesystem = [];
-    let firstEnvVariables = [];
-
-    if (serviceConfig.service.name) {
-        firstEnvVariables.push({
-            key: 'SERVICE_NAME',
-            val: serviceConfig.service.name
-        });
-    }
-
-    firstEnvVariables.push({
-        key: 'BASE_DIR',
-        val: workdir
-    });
-
-    if (scripts.length) {
-        let dockerScriptsDir = '$BASE_DIR/scripts';
-        firstEnvVariables.push({
-            key: 'SCRIPTS_DIR',
-            val: dockerScriptsDir
-        });
-        scripts.forEach(s => {
-            let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
-            let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
-            firstEnvVariables.push({
-                key: scriptKey,
-                val: scriptPath
-            });
-            s.key = '$' + scriptKey
-        });
-
-        firstFilesystem.push(
-            {
-                'path': '$SCRIPTS_DIR',
-                'type': 'folder'
-            }
-        );
-    }
-
-    if (Object.keys(serviceConfig.model).length && !serviceConfig.model.disableAutoPopulate) {
-        firstEnvVariables.push({
-            key: 'MODEL_DIR',
-            val: '$BASE_DIR/model'
-        });
-
-        firstFilesystem.push(
-            {
-                'path': '$MODEL_DIR',
-                'type': 'folder'
-            }
-        );
-
-        if (serviceConfig.model.type === 'bundled' && serviceConfig.model.source) {
-            firstFilesystem.push(
-                {
-                    'source': `${serviceConfig.model.source}`,
-                    'destination': '$MODEL_DIR',
-                    'type': 'copy_folder'
-                }
-            );
-        } else if (serviceConfig.model.source) {
-            firstFilesystem.push(
-                {
-                    'source': `${serviceConfig.model.source}`,
-                    'destination': '$MODEL_DIR',
-                    'type': 'link'
-                }
-            );
-        }
-    }
-
-    if (serviceConfig.auth && !serviceConfig.auth.disableAutoPopulate) {
-        firstEnvVariables.push({
-            key: 'AUTH_DIR',
-            val: '$BASE_DIR/auth'
-        });
-
-        firstFilesystem.push(
-            {
-                'path': '$AUTH_DIR',
-                'type': 'folder'
-            }
-        );
-
-        if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
-            firstFilesystem.push(
-                {
-                    'source': `${serviceConfig.auth.certificate}`,
-                    'destination': '$AUTH_DIR',
-                    'type': 'copy_file'
-                }
-            );
-            firstFilesystem.push(
-                {
-                    'source': `${serviceConfig.auth.key}`,
-                    'destination': '$AUTH_DIR',
-                    'type': 'copy_file'
-                }
-            );
-        }
-    }
-
     let enableNginx = false;
     if (Object.keys(serviceConfig.docker.image.nginx).length) {
         enableNginx = true;
         aptGetPackages.push('nginx');
     }
 
-    if (serviceConfig.docker.image.language === 'python') {
-        firstEnvVariables.push({
-            key: 'PYTHON_DIR',
-            val: '$BASE_DIR/python'
-        });
+    // let additionalFilesystem = [];
+    // let additionalEnvVariables = [];
 
-        firstFilesystem.push(
-            {
-                'path': '$PYTHON_DIR',
-                'type': 'folder'
-            }
-        );
-        firstFilesystem.push(
-            {
-                'source': 'python',
-                'destination': '$PYTHON_DIR',
-                'type': 'copy_folder'
-            }
-        );
-    } else if (serviceConfig.docker.image.language === 'node') {
-        firstEnvVariables.push({
-            key: 'NODE_DIR',
-            val: '$BASE_DIR/node'
-        });
+    // DEPRECATED
+    // let firstFilesystem = [];
+    // if (serviceConfig.service.name) {
+    //     firstEnvVariables.push({
+    //         key: 'SERVICE_NAME',
+    //         val: serviceConfig.service.name
+    //     });
+    // }
 
-        firstFilesystem.push(
-            {
-                'path': '$NODE_DIR',
-                'type': 'folder'
-            }
-        );
-        firstFilesystem.push(
-            {
-                'source': 'node',
-                'destination': '$NODE_DIR',
-                'type': 'copy_folder'
-            }
-        );
-    }
+    // firstEnvVariables.push({
+    //     key: 'BASE_DIR',
+    //     val: workdir
+    // });
 
-    filesystem = firstFilesystem.concat(filesystem);
-    envVariables = _uniqueByField(firstEnvVariables.concat(envVariables));
+    // if (scripts.length) {
+    //     let dockerScriptsDir = '$BASE_DIR/scripts';
+    //     additionalEnvVariables.push({
+    //         key: 'SCRIPTS_DIR',
+    //         val: dockerScriptsDir
+    //     });
+    //     scripts.forEach(s => {
+    //         let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
+    //         let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
+    //         additionalEnvVariables.push({
+    //             key: scriptKey,
+    //             val: scriptPath
+    //         });
+    //         s.key = '$' + scriptKey
+    //     });
+
+    //     additionalFilesystem.push(
+    //         {
+    //             'path': '$SCRIPTS_DIR',
+    //             'type': 'folder'
+    //         }
+    //     );
+    // }
+
+    // DEPRECATED
+    // if (Object.keys(serviceConfig.model).length && !serviceConfig.model.disableAutoPopulate) {
+    //     additionalEnvVariables.push({
+    //         key: 'MODEL_DIR',
+    //         val: '$BASE_DIR/model'
+    //     });
+
+    //     additionalFilesystem.push(
+    //         {
+    //             'path': '$MODEL_DIR',
+    //             'type': 'folder'
+    //         }
+    //     );
+
+    //     if (serviceConfig.model.type === 'bundled' && serviceConfig.model.source) {
+    //         additionalFilesystem.push(
+    //             {
+    //                 'source': `${serviceConfig.model.source}`,
+    //                 'destination': '$MODEL_DIR',
+    //                 'type': 'copy_folder'
+    //             }
+    //         );
+    //     } else if (serviceConfig.model.source) {
+    //         additionalFilesystem.push(
+    //             {
+    //                 'source': `${serviceConfig.model.source}`,
+    //                 'destination': '$MODEL_DIR',
+    //                 'type': 'link'
+    //             }
+    //         );
+    //     }
+    // }
+
+    // if (serviceConfig.auth && !serviceConfig.auth.disableAutoPopulate) {
+    //     additionalEnvVariables.push({
+    //         key: 'AUTH_DIR',
+    //         val: '$BASE_DIR/auth'
+    //     });
+
+    //     additionalFilesystem.push(
+    //         {
+    //             'path': '$AUTH_DIR',
+    //             'type': 'folder'
+    //         }
+    //     );
+
+    //     if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
+    //         additionalFilesystem.push(
+    //             {
+    //                 'source': `${serviceConfig.auth.certificate}`,
+    //                 'destination': '$AUTH_DIR',
+    //                 'type': 'copy_file'
+    //             }
+    //         );
+    //         additionalFilesystem.push(
+    //             {
+    //                 'source': `${serviceConfig.auth.key}`,
+    //                 'destination': '$AUTH_DIR',
+    //                 'type': 'copy_file'
+    //             }
+    //         );
+    //     }
+    // }
+
+    // if (serviceConfig.docker.image.language === 'python') {
+    //     additionalEnvVariables.push({
+    //         key: 'PYTHON_DIR',
+    //         val: '$BASE_DIR/python'
+    //     });
+
+    //     additionalFilesystem.push(
+    //         {
+    //             'path': '$PYTHON_DIR',
+    //             'type': 'folder'
+    //         }
+    //     );
+    //     additionalFilesystem.push(
+    //         {
+    //             'source': 'python',
+    //             'destination': '$PYTHON_DIR',
+    //             'type': 'copy_folder'
+    //         }
+    //     );
+    // } else if (serviceConfig.docker.image.language === 'node') {
+    //     additionalEnvVariables.push({
+    //         key: 'NODE_DIR',
+    //         val: '$BASE_DIR/node'
+    //     });
+
+    //     additionalFilesystem.push(
+    //         {
+    //             'path': '$NODE_DIR',
+    //             'type': 'folder'
+    //         }
+    //     );
+    //     additionalFilesystem.push(
+    //         {
+    //             'source': 'node',
+    //             'destination': '$NODE_DIR',
+    //             'type': 'copy_folder'
+    //         }
+    //     );
+    // }
+
+    // filesystem = _uniqueByField(filesystem.concat(additionalFilesystem), 'source');
+    // envVariables = _uniqueByField(envVariables.concat(additionalEnvVariables), 'key');
 
     return [
         `# ----------------------`,
@@ -471,12 +473,12 @@ function getDockerfileContents (in_serviceConfig) {
                 if (s.language === 'bash') {
                     return [
                         ``,
-                        `    RUN touch ${s.key} && chmod +x ${s.key}`,
+                        `    RUN touch $${s.key} && chmod +x $${s.key}`,
                         `    RUN \\`,
-                        `        echo "#! /bin/bash" > ${s.key} && \\`,
+                        `        echo "#! /bin/bash" > $${s.key} && \\`,
                     ].join('\n') +
                     s.commands
-                        .map(c => `\n        echo "${c}" >> ${s.key}`)
+                        .map(c => `\n        echo "${c}" >> $${s.key}`)
                         .join(' && \\');
                 }
             }).join('\n')
@@ -494,7 +496,7 @@ function getDockerfileContents (in_serviceConfig) {
                 `#`,
                 `# ----------------------`,
                 ``,
-                `    CMD ${s.key}`,
+                `    CMD $${s.key}`,
                 ``].join('\n');
         })[0] || '') +
     '\n';
@@ -579,7 +581,6 @@ function parseDockerfileContents (in_dockerFileContents) {
 function getIgnoreDockerContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         model: {
-            disableAutoPopulate: 'BOOLEAN',
             source: 'STRING',
             type: 'STRING',
             version: 'STRING'
