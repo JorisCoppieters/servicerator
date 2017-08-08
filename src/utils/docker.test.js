@@ -4,10 +4,13 @@
 // Requires:
 // ******************************
 
+let path = require('path');
 let cprint = require('color-print');
 
-let docker = require('./docker');
 let date = require('./date');
+let docker = require('./docker');
+let env = require('./env');
+let fs = require('./filesystem');
 let test = require('./test');
 
 // ******************************
@@ -15,8 +18,41 @@ let test = require('./test');
 // ******************************
 
 function runTests () {
+    let tempFolder = env.getTemp();
+    if (!tempFolder || !fs.folderExists(tempFolder)) {
+        cprint.red('Failed to access temp folder, cannot run tests');
+        return;
+    }
+
+    let tempDockerFolder = fs.createFolder(path.resolve(env.getTemp(), 'docker.test'));
+    let tempDockerFile = fs.writeFile(path.resolve(tempDockerFolder, 'Dockerfile'), [
+        `FROM ubuntu:trusty`
+    ].join('\n'));
+
     cprint.magenta('Running docker util tests...');
-    test.assertMatch('docker default repository', '.*', docker.getDefaultRepository());
+    test.assertMatch('docker folder', '.*docker\.test', docker.getFolder(tempDockerFolder));
+    test.assertMatch('docker file', '.*\\Dockerfile', docker.getDockerfile(tempDockerFolder));
+    test.assertMatch('docker password', '.+', docker.getPassword({
+        docker: {
+            username: 'trademe'
+        }
+    }));
+    test.assertEquals('basic docker file parse', {"docker":{"image":{"base":"ubuntu:trusty"}}}, docker.parseDockerfileContents([
+        '# ----------------------',
+        '#',
+        '# BASE',
+        '#',
+        '# ----------------------',
+        '',
+        '    FROM ubuntu:trusty',
+        '',
+        '# ----------------------',
+        '#',
+        '# ENVIRONMENT',
+        '#',
+        '# ----------------------'
+    ].join('\n')));
+    test.assertMatch('docker default repository', '.+', docker.getDefaultRepository());
     test.assertMatch('docker version', 'Docker version .*, build .*', docker.version());
     test.assertEquals('docker file for empty config', [
         '# ----------------------',
@@ -188,6 +224,8 @@ function runTests () {
             }
         }
     }));
+
+    fs.deleteFolder(tempDockerFolder);
 }
 
 // ******************************

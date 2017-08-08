@@ -162,6 +162,12 @@ function getShellHome() {
 }
 
 // ******************************
+
+function getTemp() {
+  return process.env['TEMP'];
+}
+
+// ******************************
 // Exports:
 // ******************************
 
@@ -174,5 +180,6 @@ module.exports['getStoredSecretKey'] = getStoredSecretKey;
 module.exports['getPlugins'] = getPlugins;
 module.exports['getUserHome'] = getUserHome;
 module.exports['getShellHome'] = getShellHome;
+module.exports['getTemp'] = getTemp;
 
 // ******************************
