@@ -43,12 +43,13 @@ function printDockerInfo (in_serviceConfig) {
         }
     });
 
+    cprint.magenta('-- Docker --');
+
     let dockerUsername = serviceConfig.docker.username || false;
     let dockerPassword = docker.getPassword(in_serviceConfig) || false;
     let dockerImageName = serviceConfig.docker.image.name || false;
     let dockerImageVersion = serviceConfig.docker.image.version || false;
 
-    cprint.magenta('-- Docker --');
     print.keyVal('Docker Username', dockerUsername || '(Not Set)');
     print.keyVal('Docker Password', dockerPassword ? '*******' : '(Not Set)');
     print.out('\n');
