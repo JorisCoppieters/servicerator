@@ -5,6 +5,7 @@
 // ******************************
 
 let fs = require('./filesystem');
+let object = require('./object');
 let print = require('./print');
 let service = require('./service');
 
@@ -218,25 +219,17 @@ function parseBashEnvContents (in_bashEnvContents) {
                 environment = 'prod';
             }
 
-            _setIfNotSet(c, 'name', serviceName + '-' + environment + '-cluster');
-            _setIfNotSet(c, 'service_name', serviceName + '-' + environment + '-service');
-            _setIfNotSet(c, 'task_definition_name', serviceName + '-task-definition');
-            _setIfNotSet(c, 'launch_configuration_name', serviceName + '-' + environment + '-launch-configuration');
-            _setIfNotSet(c, 'auto_scaling_group_name', serviceName + '-' + environment + '-auto-scaling-group');
-            _setIfNotSet(c, 'instance', serviceConfig.service.clusters[0].instance);
+            object.setIfNotSet(c, 'name', serviceName + '-' + environment + '-cluster');
+            object.setIfNotSet(c, 'service_name', serviceName + '-' + environment + '-service');
+            object.setIfNotSet(c, 'task_definition_name', serviceName + '-task-definition');
+            object.setIfNotSet(c, 'launch_configuration_name', serviceName + '-' + environment + '-launch-configuration');
+            object.setIfNotSet(c, 'auto_scaling_group_name', serviceName + '-' + environment + '-auto-scaling-group');
+            object.setIfNotSet(c, 'instance', serviceConfig.service.clusters[0].instance);
         });
     }
 
     service.checkConfigSchema(serviceConfig);
     return serviceConfig;
-}
-
-// ******************************
-// Helper Functions:
-// ******************************
-
-function _setIfNotSet (in_object, in_field, in_value) {
-    in_object[in_field] = in_object[in_field] || in_value;
 }
 
 // ******************************

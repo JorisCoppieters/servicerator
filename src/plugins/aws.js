@@ -11,6 +11,7 @@ let cache = require('../utils/cache');
 let date = require('../utils/date');
 let docker = require('../utils/docker');
 let init = require('../utils/init');
+let object = require('../utils/object');
 let print = require('../utils/print');
 let service = require('../utils/service');
 let str = require('../utils/string');
@@ -30,8 +31,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                     environment: 'STRING',
                     auto_scaling_group_name: 'STRING',
                     vpc_name: 'STRING',
-                    vpc_subnet_name: 'STRING',
-                    task_definition_name: 'STRING'
+                    vpc_subnet_name: 'STRING'
                 }
             ]
         },
@@ -72,7 +72,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                 if (!in_prod) {
                     return c.environment !== 'production';
                 } else {
-                    return true;
+                    return c.environment === 'production';
                 }
             });
 
@@ -90,7 +90,6 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                 let awsAutoScalingGroupName = cluster.auto_scaling_group_name || '(Not Set)';
                 let awsClusterName = cluster.name || '(Not Set)';
                 let awsClusterServiceName = cluster.service_name || '(Not Set)';
-                let awsTaskDefinitionName = cluster.task_definition_name || '(Not Set)';
 
                 print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
                 print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
@@ -174,6 +173,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
                 instanceIds.forEach(i => {
                     cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
+                    print.keyVal('Instance Id', i.InstanceId);
                     print.keyVal('Instance Ip Address', i.IpAddress);
                     print.keyVal('Instance Type', i.InstanceType);
                     print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
@@ -246,7 +246,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
 // ******************************
 
-function awsDeploy (in_serviceConfig, in_prod) {
+function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
     let serviceConfig = service.accessConfig(_getAwsServiceConfig(in_serviceConfig), {
         docker: {
             image: {
@@ -256,11 +256,11 @@ function awsDeploy (in_serviceConfig, in_prod) {
         },
         service: {
             name: 'STRING',
+            task_definition_name: 'STRING',
             clusters: [
                 {
                     name: 'STRING',
                     service_name: 'STRING',
-                    task_definition_name: 'STRING',
                     environment: 'STRING',
                     instance: {
                         count: 'NUMBER'
@@ -285,6 +285,12 @@ function awsDeploy (in_serviceConfig, in_prod) {
         return false;
     }
 
+    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    if (!awsTaskDefinitionName) {
+        cprint.yellow('No service task definition name set');
+        return false;
+    }
+
     let environment = (in_prod) ? 'prod' : 'test';
     let environmentNameLong = (in_prod) ? 'production' : 'test';
     let environmentTitle = str.toTitleCase(environment);
@@ -306,7 +312,6 @@ function awsDeploy (in_serviceConfig, in_prod) {
     }
 
     let awsTaskDefinitionImagePath = awsDockerRepository + '/' + dockerImageName + ':' + dockerImageVersion;
-    let awsTaskDefinitionName = cluster.task_definition_name;
     let awsClusterName = cluster.name;
     let awsClusterServiceName = cluster.service_name;
     let awsClusterServiceInstanceCount = cluster.instance.count || 1;
@@ -318,7 +323,7 @@ function awsDeploy (in_serviceConfig, in_prod) {
     print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
 
     print.keyVal('AWS Task Definition', '...', true);
-    let taskDefinitionArn = _getTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
+    let taskDefinitionArn = _getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
     if (!taskDefinitionArn) {
         return;
     }
@@ -344,9 +349,11 @@ function awsDeploy (in_serviceConfig, in_prod) {
     let awsClusterTaskNames = awsClusterTaskArns.map(a => _arnToTitle(a));
     print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskNames, null, 4));
 
-    awsClusterTaskArns.forEach(t => {
-        _stopClusterTask(awsClusterName, t)
-    });
+    if (in_stopTasks) {
+        awsClusterTaskArns.forEach(t => {
+            _stopClusterTask(awsClusterName, t)
+        });
+    }
 
     _deployTaskDefinitionToCluster(awsClusterName, awsClusterServiceArn, taskDefinitionArn, awsClusterServiceInstanceCount);
 
@@ -391,7 +398,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             }
         },
         service: {
-            name: 'STRING'
+            name: 'STRING',
+            task_definition_name: 'STRING'
         },
         aws: {
             account_id: 'NUMBER'
@@ -405,6 +413,12 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('No service name set');
+        return false;
+    }
+
+    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    if (!awsTaskDefinitionName) {
+        cprint.yellow('No service task definition name set');
         return false;
     }
 
@@ -423,7 +437,6 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     }
 
     let awsTaskDefinitionImagePath = awsDockerRepository + '/' + dockerImageName + ':' + dockerImageVersion;
-    let awsTaskDefinitionName = serviceName + '-task-definition';
     let awsTaskDefinitionMemoryLimit = serviceConfig.docker.container.memory_limit || 500;
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -587,6 +600,56 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     }
 
     cprint.magenta('----');
+}
+
+// ******************************
+
+function awsCleanTaskDefinitions (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(_getAwsServiceConfig(in_serviceConfig), {
+        service: {
+            task_definition_name: 'STRING',
+            name: 'STRING'
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('No service name set');
+        return false;
+    }
+
+    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    if (!awsTaskDefinitionName) {
+        cprint.yellow('No service task definition name set');
+        return false;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    let taskDefinitionArns = _getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, awsCache);
+
+    if (!taskDefinitionArns || !taskDefinitionArns.length) {
+        cprint.green('Nothing to clean up!');
+        return;
+    }
+
+    taskDefinitionArns
+        .forEach(t => {
+            _deregisterTaskDefinition(t);
+        });
+
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 }
 
 // ******************************
@@ -1031,7 +1094,7 @@ function _deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskD
         return false;
     }
 
-    cmdResult.printResult('  ');
+    // cmdResult.printResult('  ');
     cprint.green('Deployed AWS Task Definition "' + in_taskDefinitionArn + '" to AWS Cluster "' + in_clusterName + '"');
     return true;
 }
@@ -1242,6 +1305,12 @@ function _getInstanceIdsWithTags (in_tags, in_cache, in_verbose) {
         awsInstanceIds = awsResult.Reservations
             .map(obj => obj.Instances)
             .reduce((a,b) => a.concat(b), [])
+            .filter(obj => {
+                if (!obj.State || obj.State.Code !== 16) {
+                    return false;
+                }
+                return true;
+            })
             .map(obj => {
                 let result = {
                     ImageId: obj.ImageId,
@@ -1422,13 +1491,13 @@ function _getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_cache, in_verbose
 
 // ******************************
 
-function _getTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache, in_verbose) {
+function _getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache, in_verbose) {
     if (in_verbose) {
-        cprint.cyan('Retrieving AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"...');
+        cprint.cyan('Retrieving latest AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"...');
     }
 
     let cache = in_cache || {};
-    let cacheItem = cache['TaskDefinitionArn_' + in_taskDefinitionName];
+    let cacheItem = cache['LatestTaskDefinitionArn_' + in_taskDefinitionName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1436,7 +1505,9 @@ function _getTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache
 
     let cmdResult = aws.cmd([
         'ecs',
-        'list-task-definitions'
+        'list-task-definitions',
+        '--family-prefix',
+        in_taskDefinitionName
     ], !in_verbose);
 
     if (cmdResult.hasError) {
@@ -1448,23 +1519,120 @@ function _getTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache
     let awsResult = _parseCmdResult(cmdResult);
     if (awsResult && awsResult.taskDefinitionArns) {
         latestTaskDefinitionArn = awsResult.taskDefinitionArns
-            .filter(obj => obj.match(in_taskDefinitionName))
-            .sort()
-            .reverse()
+            .sort((a,b) => {
+                let aMatch = a.match(/^arn:aws:.*:([0-9]+)$/);
+                let bMatch = b.match(/^arn:aws:.*:([0-9]+)$/);
+                if (!aMatch || !bMatch) {
+                    return -1;
+                }
+
+                let aVal = parseInt(aMatch[1]);
+                let bVal = parseInt(bMatch[1]);
+
+                if (aVal === bVal) {
+                    return 0;
+                }
+
+                return aVal < bVal ? 1 : -1;
+            })
             .find(obj => true);
     }
 
     if (!latestTaskDefinitionArn) {
-        cprint.yellow('Couldn\'t find AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
+        cprint.yellow('Couldn\'t find latest AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
         return;
     }
 
-    cache['TaskDefinitionArn_' + in_taskDefinitionName] = {
+    cache['LatestTaskDefinitionArn_' + in_taskDefinitionName] = {
         val: latestTaskDefinitionArn,
         expires: date.getTimestamp() + 120 * 1000
     };
 
     return latestTaskDefinitionArn;
+}
+
+// ******************************
+
+function _getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_cache, in_verbose) {
+    if (in_verbose) {
+        cprint.cyan('Retrieving previous AWS Task Definition ARNs for AWS Task Definition "' + in_taskDefinitionName + '"...');
+    }
+
+    let cache = in_cache || {};
+    let cacheItem = cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = aws.cmd([
+        'ecs',
+        'list-task-definitions',
+        '--family-prefix',
+        in_taskDefinitionName
+    ], !in_verbose);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let previousTaskDefinitionArn;
+    let awsResult = _parseCmdResult(cmdResult);
+    if (awsResult && awsResult.taskDefinitionArns) {
+        previousTaskDefinitionArn = awsResult.taskDefinitionArns
+            .sort((a,b) => {
+                let aMatch = a.match(/^arn:aws:.*:([0-9]+)$/);
+                let bMatch = b.match(/^arn:aws:.*:([0-9]+)$/);
+                if (!aMatch || !bMatch) {
+                    return -1;
+                }
+
+                let aVal = parseInt(aMatch[1]);
+                let bVal = parseInt(bMatch[1]);
+
+                if (aVal === bVal) {
+                    return 0;
+                }
+
+                return aVal < bVal ? 1 : -1;
+            })
+            .filter((t, idx) => idx !== 0);
+    }
+
+    if (!previousTaskDefinitionArn) {
+        cprint.yellow('Couldn\'t find previous AWS Task Definition ARNs for AWS Task Definition "' + in_taskDefinitionName + '"');
+        return;
+    }
+
+    cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName] = {
+        val: previousTaskDefinitionArn,
+        expires: date.getTimestamp() + 1000
+    };
+
+    return previousTaskDefinitionArn;
+}
+
+// ******************************
+
+function _deregisterTaskDefinition (in_taskDefinitionArn) {
+    cprint.cyan('Deregistering AWS Task Definition "' + in_taskDefinitionArn + '"...');
+
+    let cmdResult = aws.cmd([
+        'ecs',
+        'deregister-task-definition',
+        '--task-definition',
+        in_taskDefinitionArn
+    ]);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Deregistered AWS Task Definition "' + in_taskDefinitionArn + '"');
+    return true;
 }
 
 // ******************************
@@ -1521,6 +1689,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let _arg_prod = in_args['prod'];
     let extra = in_args['extra'];
+    let stopTasks = in_args['stop-tasks'];
 
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
@@ -1552,19 +1721,26 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             awsCreateTaskDefinition(in_serviceConfig);
             break;
 
+        case 'clean-task-definitions':
+        case 'clean':
+            awsCleanTaskDefinitions(in_serviceConfig);
+            break;
+
         case 'create-launch-configuration':
             awsCreateLaunchConfiguration(in_serviceConfig, prod);
             break;
 
         case 'deploy':
-            awsDeploy(in_serviceConfig, prod);
+            awsDeploy(in_serviceConfig, stopTasks, prod);
             break;
 
         case 'start-cluster':
+        case 'start':
             awsStartCluster(in_serviceConfig, prod);
             break;
 
         case 'stop-cluster':
+        case 'stop':
             awsStopCluster(in_serviceConfig, prod);
             break;
 
@@ -1590,10 +1766,11 @@ function getCommands () {
         ] },
         { params: ['docker-login'], description: 'Log into AWS docker repository' },
         { params: ['create-task-definition'], description: 'Create task definition for the service' },
+        { params: ['clean-task-definitions', 'clean'], description: 'Deregister old task definitions for the service' },
         { params: ['create-launch-configuration'], description: 'Create launch configuration for the service' },
-        { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'prod', description:'Production cluster'}] },
-        { params: ['start-cluster'], description: 'Start AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
-        { params: ['stop-cluster'], description: 'Stop AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
+        { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'prod', description:'Production cluster'}] },
+        { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
+        { params: ['stop-cluster', 'stop'], description: 'Stop AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
     ];
 }
 

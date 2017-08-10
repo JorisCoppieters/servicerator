@@ -28,9 +28,21 @@ function setServiceValue (in_serviceConfig, in_keyPath, in_keyValue) {
         keyValue = keyPathMatch[2];
     }
 
-    if (!keyValue) {
+    if (typeof(keyValue) === 'undefined') {
         cprint.yellow('Specify a value to set');
         return;
+    }
+
+    if (typeof(keyValue) === 'string') {
+        if (keyValue.trim().toLowerCase() === 'true') {
+            keyValue = true;
+        } else if (keyValue.trim().toLowerCase() === 'false') {
+            keyValue = false;
+        } else if (keyValue.trim().match(/^-?[0-9]+\.[0-9]+$/)) {
+            keyValue = parseFloat(keyValue);
+        } else if (keyValue.trim().match(/^-?[0-9]+$/)) {
+            keyValue = parseInt(keyValue);
+        }
     }
 
     let updateConfig = {};
@@ -62,8 +74,8 @@ function setServiceValue (in_serviceConfig, in_keyPath, in_keyValue) {
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
-    let keyPath = in_params.shift() || '';
-    let keyValue = in_params.shift() || '';
+    let keyPath = in_params.shift();
+    let keyValue = in_params.shift();
     setServiceValue(in_serviceConfig, keyPath, keyValue);
     return true;
 }

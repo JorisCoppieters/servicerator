@@ -5,15 +5,17 @@
 // ******************************
 
 let cprint = require('color-print');
+let path = require('path');
 
+let env = require('./env');
 let exec = require('./exec');
+let fs = require('./filesystem');
 
 // ******************************
 // Globals:
 // ******************************
 
-// TODO - Make this a proper editor
-let g_EDITOR = "D:/Dropbox/System/Utils/Windows/Sublime/sublime_text.exe";
+let g_EDITOR = undefined;
 
 // ******************************
 // Functions:
@@ -45,13 +47,37 @@ function editFiles (in_paths) {
 function getEditor () {
     let editor;
 
-    editor = process.env.EDITOR;
+    editor = g_EDITOR;
     if (editor) {
         return editor;
     }
 
-    editor = g_EDITOR;
+    editor = process.env.EDITOR;
     if (editor) {
+        g_EDITOR = editor;
+        return editor;
+    }
+
+    let editorPaths = [];
+
+    if (env.isWindows()) {
+        editorPaths = editorPaths.concat([
+            "C:/Program Files/Sublime Text/sublime_text.exe",
+            "C:/Program Files/Sublime Text 2/sublime_text.exe",
+            "C:/Program Files/Sublime Text 3/sublime_text.exe",
+            "C:/Program Files (x86)/Sublime Text/sublime_text.exe",
+            "C:/Program Files (x86)/Sublime Text 2/sublime_text.exe",
+            "C:/Program Files (x86)/Sublime Text 3/sublime_text.exe"
+        ]);
+    }
+
+    editor = editorPaths
+        .map(p => path.resolve(p))
+        .filter(p => fs.fileExists(p))
+        .find(p => true);
+
+    if (editor) {
+        g_EDITOR = editor;
         return editor;
     }
 }

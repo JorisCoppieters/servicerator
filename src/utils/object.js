@@ -4,23 +4,18 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
-let gitBash = require('./gitbash');
-let test = require('./test');
-
 // ******************************
 // Functions:
 // ******************************
 
-function runTests () {
-    cprint.magenta('Running GitBash util tests...');
+function setIfNotSet (in_object, in_field, in_value) {
+    in_object[in_field] = in_object[in_field] || in_value;
 }
 
 // ******************************
 // Exports:
 // ******************************
 
-module.exports['runTests'] = runTests;
+module.exports['setIfNotSet'] = setIfNotSet;
 
 // ******************************

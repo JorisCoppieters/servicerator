@@ -94,6 +94,9 @@ function getDockerfileContents (in_serviceConfig) {
                     'STRING'
                 ],
                 conda_update: 'BOOLEAN',
+                npm_packages: [
+                    'STRING'
+                ],
                 filesystem: [
                     {
                         path: 'PATH',
@@ -132,6 +135,7 @@ function getDockerfileContents (in_serviceConfig) {
     let condaPackages = serviceConfig.docker.image.conda_packages || [];
     let condaChannels = serviceConfig.docker.image.conda_channels || [];
     let condaUpdate = serviceConfig.docker.image.conda_update || false;
+    let npmPackages = serviceConfig.docker.image.npm_packages || [];
     let filesystem = serviceConfig.docker.image.filesystem || [];
     let commands = serviceConfig.docker.image.commands || [];
     let workdir = serviceConfig.docker.image.working_directory || '.';
@@ -237,6 +241,23 @@ function getDockerfileContents (in_serviceConfig) {
             `    RUN conda install -y \\`,
             ``].join('\n') +
         condaPackages
+            .map(p => {
+                return `        "${p}"`;
+            }).join(' \\\n')
+        : '') +
+    (npmPackages.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# NPM PACKAGES`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            `    RUN npm install \\`,
+            ``].join('\n') +
+        npmPackages
             .map(p => {
                 return `        "${p}"`;
             }).join(' \\\n')

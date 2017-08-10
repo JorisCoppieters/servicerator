@@ -10,13 +10,6 @@ let cprint = require('color-print');
 let str = require('./string');
 let print = require('./print');
 
-let knownErrors = [
-    new RegExp(/WARNING: Error loading config file:.* - open .*: The process cannot access the file because it is being used by another process./),
-    new RegExp(/Error response from daemon: conflict: unable to delete .* \(cannot be forced\) - image has dependent child images/),
-    new RegExp(/Error response from daemon: manifest for .* not found/),
-    'Error response from daemon: invalid reference format'
-];
-
 // ******************************
 // Functions:
 // ******************************
@@ -90,7 +83,8 @@ function _flatArgs (in_args) {
     let args = [];
     in_args.forEach(a => {
         if (typeof(a) !== 'string') {
-            return a;
+            args.push(a);
+            return;
         }
         if (a.match(/[\s]/)) {
             args.push('\'' + a
@@ -106,6 +100,7 @@ function _flatArgs (in_args) {
         }
         args.push(a);
     });
+
     return args.join(' ');
 }
 

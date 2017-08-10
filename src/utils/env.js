@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 let path = require('path');
+let os = require('os');
 
 let fs = require('./filesystem');
 let service = require('./service');
@@ -18,6 +19,12 @@ let SERVICE_CONFIG_FILE_NAME = 'service.json';
 
 // ******************************
 // Functions:
+// ******************************
+
+function isWindows () {
+    return os.platform() === 'win32';
+}
+
 // ******************************
 
 function getServiceFolder () {
@@ -172,6 +179,7 @@ function getTemp() {
 // ******************************
 
 module.exports['SERVICE_CONFIG_FILE_NAME'] = SERVICE_CONFIG_FILE_NAME;
+module.exports['isWindows'] = isWindows;
 module.exports['getServiceFolder'] = getServiceFolder;
 module.exports['getServiceConfigFile'] = getServiceConfigFile;
 module.exports['getServiceConfig'] = getServiceConfig;

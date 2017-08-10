@@ -751,6 +751,9 @@ function _getServiceConfigSchema () {
                     "STRING"
                 ],
                 "conda_update": "BOOLEAN",
+                "npm_packages": [
+                    "STRING"
+                ],
                 "ports": [
                     "NUMBER"
                 ],
@@ -796,13 +799,13 @@ function _getServiceConfigSchema () {
             "version": "STRING"
         },
         "service": {
+            "task_definition_name": "STRING",
             "clusters": [
                 {
                     "environment": "STRING",
                     "url": "STRING",
                     "vpc_name": "STRING",
                     "vpc_subnet_name": "STRING",
-                    "task_definition_name": "STRING",
                     "launch_configuration_name": "STRING",
                     "auto_scaling_group_name": "STRING",
                     "name": "STRING",
