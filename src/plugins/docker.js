@@ -98,7 +98,9 @@ function printDockerInfo (in_serviceConfig) {
             cprint.magenta('-- Docker Image Tags --');
 
             let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
-            let cmdResult = docker.cmd(args, true);
+            let cmdResult = docker.cmd(args, {
+                hide: true
+            });
 
             if (cmdResult.hasError) {
                 cmdResult.printError('  ');
@@ -251,7 +253,9 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     args.push(dockerFolder);
 
     cprint.cyan('Building Docker image...');
-    docker.cmd(args, false, true);
+    docker.cmd(args, {
+        async: true
+    });
 
     _postBuildDockerFolder(in_serviceConfig);
 }
@@ -386,7 +390,9 @@ function cleanDockerImages (in_serviceConfig, in_force) {
     }
     args = args.concat(cleanImageTagsAndIds);
     cprint.cyan('Removing old Docker images for service...');
-    docker.cmd(args, false, true);
+    docker.cmd(args, {
+        async: true
+    });
 }
 
 // ******************************
@@ -424,7 +430,9 @@ function purgeDockerImages (in_serviceConfig, in_force) {
     let zombieDockerImageIds = _getZombieDockerImageIds();
 
     let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
-    let cmdResult = docker.cmd(args, true);
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -454,7 +462,9 @@ function purgeDockerImages (in_serviceConfig, in_force) {
     }
     args = args.concat(purgeImageTagsAndIds);
     cprint.backgroundRed(cprint.toYellow('Removing ALL Docker images for service...', true));
-    docker.cmd(args, false, true);
+    docker.cmd(args, {
+        async: true
+    });
 }
 
 // ******************************
@@ -606,7 +616,10 @@ function enterDockerContainer (in_serviceConfig) {
         runningDockerContainerId,
         'bash'
     ];
-    docker.cmd(args);
+
+    docker.cmd(args, {
+        useWinpty: true
+    });
 }
 
 // ******************************
@@ -848,7 +861,10 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
 
     let containerName = getDockerContainerName(in_serviceConfig);
 
-    let cmdResult = docker.cmd(['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'], true);
+    let args = ['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'];
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
 
     let processes = cmdResult.rows
         .filter(p => p.match(new RegExp(containerName)));
@@ -886,7 +902,10 @@ function getRunningDockerContainerId (in_serviceConfig, in_nice) {
 
     let containerName = getDockerContainerName(in_serviceConfig);
 
-    let cmdResult = docker.cmd(['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'], true);
+    let args = ['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'];
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
     let processUp = cmdResult.rows
         .filter(p => p.match(new RegExp(containerName)))
         .find(p => p.match(/Up /));
@@ -920,7 +939,9 @@ function getDockerImageIdContainerIds (in_dockerImageId, in_includeStopped) {
     args.push('--format');
     args.push('{{.ID}} - {{.Image}}');
 
-    let cmdResult = docker.cmd(args, true);
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
     let containerIds = cmdResult.rows
         .filter(r => r.match(new RegExp(' - ' + in_dockerImageId)))
         .map(r => r.split(/ - /)[0]);
@@ -1094,7 +1115,9 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     if (runWithBash) {
         args.push('bash');
         cprint.cyan('Starting Docker container "' + containerName + '"...');
-        let cmdResult = docker.cmd(args);
+        let cmdResult = docker.cmd(args, {
+            useWinpty: true
+        });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
         } else {
@@ -1182,7 +1205,10 @@ function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPasswor
             cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
             let args = [in_cmd.value];
             args = args.concat(in_dockerImagePath);
-            docker.cmd(args, false, true, resolve);
+            docker.cmd(args, {
+                async: true,
+                asyncCb: resolve
+            });
         });
     }
 }
@@ -1282,7 +1308,9 @@ function _getDockerImageIds (in_serviceConfig) {
     let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
 
     let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
-    let cmdResult = docker.cmd(args, true);
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1301,7 +1329,9 @@ function _getDockerImageIds (in_serviceConfig) {
 
 function _getZombieDockerImageIds () {
     let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
-    let cmdResult = docker.cmd(args, true);
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');

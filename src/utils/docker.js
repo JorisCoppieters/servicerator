@@ -38,6 +38,8 @@ const knownCmdErrors = [
 // Globals:
 // ******************************
 
+let g_WINPTY_INSTALLED = undefined;
+
 let g_DOCKER_INSTALLED = undefined;
 let g_DOCKER_RUNNING = undefined;
 
@@ -635,27 +637,62 @@ function dockerInfo () {
 
 // ******************************
 
-function dockerCmd (in_args, in_hide, in_async, in_asyncCb) {
+function dockerCmd (in_args, in_options) {
+    let options = in_options || {};
+    let hide = options.hide;
+    let async = options.async;
+    let asyncCb = options.asyncCb;
+    let useWinpty = options.useWinpty;
+
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
         return false;
     }
 
-    if (!in_args) {
+    let args = in_args;
+
+    if (!args) {
         return false;
     }
 
-    if (!Array.isArray(in_args)) {
-        in_args = [in_args]
+    if (!Array.isArray(args)) {
+        args = [args]
+    }
+
+    let command = 'docker';
+
+    if (useWinpty && winptyInstalled()) {
+        command = 'winpty';
+        args = ['docker'].concat(args);
     }
 
     let errToOut = false;
 
-    if (in_async) {
-        return exec.cmd('docker', in_args, '  ', !in_hide, knownCmdErrors, in_asyncCb);
+    if (async) {
+        return exec.cmd(command, args, '  ', !hide, knownCmdErrors, asyncCb);
     }
 
-    return exec.cmdSync('docker', in_args, '  ', !in_hide, errToOut, knownCmdErrors);
+    return exec.cmdSync(command, args, '  ', !hide, errToOut, knownCmdErrors);
+}
+
+// ******************************
+
+function winptyInstalled () {
+    if (g_WINPTY_INSTALLED === undefined) {
+        g_WINPTY_INSTALLED = !!winptyVersion();
+    }
+    return g_WINPTY_INSTALLED;
+}
+
+// ******************************
+
+function winptyVersion () {
+    let cmdResult = exec.cmdSync('winpty', ['--version'], '', false);
+    if (cmdResult.hasError) {
+        return false;
+    } else {
+        return cmdResult.result;
+    }
 }
 
 // ******************************
