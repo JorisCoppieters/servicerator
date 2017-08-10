@@ -18,7 +18,10 @@ let g_OPENSSL_INSTALLED = undefined;
 // Functions:
 // ******************************
 
-function opensslCmd (in_args, in_hide) {
+function opensslCmd (in_args, in_options) {
+    let options = in_options || {};
+    let hide = options.hide;
+
     if (!opensslInstalled()) {
         cprint.yellow('Openssl isn\'t installed');
         return false;
@@ -32,7 +35,7 @@ function opensslCmd (in_args, in_hide) {
         in_args = [in_args]
     }
 
-    return exec.cmdSync('openssl', in_args, '  ', !in_hide, true);
+    return exec.cmdSync('openssl', in_args, '  ', !hide, true);
 }
 
 // ******************************

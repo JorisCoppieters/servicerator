@@ -10,6 +10,7 @@ let Promise = require('bluebird');
 
 let aws = require('../utils/aws');
 let docker = require('../utils/docker');
+let shell = require('../utils/shell');
 let edit = require('../utils/edit');
 let fs = require('../utils/filesystem');
 let http = require('../utils/http');
@@ -609,7 +610,10 @@ function enterDockerContainer (in_serviceConfig) {
         return;
     }
 
+    let containerName = getDockerContainerName(in_serviceConfig);
+
     let args = [
+        'docker',
         'exec',
         '--interactive',
         '--tty',
@@ -617,9 +621,13 @@ function enterDockerContainer (in_serviceConfig) {
         'bash'
     ];
 
-    docker.cmd(args, {
-        useWinpty: true
-    });
+    cprint.cyan('Entering Docker container "' + containerName + '"...');
+    let cmdResult = shell.cmd(args);
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+    } else {
+        cmdResult.printResult('  ');
+    }
 }
 
 // ******************************
@@ -1102,7 +1110,9 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             volumeHost = path.resolve(dockerFolder, volume.host);
         }
 
-        volumeHost = volumeHost.replace(new RegExp('\\\\', 'g'), '/');
+        if (!runWithBash) {
+            volumeHost = volumeHost.replace(new RegExp('\\\\', 'g'), '/');
+        }
 
         let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
 
@@ -1113,11 +1123,8 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     args.push(dockerImagePath);
 
     if (runWithBash) {
-        args.push('bash');
         cprint.cyan('Starting Docker container "' + containerName + '"...');
-        let cmdResult = docker.cmd(args, {
-            useWinpty: true
-        });
+        let cmdResult = shell.cmd(['docker'].concat(args).concat(['bash']));
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
         } else {

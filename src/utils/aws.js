@@ -47,7 +47,10 @@ function getAwsDockerCredentials (in_serviceConfig) {
         return false;
     }
 
-    let awsCmdResult = awsCmd(['ecr', 'get-login'], true);
+    let awsCmdResult = awsCmd(['ecr', 'get-login'], {
+        hide: true
+    });
+
     if (awsCmdResult.hasError) {
         awsCmdResult.printError();
         return false;
@@ -119,7 +122,10 @@ function getAwsRepositoryServiceConfig () {
     });
 
     if (awsInstalled()) {
-        let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], true);
+        let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], {
+            hide: true
+        });
+
         if (!awsCmdResult.hasError) {
             let awsStats = JSON.parse(awsCmdResult.result);
             if (awsStats && awsStats.Account) {
@@ -212,7 +218,10 @@ function awsLogin (in_serviceConfig) {
 
 // ******************************
 
-function awsCmd (in_args, in_hide) {
+function awsCmd (in_args, in_options) {
+    let options = in_options || {};
+    let hide = options.hide;
+
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
@@ -226,7 +235,7 @@ function awsCmd (in_args, in_hide) {
         in_args = [in_args]
     }
 
-    return exec.cmdSync('aws', in_args, '  ', !in_hide);
+    return exec.cmdSync('aws', in_args, '  ', !hide);
 }
 
 // ******************************

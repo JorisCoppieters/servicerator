@@ -626,13 +626,16 @@ function dockerInfo () {
         return false;
     }
 
-    let args = ['info'];
-    let cmdResult = dockerCmd(args);
+    let cmdResult = dockerCmd(['info'], {
+        hide: true
+    });
+
     if (cmdResult.hasError) {
         cmdResult.printError();
         return false;
     }
-    return cmdResult.results;
+
+    return cmdResult.result;
 }
 
 // ******************************
@@ -642,7 +645,6 @@ function dockerCmd (in_args, in_options) {
     let hide = options.hide;
     let async = options.async;
     let asyncCb = options.asyncCb;
-    let useWinpty = options.useWinpty;
 
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
@@ -661,11 +663,6 @@ function dockerCmd (in_args, in_options) {
 
     let command = 'docker';
 
-    if (useWinpty && winptyInstalled()) {
-        command = 'winpty';
-        args = ['docker'].concat(args);
-    }
-
     let errToOut = false;
 
     if (async) {
@@ -673,26 +670,6 @@ function dockerCmd (in_args, in_options) {
     }
 
     return exec.cmdSync(command, args, '  ', !hide, errToOut, knownCmdErrors);
-}
-
-// ******************************
-
-function winptyInstalled () {
-    if (g_WINPTY_INSTALLED === undefined) {
-        g_WINPTY_INSTALLED = !!winptyVersion();
-    }
-    return g_WINPTY_INSTALLED;
-}
-
-// ******************************
-
-function winptyVersion () {
-    let cmdResult = exec.cmdSync('winpty', ['--version'], '', false);
-    if (cmdResult.hasError) {
-        return false;
-    } else {
-        return cmdResult.result;
-    }
 }
 
 // ******************************
@@ -717,17 +694,6 @@ function dockerRunning () {
 
 function dockerVersion () {
     let cmdResult = exec.cmdSync('docker', ['--version'], '', false);
-    if (cmdResult.hasError) {
-        return false;
-    } else {
-        return cmdResult.result;
-    }
-}
-
-// ******************************
-
-function dockerInfo (in_arg) {
-    let cmdResult = exec.cmdSync('docker', ['info'], '', false);
     if (cmdResult.hasError) {
         return false;
     } else {

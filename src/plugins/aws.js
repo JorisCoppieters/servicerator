@@ -1041,7 +1041,9 @@ function _getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache, i
         'autoscaling',
         'describe-auto-scaling-groups',
         '--auto-scaling-group=' + in_autoScalingGroupName
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1142,7 +1144,9 @@ function _getClusterServiceArnForCluster (in_clusterName, in_cache, in_verbose) 
         'list-services',
         '--cluster',
         in_clusterName
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1190,7 +1194,9 @@ function _getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServi
         in_clusterName,
         '--service',
         in_clusterServiceArn
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1239,7 +1245,9 @@ function _getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
         'list-tasks',
         '--cluster',
         in_clusterName
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1292,7 +1300,9 @@ function _getInstanceIdsWithTags (in_tags, in_cache, in_verbose) {
         args.push(`Name="tag:${t.key}",Values="${t.vals.join(',')}"`);
     });
 
-    let cmdResult = aws.cmd(args, !in_verbose);
+    let cmdResult = aws.cmd(args, {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1359,7 +1369,9 @@ function _getVpcIdForVpc (in_vpcName, in_cache, in_verbose) {
         'describe-vpcs',
         '--filter',
         `Name="tag-value",Values="${in_vpcName}"`
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1409,7 +1421,9 @@ function _getVpcSecurityGroupIdForVpc (in_vpcId, in_cache, in_verbose) {
         '--filters',
         `Name=vpc-id,Values="${in_vpcId}"`,
         `Name=group-name,Values="default"`
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1459,7 +1473,9 @@ function _getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_cache, in_verbose
         '--filters',
         `Name=vpc-id,Values="${in_vpcId}"`,
         `Name=tag-value,Values="${in_vpcSubnetName}"`
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1508,7 +1524,9 @@ function _getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in
         'list-task-definitions',
         '--family-prefix',
         in_taskDefinitionName
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1570,7 +1588,9 @@ function _getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName,
         'list-task-definitions',
         '--family-prefix',
         in_taskDefinitionName
-    ], !in_verbose);
+    ], {
+        hide: !in_verbose
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
