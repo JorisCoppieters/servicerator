@@ -1244,7 +1244,7 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
             let awsDockerCredentials = _getAwsDockerCredentials(in_serviceConfig);
             dockerUsername = awsDockerCredentials.username;
             dockerPassword = awsDockerCredentials.password;
-            dockerRepository = aws.getDockerRepository(in_serviceConfig);
+            dockerRepository = aws.getDockerRepositoryUrl(in_serviceConfig);
             dockerImagePath = dockerRepository + '/' + in_dockerImageName;
             break;
     }
@@ -1298,9 +1298,9 @@ function _getDockerImagePaths (in_serviceConfig) {
                 }
                 break;
             case docker.k_REPO_TYPE_AWS:
-                let awsDockerRepository = aws.getDockerRepository(in_serviceConfig);
-                if (awsDockerRepository) {
-                    dockerImagePaths.push(awsDockerRepository + '/' + serviceConfig.docker.image.name);
+                let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig);
+                if (awsDockerRepositoryUrl) {
+                    dockerImagePaths.push(awsDockerRepositoryUrl + '/' + serviceConfig.docker.image.name);
                 }
                 break;
         }

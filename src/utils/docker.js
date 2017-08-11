@@ -685,7 +685,7 @@ function dockerInstalled () {
 
 function dockerRunning () {
     if (g_DOCKER_RUNNING === undefined) {
-        g_DOCKER_RUNNING = !!dockerInfo();
+        g_DOCKER_RUNNING = !!dockerRunningCommand();
     }
     return g_DOCKER_RUNNING;
 }
@@ -694,6 +694,17 @@ function dockerRunning () {
 
 function dockerVersion () {
     let cmdResult = exec.cmdSync('docker', ['--version'], '', false);
+    if (cmdResult.hasError) {
+        return false;
+    } else {
+        return cmdResult.result;
+    }
+}
+
+// ******************************
+
+function dockerRunningCommand () {
+    let cmdResult = exec.cmdSync('docker', ['info'], '', false);
     if (cmdResult.hasError) {
         return false;
     } else {

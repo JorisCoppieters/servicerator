@@ -146,6 +146,12 @@ function getPlugins () {
     files.forEach(f => {
         let pluginFile = path.resolve(pluginsFolder, f);
         let plugin = require(pluginFile);
+
+        if (plugin.onOpen || plugin.onClose) {
+            plugins.push(plugin);
+            return;
+        }
+
         if (!plugin.getTitle || !plugin.getBaseCommands || !plugin.getCommands || !plugin.handleCommand) {
             cprint.yellow('Invalid plugin: ' + pluginFile);
             return;

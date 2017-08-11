@@ -42,7 +42,10 @@ function assertMatch (in_testName, in_expectedMatch, in_received) {
 
 function _toString (in_obj) {
     let str = in_obj;
-    if (typeof(in_obj) !== 'string') {
+
+    if (typeof(in_obj) === 'undefined') {
+        str = '';
+    } else if (typeof(in_obj) !== 'string') {
         str = JSON.stringify(in_obj);
     }
 

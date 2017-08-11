@@ -73,8 +73,17 @@ if (g_ARGV['help']) {
         return;
     }
 
+    plugins.forEach(p => {
+        if (p.onOpen) {
+            p.onOpen(serviceConfig);
+        }
+    });
+
     let pluginHandled = false;
     plugins.forEach(p => {
+        if (!p.getBaseCommands) {
+            return;
+        }
         if (p.getBaseCommands().indexOf(command) >= 0) {
             let nextParam = (params[0] || '').toLowerCase();
             if (nextParam === 'help') {
@@ -103,6 +112,12 @@ if (g_ARGV['help']) {
                 print.out(cprint.toRed(stack) + '\n');
                 return;
             }
+        }
+    });
+
+    plugins.forEach(p => {
+        if (p.onClose) {
+            p.onClose(serviceConfig);
         }
     });
 
