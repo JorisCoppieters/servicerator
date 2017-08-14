@@ -40,6 +40,9 @@ function printHelp (in_message) {
     console.log();
 
     plugins.forEach(p => {
+        if (!p.getBaseCommands) {
+            return;
+        }
         _printPluginHelp(p.getTitle(), p.getCommands());
     });
 }
@@ -48,6 +51,9 @@ function printHelp (in_message) {
 
 function printPluginHelp (in_command) {
     plugins.forEach(p => {
+        if (!p.getBaseCommands) {
+            return;
+        }
         if (p.getBaseCommands().indexOf(in_command) >= 0) {
             _printPluginHelp(p.getTitle(), p.getCommands());
         }

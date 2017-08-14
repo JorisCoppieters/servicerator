@@ -81,11 +81,6 @@ function getServiceSchema () {
                     }
                 ],
                 "language": "STRING",
-                "python": {
-                    "constants": [
-                        "STRING"
-                    ]
-                },
                 "log": "BOOLEAN",
                 "name": "STRING",
                 "nginx": {
@@ -171,6 +166,12 @@ function getServiceSchema () {
             "version": "STRING"
         },
         "service": {
+            "run": {
+                "cmd": "STRING",
+                "args": [
+                    "STRING"
+                ]
+            },
             "task_definition_name": "STRING",
             "filesystem": [
                 {

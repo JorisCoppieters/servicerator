@@ -229,8 +229,6 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
         return;
     }
 
-    _preBuildDockerFolder(in_serviceConfig);
-
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
     let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
 
@@ -257,8 +255,6 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     docker.cmd(args, {
         async: true
     });
-
-    _postBuildDockerFolder(in_serviceConfig);
 }
 
 // ******************************
@@ -707,9 +703,6 @@ function removeDockerContainer (in_serviceConfig) {
         return false;
     }
 
-    let dockerImageIds = _getDockerImageIds(in_serviceConfig);
-    dockerImageIds.forEach(id => removeDockerImageIdContainer(id));
-
     if (getDockerContainerState(in_serviceConfig) === docker.k_STATE_UNKNOWN) {
         cprint.yellow('No stopped container found');
         return;
@@ -719,6 +712,9 @@ function removeDockerContainer (in_serviceConfig) {
     if (getDockerContainerState(in_serviceConfig) === docker.k_STATE_UNKNOWN) {
         return;
     }
+
+    let dockerImageIds = _getDockerImageIds(in_serviceConfig);
+    dockerImageIds.forEach(id => removeDockerImageIdContainer(id));
 
     let containerName = getDockerContainerName(in_serviceConfig);
 
@@ -1140,51 +1136,6 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             cmdResult.printResult('  ');
         }
     }
-}
-
-// ******************************
-
-function _preBuildDockerFolder (in_serviceConfig) {
-    let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                language: 'STRING',
-                python: {
-                    constants: [
-                        'STRING'
-                    ]
-                }
-            }
-        },
-        cwd: 'STRING'
-    });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
-
-    if (serviceConfig.docker.image.language === 'python') {
-        let constantsFile = path.resolve(dockerFolder, 'python', 'constants.py');
-        let constantsFileLines = serviceConfig.docker.image.python.constants || [];
-        constantsFileLines = ['# CONSTANTS'].concat(constantsFileLines);
-        let constantsFileContents = constantsFileLines
-            .map(l => {
-                return service.replaceServiceConfigReferences(in_serviceConfig, l);
-            })
-            .join('\n');
-
-        fs.writeFile(constantsFile, constantsFileContents, true);
-    }
-}
-
-// ******************************
-
-function _postBuildDockerFolder (in_serviceConfig) {
-    let serviceConfig = service.accessConfig(in_serviceConfig, {
-        cwd: 'STRING'
-    });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
 }
 
 // ******************************

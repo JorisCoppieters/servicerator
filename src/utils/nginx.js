@@ -46,7 +46,7 @@ function getNginxFileContents (in_serviceConfig) {
 
     let workdir = serviceConfig.docker.image.working_directory || '.';
 
-    let workerProcesses = 4;
+    let workerProcesses = 1;
     let workerConnections = 1024;
 
     let dockerAuthDir = workdir + '/auth';

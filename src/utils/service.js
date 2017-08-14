@@ -473,18 +473,31 @@ function removeServiceConfig (in_source, in_destination) {
 // ******************************
 
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
-    let serviceConfig = in_serviceConfig || {};
-    let serviceConfigService = serviceConfig.service || {};
-    let serviceConfigModel = serviceConfig.model || {};
-    let serviceConfigDocker = serviceConfig.docker || {};
-    let serviceConfigDockerImage = serviceConfigDocker.image || {};
-    let serviceConfigDockerContainer = serviceConfigDocker.container || {};
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        service: {
+            name: 'STRING'
+        },
+        model: {
+            version: 'STRING'
+        },
+        docker: {
+            image: {
+                version: 'STRING'
+            }
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || '.';
+    sourceFolder = sourceFolder.replace(new RegExp('\\\\', 'g'), '/');
 
     let replacements = {
-        'SERVICE_NAME': `${serviceConfigService.name}`,
-        'MODEL_VERSION': `${serviceConfigModel.version}`,
-        'DOCKER_IMAGE_VERSION': `${serviceConfigDockerImage.version}`,
-        'CPU_CORE_COUNT': `${serviceConfigDockerContainer.cpu_core_count}`
+        'CWD': `${sourceFolder}`,
+        'BASE_DIR': `${sourceFolder}`,
+        'WORKING_DIR': `${sourceFolder}`,
+        'SERVICE_NAME': `${serviceConfig.service.name}`,
+        'MODEL_VERSION': `${serviceConfig.model.version}`,
+        'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`
     };
 
     if (in_replacements) {

@@ -177,8 +177,6 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                     print.keyVal('Instance Ip Address', i.IpAddress);
                     print.keyVal('Instance Type', i.InstanceType);
                     print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
-                    print.keyVal('Instance VpcId', i.VpcId);
-                    print.keyVal('Instance SubnetId', i.SubnetId);
                     print.out('\n');
                 })
 
