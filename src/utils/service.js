@@ -322,8 +322,7 @@ function getServiceConfig (in_folderName) {
         docker: {
             image: {
                 name: path.basename(path.resolve(sourceFolder)),
-                base: k_DEFAULT_IMAGE,
-                tag_with_date: true
+                base: k_DEFAULT_IMAGE
             }
         }
     });

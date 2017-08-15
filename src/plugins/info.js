@@ -54,9 +54,11 @@ function printServiceInfo (in_serviceConfig) {
     print.keyVal('Docker Image Name', dockerImageName || '(Not Set)');
     print.keyVal('Docker Image Language', dockerImageLanguage || '(Not Set)');
     print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
-    dockerImageTags.slice(0,1).forEach((t) => {
-        print.keyVal('Docker Image Tag', dockerImagePath + ':' + t);
-    });
+    if (dockerImagePath) {
+        dockerImageTags.slice(0,1).forEach((t) => {
+            print.keyVal('Docker Image Tag', dockerImagePath + ':' + t);
+        });
+    }
     print.keyVal('Config File', serviceConfigFile || '(Not Set)');
     print.keyVal('Source Folder', sourceFolder || '(Not Set)');
     cprint.magenta('----');
