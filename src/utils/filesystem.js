@@ -27,28 +27,74 @@ function setupFolder (in_folderTitle, in_folder, in_options) {
 
 // ******************************
 
+function setupFolderLink (in_folderTitle, in_source, in_destination, in_options) {
+    let opt = in_options || {};
+
+    if (!fileExists(in_source)) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  Link source "' + in_source + '" doesn\'t exist');
+        }
+        return;
+    }
+
+    if (!fileExists(in_destination)) {
+        if (!opt.suppressOutput) {
+            cprint.cyan('  Linking ' + in_folderTitle + ' "' + in_source + '" => "' + in_destination + '"...');
+        }
+
+        linkFolder(in_source, in_destination);
+    }
+}
+
+// ******************************
+
 function setupFile (in_fileTitle, in_file, in_fileContents, in_options) {
     let opt = in_options || {};
+
     if (!fileExists(in_file)) {
         if (!opt.suppressOutput) {
             cprint.cyan('  Creating ' + in_fileTitle + ' "' + in_file + '"...');
         }
+
         writeFile(in_file, in_fileContents);
+
     } else if (opt.overwrite) {
         if (!opt.suppressOutput) {
             cprint.yellow('  Overwriting ' + in_fileTitle + ' "' + in_file + '"...');
         }
+
         writeFile(in_file, in_fileContents, true);
     }
 }
 
 // ******************************
 
-function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
+function setupFileLink (in_fileTitle, in_source, in_destination, in_options) {
     let opt = in_options || {};
+
     if (!fileExists(in_source)) {
         if (!opt.suppressOutput) {
-            cprint.yellow('  Couldn\'t copy ' + in_fileTitle + ' from "' + in_source + '"');
+            cprint.yellow('  File source "' + in_source + '" doesn\'t exist');
+        }
+        return;
+    }
+
+    if (!fileExists(in_destination)) {
+        if (!opt.suppressOutput) {
+            cprint.cyan('  Copying ' + in_fileTitle + ' from "' + in_source + '" => "' + in_destination + '"...');
+        }
+
+        linkFile(in_source, in_destination);
+    }
+}
+// ******************************
+
+function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
+    let opt = in_options || {};
+
+    if (!fileExists(in_source)) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  File source "' + in_source + '" doesn\'t exist');
         }
         return;
     }
@@ -57,11 +103,14 @@ function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
         if (!opt.suppressOutput) {
             cprint.cyan('  Copying ' + in_fileTitle + ' from "' + in_source + '" to "' + in_destination + '"...');
         }
+
         copyFile(in_source, in_destination);
+
     } else if (opt.overwrite) {
         if (!opt.suppressOutput) {
             cprint.yellow('  Copying (& overwriting) ' + in_fileTitle + ' from "' + in_source + '" to "' + in_destination + '"...');
         }
+
         copyFile(in_source, in_destination);
     }
 }
@@ -69,8 +118,10 @@ function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
 // ******************************
 
 function createFolder (in_folderName) {
-    var folder = path.resolve(process.cwd(), in_folderName);
+    let folder = path.resolve(process.cwd(), in_folderName);
     if (!fs.existsSync(folder)) {
+        let parentFolder = path.dirname(folder);
+        createFolder(parentFolder);
         fs.mkdirSync(folder);
     }
     return folder;
@@ -78,8 +129,20 @@ function createFolder (in_folderName) {
 
 // ******************************
 
+function linkFolder (in_source, in_destination) {
+    fs.symlinkSync(in_source, in_destination, 'junction');
+}
+
+// ******************************
+
+function linkFile (in_source, in_destination) {
+    fs.symlinkSync(in_source, in_destination, 'file');
+}
+
+// ******************************
+
 function deleteFolder (in_folderName) {
-    var folder = path.resolve(process.cwd(), in_folderName);
+    let folder = path.resolve(process.cwd(), in_folderName);
     if (fs.existsSync(folder)) {
         rimraf(folder, () => {});
     }
@@ -88,7 +151,7 @@ function deleteFolder (in_folderName) {
 // ******************************
 
 function writeFile (in_fileName, in_fileContents, in_overwrite) {
-    var file = path.resolve(process.cwd(), in_fileName);
+    let file = path.resolve(process.cwd(), in_fileName);
     if (!fs.existsSync(file) || in_overwrite) {
         fs.writeFileSync(file, in_fileContents);
     }
@@ -98,7 +161,7 @@ function writeFile (in_fileName, in_fileContents, in_overwrite) {
 // ******************************
 
 function readFile (in_fileName) {
-    var file = path.resolve(process.cwd(), in_fileName);
+    let file = path.resolve(process.cwd(), in_fileName);
     if (!fs.existsSync(file)) {
         return '';
     }
@@ -109,8 +172,8 @@ function readFile (in_fileName) {
 
 function copyFile (in_source, in_destination) {
     return new Promise((resolve, reject) => {
-        var source = path.resolve(process.cwd(), in_source);
-        var destination = path.resolve(process.cwd(), in_destination);
+        let source = path.resolve(process.cwd(), in_source);
+        let destination = path.resolve(process.cwd(), in_destination);
         if (!fs.existsSync(source)) {
             return resolve();
         }
@@ -135,14 +198,14 @@ function fileExists (in_fileName) {
     if (!in_fileName) {
         return false;
     }
-    var file = path.resolve(process.cwd(), in_fileName);
+    let file = path.resolve(process.cwd(), in_fileName);
     return fs.existsSync(file);
 }
 
 // ******************************
 
 function isFolder (in_folderName) {
-    var folder = path.resolve(process.cwd(), in_folderName);
+    let folder = path.resolve(process.cwd(), in_folderName);
     return fs.lstatSync(folder).isDirectory();
 }
 
@@ -155,7 +218,7 @@ function cwd (in_fileName) {
 // ******************************
 
 function files (in_folderName) {
-    var folder = path.resolve(process.cwd(), in_folderName);
+    let folder = path.resolve(process.cwd(), in_folderName);
     if (!fs.existsSync(folder)) {
         return [];
     }
@@ -187,7 +250,11 @@ function getExtensionForType (in_fileType) {
 
 module.exports['setupFile'] = setupFile;
 module.exports['setupFolder'] = setupFolder;
+module.exports['setupFolderLink'] = setupFolderLink;
+module.exports['setupFileLink'] = setupFileLink;
 module.exports['setupFileCopy'] = setupFileCopy;
+module.exports['linkFolder'] = linkFolder;
+module.exports['linkFile'] = linkFile;
 module.exports['createFolder'] = createFolder;
 module.exports['deleteFolder'] = deleteFolder;
 module.exports['cwd'] = cwd;

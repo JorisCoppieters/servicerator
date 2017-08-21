@@ -68,19 +68,19 @@ function getServiceConfig () {
 function getServiceConfigFile () {
     let currentDirectory = './';
 
-    var directory = path.resolve(process.cwd(), currentDirectory);
-    var oldDirectory = directory;
-    var serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
+    let directory = path.resolve(process.cwd(), currentDirectory);
+    let oldDirectory = directory;
+    let serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
 
-    var maxUpwardsIteration = 100;
-    var loopCount = 0;
+    let maxUpwardsIteration = 100;
+    let loopCount = 0;
 
     while (true) {
         if (fs.fileExists(serviceConfigFile)) {
             break;
         }
 
-        var oldDirectory = directory;
+        let oldDirectory = directory;
         directory = path.dirname(directory);
         if (directory === oldDirectory) {
             break;

@@ -137,7 +137,7 @@ function getDockerfileContents (in_serviceConfig) {
     let scripts = (serviceConfig.docker.image.scripts || []);
 
     let generateScripts = scripts
-        .filter(s => s.lanuage && s.commands);
+        .filter(s => (s.language && s.commands));
 
     let aptGetPackages = serviceConfig.docker.image.apt_get_packages || [];
     let aptGetUpdate = serviceConfig.docker.image.apt_get_update || false;

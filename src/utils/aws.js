@@ -24,14 +24,14 @@ let g_AWS_CLI_INSTALLED = undefined;
 // Cluster Functions:
 // ******************************
 
-function getClusterArnForClusterName (in_clusterName, in_cache, in_options) {
-    let options = in_options || {};
+function getClusterArnForClusterName (in_clusterName, in_options) {
+    let opt = in_options || {};
 
-    if (options.verbose) {
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Cluster ARN for AWS Cluster "' + in_clusterName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['Cluster_' + in_clusterName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -42,7 +42,7 @@ function getClusterArnForClusterName (in_clusterName, in_cache, in_options) {
         'ecs',
         'list-clusters'
     ], {
-        hide: !options.verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -58,7 +58,7 @@ function getClusterArnForClusterName (in_clusterName, in_cache, in_options) {
     }
 
     if (awsClusterArn === undefined) {
-        if (options.showWarning) {
+        if (opt.showWarning) {
             cprint.yellow('Couldn\'t find AWS Cluster ARN for AWS Cluster "' + in_clusterName + '"');
         }
         return;
@@ -127,14 +127,14 @@ function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDe
 // Cluster Service Functions:
 // ******************************
 
-function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceName, in_cache, in_options) {
-    let options = in_options || {};
+function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceName, in_options) {
+    let opt = in_options || {};
 
-    if (options.verbose) {
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Cluster Service ARN in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['Cluster_' + in_clusterArn];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -146,7 +146,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
         'list-services',
         '--cluster', in_clusterArn
     ], {
-        hide: !options.verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -162,7 +162,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     }
 
     if (awsClusterServiceArn === undefined) {
-        if (options.showWarning) {
+        if (opt.showWarning) {
             cprint.yellow('Couldn\'t find AWS Cluster Service ARN in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"');
         }
         return;
@@ -233,13 +233,102 @@ function stopClusterTask (in_clusterName, in_taskArn) {
 
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
-    if (in_verbose) {
+function getTasks (in_clusterName, in_taskArns, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Tasks "' + in_clusterName + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['TaskDefinition_' + in_clusterName];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let args = [
+        'ecs',
+        'describe-tasks',
+        '--cluster',
+        in_clusterName
+    ];
+
+    in_taskArns.forEach(t => {
+        args.push('--task');
+        args.push(t);
+    });
+
+    let cmdResult = awsCmd(args, {
+        hide: !opt.verbose
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let awsTasks;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.tasks) {
+        awsTasks = awsResult.tasks;
+    }
+
+    if (!awsTasks) {
+        cprint.yellow('Couldn\'t find AWS Tasks "' + in_clusterName + '"');
+        return;
+    }
+
+    cache['TaskDefinition_' + in_clusterName] = {
+        val: awsTasks,
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+    };
+
+    return awsTasks;
+}
+
+// ******************************
+
+function getTaskDetails (in_clusterName, in_taskArns, in_options) {
+    let opt = in_options || {};
+
+    let tasks = getTasks(in_clusterName, in_taskArns, in_options);
+    if (!tasks || !tasks.length) {
+        return [];
+    }
+
+    return tasks
+        .map((t) => {
+            let taskContainerInstance = getContainerInstance(in_clusterName, t.containerInstanceArn, in_options) || {};
+            let taskClusterVersion = getClusterServiceVersionForTaskDefinition(t.taskDefinitionArn, in_options);
+            let versionInfo = taskContainerInstance.versionInfo || {};
+            return {
+                taskArn: awsArnToTitle(t.taskArn),
+                taskDefinitionArn: awsArnToTitle(t.taskDefinitionArn),
+                status: t.lastStatus,
+                desiredStatus: t.desiredStatus,
+                clusterServiceVersion: taskClusterVersion,
+                instance: {
+                    status: taskContainerInstance.status,
+                    instanceId: taskContainerInstance.ec2InstanceId,
+                    agentConnected: taskContainerInstance.agentConnected,
+                    agentVersion: versionInfo.agentVersion,
+                    dockerVersion: versionInfo.dockerVersion
+                }
+            };
+        });
+}
+
+// ******************************
+
+function getClusterTaskArnsForCluster (in_clusterName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Cluster Task ARNs for AWS Cluster "' + in_clusterName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['ClusterTaskArns_' + in_clusterName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -252,7 +341,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
         '--cluster',
         in_clusterName
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -270,7 +359,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
 
     cache['ClusterTaskArns_' + in_clusterName] = {
         val: awsClusterTaskArns,
-        expires: date.getTimestamp() + 120 * 1000
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
 
     return awsClusterTaskArns;
@@ -280,13 +369,93 @@ function getClusterTaskArnsForCluster (in_clusterName, in_cache, in_verbose) {
 // Task Definition Functions:
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServiceArn, in_cache, in_verbose) {
-    if (in_verbose) {
+function getTaskDefinition (in_taskDefinitionArn, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Task Definition "' + in_taskDefinitionArn + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['TaskDefinition_' + in_taskDefinitionArn];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'ecs',
+        'describe-task-definition',
+        '--task-definition',
+        in_taskDefinitionArn
+    ], {
+        hide: !opt.verbose
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let awsTaskDefinition;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.taskDefinition) {
+        awsTaskDefinition = awsResult.taskDefinition;
+    }
+
+    if (!awsTaskDefinition) {
+        cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
+        return;
+    }
+
+    cache['TaskDefinition_' + in_taskDefinitionArn] = {
+        val: awsTaskDefinition,
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+    };
+
+    return awsTaskDefinition;
+}
+
+// ******************************
+
+function getClusterServiceVersionForTaskDefinition (in_taskDefinitionArn, in_options) {
+    let opt = in_options || {};
+
+    let taskDefinition = getTaskDefinition(in_taskDefinitionArn, in_options);
+    if (!taskDefinition) {
+        cprint.yellow('Couldn\'t find cluster service version for AWS Task Definition "' + in_taskDefinitionArn + '"');
+        return;
+    }
+
+    let containerDefinitions = taskDefinition.containerDefinitions || [];
+    let firstContainerDefinition = containerDefinitions[0] || {};
+    let image = firstContainerDefinition.image || false;
+
+    if (!image) {
+        cprint.yellow('Couldn\'t find cluster service version for AWS Task Definition "' + in_taskDefinitionArn + '"');
+        return;
+    }
+
+    let match = image.match(/^[0-9]+\..*\.amazonaws.com\/(.*):(.*)$/);
+    if (!match) {
+        cprint.yellow('Invalid image for task definition "' + in_taskDefinitionArn + '": ' + image);
+        return;
+    }
+
+    let version = match[2];
+    return version;
+}
+
+// ******************************
+
+function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServiceArn, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Task Definition ARN for AWS Cluster Service "' + in_clusterServiceArn + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['TaskDefinitionArn_' + in_clusterServiceArn];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -301,7 +470,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
         '--service',
         in_clusterServiceArn
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -326,7 +495,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
 
     cache['TaskDefinitionArn_' + in_clusterServiceArn] = {
         val: awsTaskDefinitionArn,
-        expires: date.getTimestamp() + 120 * 1000
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
 
     return awsTaskDefinitionArn;
@@ -334,13 +503,14 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
 
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache, in_verbose) {
-    if (in_verbose) {
+function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving latest AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['LatestTaskDefinitionArn_' + in_taskDefinitionName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -353,7 +523,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
         '--family-prefix',
         in_taskDefinitionName
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -391,7 +561,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
 
     cache['LatestTaskDefinitionArn_' + in_taskDefinitionName] = {
         val: latestTaskDefinitionArn,
-        expires: date.getTimestamp() + 120 * 1000
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
 
     return latestTaskDefinitionArn;
@@ -399,13 +569,14 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
 
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_cache, in_verbose) {
-    if (in_verbose) {
+function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving previous AWS Task Definition ARNs for AWS Task Definition "' + in_taskDefinitionName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -418,7 +589,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
         '--family-prefix',
         in_taskDefinitionName
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -456,7 +627,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
 
     cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName] = {
         val: previousTaskDefinitionArn,
-        expires: date.getTimestamp() + 1000
+        expires: date.getTimestamp() + 1000 // 1 second
     };
 
     return previousTaskDefinitionArn;
@@ -485,17 +656,71 @@ function deregisterTaskDefinition (in_taskDefinitionArn) {
 }
 
 // ******************************
+// Container Instance Functions:
+// ******************************
+
+function getContainerInstance (in_clusterName, in_containerInstanceArn, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Container Instance "' + in_containerInstanceArn + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['ContainerInstance_' + in_containerInstanceArn];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'ecs',
+        'describe-container-instances',
+        '--cluster',
+        in_clusterName,
+        '--container-instance',
+        in_containerInstanceArn
+    ], {
+        hide: !opt.verbose
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let awsTasks;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.containerInstances) {
+        awsTasks = awsResult.containerInstances
+            .find(obj => true);
+    }
+
+    if (!awsTasks) {
+        cprint.yellow('Couldn\'t find AWS Container Instance "' + in_containerInstanceArn + '"');
+        return;
+    }
+
+    cache['ContainerInstance_' + in_containerInstanceArn] = {
+        val: awsTasks,
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+    };
+
+    return awsTasks;
+}
+
+// ******************************
 // Repository Functions:
 // ******************************
 
 function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in_options) {
-    let options = in_options || {};
+    let opt = in_options || {};
 
-    if (options.verbose) {
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Docker Repository for Docker Image "' + in_dockerImageName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['DockerRepository_' + in_dockerImageName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -506,7 +731,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in
         'ecr',
         'describe-repositories'
     ], {
-        hide: !options.verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -523,7 +748,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in
     }
 
     if (awsRepository === undefined) {
-        if (options.showWarning) {
+        if (opt.showWarning) {
             cprint.yellow('Couldn\'t find AWS Docker Repository for Docker Image "' + in_dockerImageName + '"');
         }
         return;
@@ -531,7 +756,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in
 
     cache['DockerRepository_' + in_dockerImageName] = {
         val: awsRepository,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
 
     return awsRepository;
@@ -594,7 +819,9 @@ function getServiceStateFromAutoScalingGroupInstanceCount (in_autoScalingGroupIn
 
 // ******************************
 
-function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScalingGroupInstanceCount, in_cache) {
+function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScalingGroupInstanceCount, in_options) {
+    let opt = in_options || {};
+
     cprint.cyan('Setting Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '" to ' + in_autoScalingGroupInstanceCount + '...');
 
     let autoScalingGroupInstanceCount = in_autoScalingGroupInstanceCount || 1;
@@ -614,19 +841,20 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
 
     cmdResult.printResult('  ');
     cprint.green('Set Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '" to ' + in_autoScalingGroupInstanceCount);
-    clearCachedAutoScalingGroupInstanceCount(in_autoScalingGroupName, in_cache);
+    clearCachedAutoScalingGroupInstanceCount(in_autoScalingGroupName, opt.cache);
     return true;
 }
 
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache, in_verbose) {
-    if (in_verbose) {
+function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -638,7 +866,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache, in
         'describe-auto-scaling-groups',
         '--auto-scaling-group', in_autoScalingGroupName
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -661,7 +889,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache, in
 
     cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName] = {
         val: desiredCapacity,
-        expires: date.getTimestamp() + 120 * 1000
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
 
     return desiredCapacity;
@@ -671,13 +899,14 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache, in
 // VPC Functions:
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getVpcIdForVpc (in_vpcName, in_cache, in_verbose) {
-    if (in_verbose) {
+function getVpcIdForVpc (in_vpcName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS VPC ID for AWS VPC "' + in_vpcName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['VpcId_' + in_vpcName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -690,7 +919,7 @@ function getVpcIdForVpc (in_vpcName, in_cache, in_verbose) {
         '--filter',
         `Name="tag-value",Values="${in_vpcName}"`
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -715,7 +944,7 @@ function getVpcIdForVpc (in_vpcName, in_cache, in_verbose) {
 
     cache['VpcId_' + in_vpcName] = {
         val: awsVpcId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
 
     return awsVpcId;
@@ -723,13 +952,14 @@ function getVpcIdForVpc (in_vpcName, in_cache, in_verbose) {
 
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getVpcSecurityGroupIdForVpc (in_vpcId, in_cache, in_verbose) {
-    if (in_verbose) {
+function getVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['VpcSecurityGroupId_' + in_vpcId];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -743,7 +973,7 @@ function getVpcSecurityGroupIdForVpc (in_vpcId, in_cache, in_verbose) {
         `Name=vpc-id,Values="${in_vpcId}"`,
         `Name=group-name,Values="default"`
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -768,7 +998,7 @@ function getVpcSecurityGroupIdForVpc (in_vpcId, in_cache, in_verbose) {
 
     cache['VpcSecurityGroupId_' + in_vpcId] = {
         val: awsVpcSecurityGroupId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
 
     return awsVpcSecurityGroupId;
@@ -776,13 +1006,14 @@ function getVpcSecurityGroupIdForVpc (in_vpcId, in_cache, in_verbose) {
 
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_cache, in_verbose) {
-    if (in_verbose) {
+function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS VPC Subnet Id for AWS VPC Subnet "' + in_vpcSubnetName + '"...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['VpcSubnetId_' + in_vpcSubnetName];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -796,7 +1027,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_cache, in_verbose)
         `Name=vpc-id,Values="${in_vpcId}"`,
         `Name=tag-value,Values="${in_vpcSubnetName}"`
     ], {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -821,7 +1052,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_cache, in_verbose)
 
     cache['VpcSubnetId_' + in_vpcSubnetName] = {
         val: awsVpcSubnetId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
 
     return awsVpcSubnetId;
@@ -831,16 +1062,17 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_cache, in_verbose)
 // Instance Functions:
 // ******************************
 
-// TODO - Add options object for verbose etc...
-function getInstanceIdsWithTags (in_tags, in_cache, in_verbose) {
+function getInstanceIdsWithTags (in_tags, in_options) {
+    let opt = in_options || {};
+
     let tags = in_tags || [];
     let tagsStr = JSON.stringify(tags);
 
-    if (in_verbose) {
+    if (opt.verbose) {
         cprint.cyan('Retrieving AWS Instance IDs for tags [' + tagsStr + ']...');
     }
 
-    let cache = in_cache || {};
+    let cache = opt.cache || {};
     let cacheItem = cache['InstanceIds_' + tagsStr];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -861,7 +1093,7 @@ function getInstanceIdsWithTags (in_tags, in_cache, in_verbose) {
     });
 
     let cmdResult = awsCmd(args, {
-        hide: !in_verbose
+        hide: !opt.verbose
     });
 
     if (cmdResult.hasError) {
@@ -904,7 +1136,7 @@ function getInstanceIdsWithTags (in_tags, in_cache, in_verbose) {
 
     cache['InstanceIds_' + tagsStr] = {
         val: awsInstanceIds,
-        expires: date.getTimestamp() + 600 * 1000
+        expires: date.getTimestamp() + 10 * 60 * 1000 // 10 minutes
     };
 
     return awsInstanceIds;
@@ -1118,7 +1350,6 @@ function awsLogin (in_serviceConfig) {
     ].join('\n'), true);
 }
 
-
 // ******************************
 // Other Functions:
 // ******************************
@@ -1136,8 +1367,8 @@ function awsArnToTitle (in_arn) {
 // ******************************
 
 function awsCmd (in_args, in_options) {
-    let options = in_options || {};
-    let hide = options.hide;
+    let opt = in_options || {};
+    let hide = opt.hide;
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1207,21 +1438,26 @@ module.exports['createDockerRepository'] = createDockerRepository;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
-module.exports['getDockerCredentials'] = getAwsDockerCredentials;
-module.exports['getDockerRepositoryUrl'] = getAwsDockerRepositoryUrl;
-module.exports['getRepositoryServiceConfig'] = getAwsRepositoryServiceConfig;
-module.exports['getSecretKey'] = getAwsSecretKey;
-module.exports['getServiceConfig'] = getAwsServiceConfig;
 module.exports['getClusterArnForClusterName'] = getClusterArnForClusterName;
 module.exports['getClusterServiceArnForClusterName'] = getClusterServiceArnForClusterName;
+module.exports['getClusterServiceVersionForTaskDefinition'] = getClusterServiceVersionForTaskDefinition;
 module.exports['getClusterTaskArnsForCluster'] = getClusterTaskArnsForCluster;
+module.exports['getContainerInstance'] = getContainerInstance;
+module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepositoryForDockerImageName'] = getDockerRepositoryForDockerImageName;
+module.exports['getDockerRepositoryUrl'] = getAwsDockerRepositoryUrl;
 module.exports['getInstanceIdsWithTags'] = getInstanceIdsWithTags;
 module.exports['getLatestTaskDefinitionArnForTaskDefinition'] = getLatestTaskDefinitionArnForTaskDefinition;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
+module.exports['getRepositoryServiceConfig'] = getAwsRepositoryServiceConfig;
+module.exports['getSecretKey'] = getAwsSecretKey;
+module.exports['getServiceConfig'] = getAwsServiceConfig;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;
+module.exports['getTaskDefinition'] = getTaskDefinition;
 module.exports['getTaskDefinitionArnForClusterService'] = getTaskDefinitionArnForClusterService;
+module.exports['getTaskDetails'] = getTaskDetails;
+module.exports['getTasks'] = getTasks;
 module.exports['getVpcIdForVpc'] = getVpcIdForVpc;
 module.exports['getVpcSecurityGroupIdForVpc'] = getVpcSecurityGroupIdForVpc;
 module.exports['getVpcSubnetIdForVpc'] = getVpcSubnetIdForVpc;

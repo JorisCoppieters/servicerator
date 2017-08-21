@@ -96,7 +96,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
                 if (cluster.auto_scaling_group_name) {
                     print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
-                    let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(cluster.auto_scaling_group_name, awsCache);
+                    let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(cluster.auto_scaling_group_name, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
                     if (awsAutoScalingGroupInstanceCount !== undefined) {
@@ -109,7 +111,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
                 if (in_extra && cluster.name) {
                     print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '...', true);
-                    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, awsClusterServiceName, awsCache);
+                    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, awsClusterServiceName, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
                     if (awsClusterServiceArn) {
@@ -120,7 +124,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                     }
 
                     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '...', true);
-                    let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, awsCache);
+                    let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
                     if (awsTaskDefinitionArn) {
@@ -130,13 +136,29 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                         print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '???');
                     }
 
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
-                    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, awsCache);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '...', true);
+                    let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
-                    if (awsClusterTaskArns) {
-                        let awsClusterTaskNames = awsClusterTaskArns.map(a => aws.arnToTitle(a));
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskNames, null, 4));
+                    if (clusterServiceVersion) {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', clusterServiceVersion);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '???');
+                    }
+
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
+                    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, {
+                        cache: awsCache
+                    });
+                    let awsClusterTaskDetails = aws.getTaskDetails(cluster.name, awsClusterTaskArns, {
+                        cache: awsCache
+                    });
+                    print.clearLine();
+
+                    if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
                     } else {
                         print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '???');
                     }
@@ -197,7 +219,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
                 if (cluster.vpc_name) {
                     print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
-                    let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, awsCache);
+                    let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
                     if (awsVpcId) {
@@ -207,7 +231,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                     }
 
                     print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
-                    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, awsCache);
+                    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
                     if (awsVpcSecurityGroupId) {
@@ -220,7 +246,9 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                     print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
 
                     print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
-                    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, awsCache);
+                    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+                        cache: awsCache
+                    });
                     print.clearLine();
 
                     if (awsVpcSubnetId) {
@@ -327,12 +355,16 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
     print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
 
     print.keyVal('AWS Task Definition', '...', true);
-    let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
+    let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
+        cache: awsCache
+    });
     if (!taskDefinitionArn) {
         return;
     }
 
-    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, awsCache);
+    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
+        cache: awsCache
+    });
     if (!awsClusterServiceArn) {
         return;
     }
@@ -345,7 +377,9 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Instance Count', awsClusterServiceInstanceCount);
 
     print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
-    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, awsCache);
+    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, {
+        cache: awsCache
+    });
     if (!awsClusterTaskArns) {
         return;
     }
@@ -644,7 +678,9 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
-    let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, awsCache);
+    let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
+        cache: awsCache
+    });
 
     if (!taskDefinitionArns || !taskDefinitionArns.length) {
         cprint.green('Nothing to clean up!');
@@ -749,7 +785,9 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
-    let awsVpcId = aws.getVpcIdForVpc(awsVpcName, awsCache);
+    let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
+        cache: awsCache
+    });
     if (!awsVpcId) {
         return;
     }
@@ -757,7 +795,9 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
-    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, awsCache);
+    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
+        cache: awsCache
+    });
     if (!awsVpcSecurityGroupId) {
         return;
     }
@@ -768,7 +808,9 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
-    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, awsCache);
+    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+        cache: awsCache
+    });
     if (!awsVpcSubnetId) {
         return;
     }
@@ -878,7 +920,9 @@ function awsCreateRepository (in_serviceConfig) {
     print.keyVal('AWS Docker Image Name', dockerImageName);
     print.keyVal('AWS Docker Repository Url', awsDockerRepositoryUrl);
 
-    let awsDockerRepository = aws.getDockerRepositoryForDockerImageName(dockerImageName, awsCache);
+    let awsDockerRepository = aws.getDockerRepositoryForDockerImageName(dockerImageName, {
+        cache: awsCache
+    });
     if (awsDockerRepository) {
         cprint.green('Repository already exists!');
         return;
@@ -949,7 +993,9 @@ function awsCreateCluster (in_serviceConfig, in_prod) {
     cprint.magenta('-- AWS ' + environmentTitle + ' Cluster --');
     print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
 
-    let awsClusterArn = aws.getClusterArnForClusterName(awsClusterName, awsCache);
+    let awsClusterArn = aws.getClusterArnForClusterName(awsClusterName, {
+        cache: awsCache
+    });
     if (awsClusterArn) {
         cprint.green('Cluster already exists!');
         return;
@@ -1102,7 +1148,9 @@ function awsCreateClusterService (in_serviceConfig, in_prod) {
     print.keyVal('AWS ' + environmentTitle + ' Load Balancers', JSON.stringify(loadBalancers, null, 4));
 
     print.keyVal('AWS Task Definition', '...', true);
-    let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
+    let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
+        cache: awsCache
+    });
     if (!taskDefinitionArn) {
         return;
     }
@@ -1110,7 +1158,9 @@ function awsCreateClusterService (in_serviceConfig, in_prod) {
     print.clearLine();
     print.keyVal('AWS Task Definition', awsTaskDefinitionName);
 
-    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, awsCache);
+    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
+        cache: awsCache
+    });
     if (awsClusterServiceArn) {
         cprint.green('Cluster service already exists!');
         return;
@@ -1210,7 +1260,9 @@ function awsStartCluster (in_serviceConfig, in_prod) {
 
     if (autoScalingGroupInstanceCount == 0) {
         cprint.cyan('Starting AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 2, awsCache);
+        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 2, {
+            cache: awsCache
+        });
     } else {
         cprint.green('AWS cluster already started');
     }
@@ -1268,7 +1320,9 @@ function awsStopCluster (in_serviceConfig, in_prod) {
 
     if (autoScalingGroupInstanceCount > 0) {
         cprint.cyan('Stopping AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 0, awsCache);
+        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 0, {
+            cache: awsCache
+        });
     } else {
         cprint.green('AWS cluster already stopped');
     }

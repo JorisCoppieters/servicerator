@@ -45,7 +45,11 @@ function hgSetupFolder (in_serviceConfig, in_overwrite) {
 function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: 'ANY',
-        model: 'ANY',
+        model: {
+            source: 'STRING',
+            type: 'STRING',
+            version: 'STRING'
+        },
         corpus: 'ANY',
         docker: {
             image: {
@@ -115,9 +119,9 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         });
     }
 
-    if (serviceConfig.docker.image.log) {
-        fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
-    }
+    // if (serviceConfig.docker.image.log) {
+    //     fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
+    // }
 
     if (serviceConfig.docker.image.language === 'python') {
         fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
@@ -128,30 +132,35 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     }
 
     if (serviceConfig.model) {
-        if (serviceConfig.model.bundled_model) {
+        if (serviceConfig.model.type === 'bundled') {
             fs.setupFolder('docker bundled_model', path.resolve(dockerFolder, 'bundled_model'));
-        } else {
+        } else if (serviceConfig.model.type === 'model_store') {
             fs.setupFolder('docker model', path.resolve(dockerFolder, 'model'));
         }
     }
 
-    serviceConfig.service.filesystem.forEach(f => {
-        if (!f.on_setup) {
-            return;
-        }
+    serviceConfig.service.filesystem
+        .filter(f => f.on_setup)
+        .forEach(f => {
+            if (f.type === 'folder') {
+                service.createFolder(in_serviceConfig, f);
+            } else if (f.type === 'link_folder') {
+                service.linkFolder(in_serviceConfig, f);
 
-        if (f.type === 'folder') {
-            service.createFolder(in_serviceConfig, f);
-        } else if (f.type === 'file') {
-            service.createFile(in_serviceConfig, f, {
-                overwrite: in_overwrite
-            });
-        } else if (f.type === 'copy_file') {
-            service.copyFile(in_serviceConfig, f, {
-                overwrite: in_overwrite
-            });
-        }
-    });
+            } else if (f.type === 'file') {
+                service.createFile(in_serviceConfig, f, {
+                    overwrite: in_overwrite
+                });
+            } else if (f.type === 'link_file') {
+                service.linkFile(in_serviceConfig, f, {
+                    overwrite: in_overwrite
+                });
+            } else if (f.type === 'copy_file') {
+                service.copyFile(in_serviceConfig, f, {
+                    overwrite: in_overwrite
+                });
+            }
+        });
 
     return sourceFolder;
 }

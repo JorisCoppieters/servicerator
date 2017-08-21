@@ -38,7 +38,7 @@ function runGenerator (generatorFunction) {
 // ******************************
 
 function runTasks(tasks) {
-    var result = Promise.resolve();
+    let result = Promise.resolve();
     tasks.forEach(task => {
         result = result
             .then(() => task())

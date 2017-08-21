@@ -43,7 +43,7 @@ function getIgnoreFileContents (in_serviceConfig) {
     }
 
     if (serviceConfig.docker.image.language === 'python') {
-        ignoreFiles.push(dockerRelativePath + 'python/*.pyc');
+        ignoreFiles.push(dockerRelativePath + 'python/**/*.pyc');
     }
 
     if (serviceConfig.docker.image.log) {
@@ -55,8 +55,8 @@ function getIgnoreFileContents (in_serviceConfig) {
     }
 
     if (serviceConfig.auth) {
-        ignoreFiles.push(dockerRelativePath + 'auth/*.crt');
-        ignoreFiles.push(dockerRelativePath + 'auth/*.key');
+        ignoreFiles.push(dockerRelativePath + 'auth/service.crt');
+        ignoreFiles.push(dockerRelativePath + 'auth/service.key');
     }
 
     if (serviceConfig.build.language === 'bash') {
