@@ -516,6 +516,140 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
 }
 
 // ******************************
+
+function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
+    let opt = in_options || {};
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('Source folder not set');
+        }
+        return;
+    }
+
+    let serviceFolder = in_serviceFolder || false;
+    if (!serviceFolder) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('Service folder not set');
+        }
+        return;
+    }
+
+    let folderPath = path.resolve(sourceFolder, serviceFolder.path);
+    fs.setupFolder(path.basename(folderPath), folderPath, opt);
+}
+
+// ******************************
+
+function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
+    let opt = in_options || {};
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('Source folder not set');
+        }
+        return;
+    }
+
+    let serviceFile = in_serviceFile || false;
+    if (!serviceFile) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('Service file not set');
+        }
+        return;
+    }
+
+    let nginxFile = false;
+
+    let dockerFolder = docker.getFolder(sourceFolder);
+    if (dockerFolder) {
+        nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+    }
+
+    opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
+
+    let filePath = path.resolve(sourceFolder, serviceFile.path);
+
+    if (filePath === nginxFile) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
+        }
+        return;
+    }
+
+    let fileFolder = path.dirname(filePath);
+    if (!fs.folderExists(fileFolder)) {
+        return;
+    }
+
+    let fileContents = (serviceFile.contents || [])
+        .map(c => replaceServiceConfigReferences(in_serviceConfig, c))
+        .join('\n');
+
+    fs.setupFile(path.basename(filePath), filePath, fileContents, opt);
+}
+
+// ******************************
+
+function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
+    let opt = in_options || {};
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
+
+    let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('Source folder not set');
+        }
+        return;
+    }
+
+    let serviceFile = in_serviceFile || false;
+    if (!serviceFile) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('Service file not set');
+        }
+        return;
+    }
+
+    let nginxFile = false;
+
+    let dockerFolder = docker.getFolder(sourceFolder);
+    if (dockerFolder) {
+        nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+    }
+
+    opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
+
+    let source = path.resolve(sourceFolder, serviceFile.source);
+    let destination = path.resolve(sourceFolder, serviceFile.destination);
+
+    if (destination === nginxFile) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
+        }
+        return;
+    }
+
+    let fileFolder = path.dirname(destination);
+    if (!fs.folderExists(fileFolder)) {
+        return;
+    }
+
+    fs.setupFileCopy(path.basename(source), source, destination, opt);
+}
+
+// ******************************
 // Helper Functions:
 // ******************************
 
@@ -652,5 +786,8 @@ module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['accessConfig'] = accessServiceConfig;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
 module.exports['replaceServiceConfigReferences'] = replaceServiceConfigReferences;
+module.exports['createFolder'] = createServiceFolder;
+module.exports['createFile'] = createServiceFile;
+module.exports['copyFile'] = copyServiceFile;
 
 // ******************************

@@ -15,6 +15,59 @@ let rimraf = require('rimraf');
 // Functions:
 // ******************************
 
+function setupFolder (in_folderTitle, in_folder, in_options) {
+    let opt = in_options || {};
+    if (!fileExists(in_folder)) {
+        if (!opt.suppressOutput) {
+            cprint.cyan('  Creating ' + in_folderTitle + ' folder "' + in_folder + '"...');
+        }
+        createFolder(in_folder);
+    }
+}
+
+// ******************************
+
+function setupFile (in_fileTitle, in_file, in_fileContents, in_options) {
+    let opt = in_options || {};
+    if (!fileExists(in_file)) {
+        if (!opt.suppressOutput) {
+            cprint.cyan('  Creating ' + in_fileTitle + ' "' + in_file + '"...');
+        }
+        writeFile(in_file, in_fileContents);
+    } else if (opt.overwrite) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  Overwriting ' + in_fileTitle + ' "' + in_file + '"...');
+        }
+        writeFile(in_file, in_fileContents, true);
+    }
+}
+
+// ******************************
+
+function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
+    let opt = in_options || {};
+    if (!fileExists(in_source)) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  Couldn\'t copy ' + in_fileTitle + ' from "' + in_source + '"');
+        }
+        return;
+    }
+
+    if (!fileExists(in_destination)) {
+        if (!opt.suppressOutput) {
+            cprint.cyan('  Copying ' + in_fileTitle + ' from "' + in_source + '" to "' + in_destination + '"...');
+        }
+        copyFile(in_source, in_destination);
+    } else if (opt.overwrite) {
+        if (!opt.suppressOutput) {
+            cprint.yellow('  Copying (& overwriting) ' + in_fileTitle + ' from "' + in_source + '" to "' + in_destination + '"...');
+        }
+        copyFile(in_source, in_destination);
+    }
+}
+
+// ******************************
+
 function createFolder (in_folderName) {
     var folder = path.resolve(process.cwd(), in_folderName);
     if (!fs.existsSync(folder)) {
@@ -132,6 +185,9 @@ function getExtensionForType (in_fileType) {
 // Exports:
 // ******************************
 
+module.exports['setupFile'] = setupFile;
+module.exports['setupFolder'] = setupFolder;
+module.exports['setupFileCopy'] = setupFileCopy;
 module.exports['createFolder'] = createFolder;
 module.exports['deleteFolder'] = deleteFolder;
 module.exports['cwd'] = cwd;

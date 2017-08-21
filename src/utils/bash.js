@@ -221,11 +221,12 @@ function parseBashEnvContents (in_bashEnvContents) {
 
             object.setIfNotSet(c, 'name', serviceName + '-' + environment + '-cluster');
             object.setIfNotSet(c, 'service_name', serviceName + '-' + environment + '-service');
-            object.setIfNotSet(c, 'task_definition_name', serviceName + '-task-definition');
             object.setIfNotSet(c, 'launch_configuration_name', serviceName + '-' + environment + '-launch-configuration');
             object.setIfNotSet(c, 'auto_scaling_group_name', serviceName + '-' + environment + '-auto-scaling-group');
             object.setIfNotSet(c, 'instance', serviceConfig.service.clusters[0].instance);
         });
+
+        object.setIfNotSet(serviceConfig.service, 'task_definition_name', serviceName + '-task-definition');
     }
 
     service.checkConfigSchema(serviceConfig);

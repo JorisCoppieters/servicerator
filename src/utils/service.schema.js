@@ -49,7 +49,8 @@ function getServiceSchema () {
                     {
                         "container": "STRING",
                         "host": "STRING",
-                        "name": "STRING"
+                        "name": "STRING",
+                        "read_only": "BOOLEAN"
                     }
                 ]
             },
@@ -60,6 +61,12 @@ function getServiceSchema () {
                 "apt_get_update": "BOOLEAN",
                 "base": "STRING",
                 "commands": [
+                    "STRING"
+                ],
+                "commands_after_packages": [
+                    "STRING"
+                ],
+                "commands_after_filesystem": [
                     "STRING"
                 ],
                 "env_variables": [
@@ -178,8 +185,14 @@ function getServiceSchema () {
                     "contents": [
                         "STRING"
                     ],
+                    "source": "PATH",
+                    "destination": "PATH",
                     "path": "PATH",
-                    "type": "STRING"
+                    "type": "STRING",
+                    "on_open": "BOOLEAN",
+                    "on_close": "BOOLEAN",
+                    "on_setup": "BOOLEAN",
+                    "overwrite": "BOOLEAN"
                 }
             ],
             "clusters": [

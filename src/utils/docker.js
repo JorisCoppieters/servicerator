@@ -99,6 +99,12 @@ function getDockerfileContents (in_serviceConfig) {
                 npm_packages: [
                     'STRING'
                 ],
+                commands: [
+                    'STRING'
+                ],
+                commands_after_packages: [
+                    'STRING'
+                ],
                 filesystem: [
                     {
                         path: 'PATH',
@@ -112,7 +118,7 @@ function getDockerfileContents (in_serviceConfig) {
                     }
 
                 ],
-                commands: [
+                commands_after_filesystem: [
                     'STRING'
                 ],
                 working_directory: 'PATH',
@@ -130,6 +136,9 @@ function getDockerfileContents (in_serviceConfig) {
     let imagePorts = serviceConfig.docker.image.ports || [];
     let scripts = (serviceConfig.docker.image.scripts || []);
 
+    let generateScripts = scripts
+        .filter(s => s.lanuage && s.commands);
+
     let aptGetPackages = serviceConfig.docker.image.apt_get_packages || [];
     let aptGetUpdate = serviceConfig.docker.image.apt_get_update || false;
     let pipPackages = serviceConfig.docker.image.pip_packages || [];
@@ -139,7 +148,8 @@ function getDockerfileContents (in_serviceConfig) {
     let condaUpdate = serviceConfig.docker.image.conda_update || false;
     let npmPackages = serviceConfig.docker.image.npm_packages || [];
     let filesystem = serviceConfig.docker.image.filesystem || [];
-    let commands = serviceConfig.docker.image.commands || [];
+    let commandsAfterPackages = serviceConfig.docker.image.commands_after_pacakges || serviceConfig.docker.image.commands || [];
+    let commandsAfterFilesystem = serviceConfig.docker.image.commands_after_filesystem || [];
     let workdir = serviceConfig.docker.image.working_directory || '.';
 
     let enableNginx = false;
@@ -257,24 +267,24 @@ function getDockerfileContents (in_serviceConfig) {
             `#`,
             `# ----------------------`,
             ``,
-            `    RUN npm install \\`,
+            `    RUN npm install --prefix ./node \\`,
             ``].join('\n') +
         npmPackages
             .map(p => {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
-    (commands.length ?
+    (commandsAfterPackages.length ?
         [
             ``,
             ``,
             `# ----------------------`,
             `#`,
-            `# OTHER`,
+            `# AFTER PACKAGES`,
             `#`,
             `# ----------------------`,
             ``,
-            ``].join('\n') + commands.map(c => `    RUN ${c}`).join('\n')
+            ``].join('\n') + commandsAfterPackages.map(c => `    RUN ${c}`).join('\n')
         : '') +
     (enableNginx ?
         [
@@ -310,9 +320,21 @@ function getDockerfileContents (in_serviceConfig) {
 
                     return command;
                 } else if (f.type === 'copy_folder') {
-                    return `    COPY "${f.source}" "${f.destination}"`;
+                    let command = `    COPY "${f.source}" "${f.destination}"`;
+
+                    if (f.permissions) {
+                        command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
+                    }
+
+                    return command;
                 } else if (f.type === 'copy_file') {
-                    return `    COPY "${f.source}" "${f.destination}"`;
+                    let command = `    COPY "${f.source}" "${f.destination}"`;
+
+                    if (f.permissions) {
+                        command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
+                    }
+
+                    return command;
                 } else if (f.type === 'file') {
                     let command = `    RUN touch "${f.path}"`;
 
@@ -333,7 +355,19 @@ function getDockerfileContents (in_serviceConfig) {
                 }
             }).join('\n')
         : '') +
-    (scripts.length ?
+    (commandsAfterFilesystem.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# AFTER FILESYSTEM`,
+            `#`,
+            `# ----------------------`,
+            ``,
+            ``].join('\n') + commandsAfterFilesystem.map(c => `    RUN ${c}`).join('\n')
+        : '') +
+    (generateScripts.length ?
         [
             ``,
             ``,
@@ -345,7 +379,7 @@ function getDockerfileContents (in_serviceConfig) {
             ``,
             ].join('\n') +
 
-        scripts
+        generateScripts
             .map(s => {
                 if (s.language === 'bash') {
                     return [
@@ -361,7 +395,6 @@ function getDockerfileContents (in_serviceConfig) {
             }).join('\n')
         : '') +
     (scripts
-        .filter(s => s.language === 'bash')
         .filter(s => s.cmd)
         .map(s => {
             return [

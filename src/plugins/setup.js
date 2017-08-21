@@ -59,6 +59,23 @@ function setupFolder (in_serviceConfig, in_overwrite) {
                 language: 'STRING'
             }
         },
+        service: {
+            filesystem: [
+                {
+                    on_setup: 'BOOLEAN',
+                    path: 'PATH',
+                    source: 'PATH',
+                    destination: 'PATH',
+                    path: 'PATH',
+                    overwrite: 'BOOLEAN',
+                    type: 'STRING',
+                    contents: [
+                        'STRING'
+                    ]
+                }
+
+            ]
+        },
         cwd: 'STRING'
     });
 
@@ -73,48 +90,68 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     let dockerFolder = docker.getFolder(sourceFolder)
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
         dockerFolder = path.resolve(sourceFolder, 'docker');
-        fs.createFolder(dockerFolder);
+        fs.setupFolder('docker', dockerFolder)
     }
 
     let dockerFileContents = docker.getDockerfileContents(in_serviceConfig);
     if (dockerFileContents) {
-        fs.writeFile(path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, in_overwrite);
+        fs.setupFile('Dockerfile', path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, {
+            overwrite: in_overwrite
+        });
     }
 
     let dockerIgnoreFileContents = docker.getIgnoreDockerContents(in_serviceConfig);
     if (dockerIgnoreFileContents) {
-        fs.writeFile(path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, in_overwrite);
+        fs.setupFile('.dockerignore', path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, {
+            overwrite: in_overwrite
+        });
     }
 
+    let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
     if (serviceConfig.docker.image.nginx.servers.length) {
-        let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-        fs.writeFile(nginxFile, nginx.getFileContents(in_serviceConfig), in_overwrite);
+        let nginxFileContents = nginx.getFileContents(in_serviceConfig);
+        fs.setupFile('nginx.conf', nginxFile, nginxFileContents, {
+            overwrite: in_overwrite
+        });
     }
 
     if (serviceConfig.docker.image.log) {
-        fs.createFolder(path.resolve(dockerFolder, 'logs'));
+        fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
     }
 
     if (serviceConfig.docker.image.language === 'python') {
-        fs.createFolder(path.resolve(dockerFolder, 'python'));
+        fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
     }
 
     if (serviceConfig.auth) {
-        fs.createFolder(path.resolve(dockerFolder, 'auth'));
+        fs.setupFolder('docker auth', path.resolve(dockerFolder, 'auth'));
     }
 
     if (serviceConfig.model) {
-        fs.createFolder(path.resolve(dockerFolder, 'model'));
-        fs.createFolder(path.resolve(sourceFolder, 'model'));
-
         if (serviceConfig.model.bundled_model) {
-            fs.createFolder(path.resolve(dockerFolder, 'bundled_model'));
+            fs.setupFolder('docker bundled_model', path.resolve(dockerFolder, 'bundled_model'));
+        } else {
+            fs.setupFolder('docker model', path.resolve(dockerFolder, 'model'));
         }
     }
 
-    if (serviceConfig.corpus) {
-        fs.createFolder(path.resolve(sourceFolder, 'corpus'));
-    }
+    serviceConfig.service.filesystem.forEach(f => {
+        if (!f.on_setup) {
+            return;
+        }
+
+        if (f.type === 'folder') {
+            service.createFolder(in_serviceConfig, f);
+        } else if (f.type === 'file') {
+            service.createFile(in_serviceConfig, f, {
+                overwrite: in_overwrite
+            });
+        } else if (f.type === 'copy_file') {
+            service.copyFile(in_serviceConfig, f, {
+                overwrite: in_overwrite
+            });
+        }
+    });
 
     return sourceFolder;
 }

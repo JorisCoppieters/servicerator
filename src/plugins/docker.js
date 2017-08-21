@@ -1012,6 +1012,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                 name: 'STRING'
             },
             container: {
+                memory_limit: 'NUMBER',
                 ports: [
                     {
                         host: 'NUMBER',
@@ -1040,6 +1041,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     });
 
     let serviceName = serviceConfig.service.name || 'service';
+    let memoryLimit = serviceConfig.docker.container.memory_limit || false;
 
     let sourceFolder = serviceConfig.cwd || false;
     let dockerFolder = docker.getFolder(sourceFolder);
@@ -1085,6 +1087,11 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         args.push('--detach');
     }
 
+    if (memoryLimit) {
+        args.push('--memory');
+        args.push(parseInt(memoryLimit) + 'm');
+    }
+
     serviceConfig.docker.container.ports.forEach(port => {
         if (!port.host || !port.container) {
             return;
@@ -1101,16 +1108,23 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             return;
         }
 
+        let volumeContainer = volume.container;
+
         let volumeHost = path.resolve(volume.host);
         if (!fs.folderExists(volumeHost)) {
             volumeHost = path.resolve(dockerFolder, volume.host);
+        }
+
+        if (volumeHost.match(/^[A-Z]:[\\\/]?$/)) {
+            volumeHost = '"' + volumeHost + '\."';
         }
 
         if (!runWithBash) {
             volumeHost = volumeHost.replace(new RegExp('\\\\', 'g'), '/');
         }
 
-        let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
+        volumeHost = service.replaceServiceConfigReferences(in_serviceConfig, volumeHost);
+        volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volumeContainer);
 
         args.push('--volume');
         args.push(volumeHost + ':' + volumeContainer);
