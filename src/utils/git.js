@@ -17,6 +17,9 @@ function getIgnoreFileContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: 'ANY',
         model: 'ANY',
+        ignore: [
+            'STRING'
+        ],
         docker: {
             image: {
                 language: 'STRING',
@@ -63,6 +66,8 @@ function getIgnoreFileContents (in_serviceConfig) {
         ignoreFiles.push(dockerRelativePath + 'setup-aws-infrastructure.sh');
         ignoreFiles.push(dockerRelativePath + 'create-docker-image.sh');
     }
+
+    ignoreFiles = ignoreFiles.concat(serviceConfig.ignore || []);
 
     return ignoreFiles.join('\n');
 }

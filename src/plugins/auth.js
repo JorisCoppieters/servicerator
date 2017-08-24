@@ -11,6 +11,7 @@ let docker = require('../utils/docker');
 let exec = require('../utils/exec');
 let fs = require('../utils/filesystem');
 let openssl = require('../utils/openssl');
+let print = require('../utils/print');
 let service = require('../utils/service');
 
 // ******************************
@@ -80,6 +81,7 @@ function generateAuthFiles (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: {
             key: 'STRING',
+            pkcs8: 'STRING',
             certificate: 'STRING',
             rootCAKey: 'PATH',
             rootCACertificate: 'PATH'
@@ -167,11 +169,19 @@ function generateAuthFiles (in_serviceConfig) {
     fs.writeFile(caSignDB, '');
     fs.writeFile(caSignSerial, '01');
 
+    let urls = serviceConfig.service.clusters.map(c => c.url) || [];
+    let firstUrl = urls[0] || false;
+    let otherUrls = urls.slice(1);
+
     fs.copyFile(serviceConfig.auth.rootCAKey, rootCAKey)
     .then(() => {
         return fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate);
     })
     .then(() => {
+        print.keyVal('Service key', serviceKey);
+        print.keyVal('Service certificate', serviceCertificate);
+        print.keyVal('Root CA certificate', rootCACertificate);
+
         let reqCaCrtConfigContents = [
             `[req]`,
             `distinguished_name = req_distinguished_name`,
@@ -184,24 +194,30 @@ function generateAuthFiles (in_serviceConfig) {
             `ST = Wellington`,
             `L = Wellington`,
             `O = TradeMe Ltd.`,
-            `OU = Data Science`,
-            `CN = "${serviceName}".trademe-ds.com`, // TODO - remove TM specific AUTH stuff
-
-
-            `[req_ext]`,
-            `keyUsage = keyEncipherment, dataEncipherment`,
-            `extendedKeyUsage = serverAuth`,
-            `subjectAltName = @alt_names`,
-
-            `[alt_names]`
+            `OU = Data Science`
         ];
 
-        // TODO - remove TM specific AUTH stuff
+        if (firstUrl) {
+            reqCaCrtConfigContents.push(`CN = ${firstUrl}`);
+        }
 
-        [`${serviceName}.test.trademe-ds.com`].concat(serviceConfig.service.clusters
-            .map(c => c.url)).forEach((u, idx) => {
+        reqCaCrtConfigContents = reqCaCrtConfigContents.concat([
+            `[req_ext]`,
+            `keyUsage = keyEncipherment, dataEncipherment`,
+            `extendedKeyUsage = serverAuth`
+        ]);
+
+        if (otherUrls.length) {
+            reqCaCrtConfigContents = reqCaCrtConfigContents.concat([
+                `subjectAltName = @alt_names`,
+
+                `[alt_names]`
+            ]);
+
+            otherUrls.forEach((u, idx) => {
                 reqCaCrtConfigContents.push(`DNS.${idx} = "${u}"`);
             });
+        }
 
         fs.writeFile(reqCrtConfig, reqCaCrtConfigContents.join('\n'));
 
@@ -235,28 +251,31 @@ function generateAuthFiles (in_serviceConfig) {
             `countryName = match`,
             `stateOrProvinceName = supplied`,
             `organizationName = supplied`,
-            `commonName = supplied`,
-            `organizationalUnitName = optional`,
-            `commonName = supplied`
+            `organizationalUnitName = optional`
         ];
-
-        fs.writeFile(caSignConfig, caSignConfigContents.join('\n'));
 
         let caSignExtConfigContents = [
             `basicConstraints=CA:FALSE`,
-            `subjectAltName=@alternate_names`,
             `subjectKeyIdentifier = hash`,
-
-            `[ alternate_names ]`
         ];
 
-        // TODO - remove TM specific AUTH stuff
+        if (urls.length) {
+            caSignConfigContents = caSignConfigContents.concat([
+                `commonName = supplied`
+            ]);
 
-        [`${serviceName}.test.trademe-ds.com`].concat(serviceConfig.service.clusters
-            .map(c => c.url)).forEach((u, idx) => {
+            caSignExtConfigContents = caSignExtConfigContents.concat([
+                `subjectAltName=@alternate_names`,
+
+                `[ alternate_names ]`
+            ]);
+
+            urls.forEach((u, idx) => {
                 caSignExtConfigContents.push(`DNS.${idx} = "${u}"`);
             });
+        }
 
+        fs.writeFile(caSignConfig, caSignConfigContents.join('\n'));
         fs.writeFile(caSignExtConfig, caSignExtConfigContents.join('\n'));
 
         let cmdResult;
@@ -295,6 +314,20 @@ function generateAuthFiles (in_serviceConfig) {
             return;
         } else {
             cmdResult.printResult();
+        }
+
+        let servicePk8Name = serviceConfig.auth.pkcs8 || false;
+        if (servicePk8Name) {
+            let servicePk8 = path.resolve(authFolder, servicePk8Name);
+
+            cprint.cyan('Converting to pkcs8 format...');
+            cmdResult = openssl.cmd(['pkcs8', '-in', serviceKey, '-topk8', '-nocrypt', '-out', servicePk8]);
+            if (cmdResult.hasError) {
+                cmdResult.printError();
+                return;
+            } else {
+                cmdResult.printResult();
+            }
         }
 
         cprint.cyan('Cleaning up...');

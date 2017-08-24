@@ -93,8 +93,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 
     let dockerFolder = docker.getFolder(sourceFolder)
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        dockerFolder = path.resolve(sourceFolder, 'docker');
-        fs.setupFolder('docker', dockerFolder)
+        dockerFolder = sourceFolder;
     }
 
     let dockerFileContents = docker.getDockerfileContents(in_serviceConfig);
@@ -119,26 +118,6 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         });
     }
 
-    // if (serviceConfig.docker.image.log) {
-    //     fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
-    // }
-
-    if (serviceConfig.docker.image.language === 'python') {
-        fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
-    }
-
-    if (serviceConfig.auth) {
-        fs.setupFolder('docker auth', path.resolve(dockerFolder, 'auth'));
-    }
-
-    if (serviceConfig.model) {
-        if (serviceConfig.model.type === 'bundled') {
-            fs.setupFolder('docker bundled_model', path.resolve(dockerFolder, 'bundled_model'));
-        } else if (serviceConfig.model.type === 'model_store') {
-            fs.setupFolder('docker model', path.resolve(dockerFolder, 'model'));
-        }
-    }
-
     serviceConfig.service.filesystem
         .filter(f => f.on_setup)
         .forEach(f => {
@@ -161,6 +140,30 @@ function setupFolder (in_serviceConfig, in_overwrite) {
                 });
             }
         });
+
+    // Shift to global setup file
+    if (serviceConfig.docker.image.log) {
+        fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
+    }
+
+    // Shift to global setup file
+    if (serviceConfig.docker.image.language === 'python') {
+        fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
+    }
+
+    // Shift to global setup file
+    if (serviceConfig.auth) {
+        fs.setupFolder('docker auth', path.resolve(dockerFolder, 'auth'));
+    }
+
+    // Shift to global setup file
+    if (serviceConfig.model) {
+        if (serviceConfig.model.type === 'bundled') {
+            fs.setupFolder('docker bundled_model', path.resolve(dockerFolder, 'bundled_model'));
+        } else if (serviceConfig.model.type === 'model_store') {
+            fs.setupFolder('docker model', path.resolve(dockerFolder, 'model'));
+        }
+    }
 
     return sourceFolder;
 }

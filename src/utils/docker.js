@@ -61,6 +61,9 @@ function getDockerfileContents (in_serviceConfig) {
         docker: {
             image: {
                 base: 'STRING',
+                working_directory: 'PATH',
+                nginx: 'ANY',
+                language: 'STRING',
                 env_variables: [
                     {
                         key: 'STRING',
@@ -74,6 +77,9 @@ function getDockerfileContents (in_serviceConfig) {
                     {
                         key: 'STRING',
                         cmd: 'BOOLEAN',
+                        contents: [
+                            'STRING'
+                        ],
                         commands: [
                             'STRING'
                         ],
@@ -81,6 +87,32 @@ function getDockerfileContents (in_serviceConfig) {
                         language: 'STRING'
                     }
                 ],
+
+                operations: [
+                    {
+                        type: 'STRING',
+                        packages_source: 'STRING',
+                        contents: [
+                            'STRING'
+                        ],
+                        packages: [
+                            'STRING'
+                        ],
+                        channels: [
+                            'STRING'
+                        ],
+                        description: 'STRING',
+                        commands: [
+                            'STRING'
+                        ],
+                        update: 'BOOLEAN',
+                        destination: 'PATH',
+                        path: 'PATH',
+                        source: 'PATH',
+                        permissions: 'STRING'
+                    },
+                ],
+
                 apt_get_packages: [
                     'STRING'
                 ],
@@ -105,6 +137,9 @@ function getDockerfileContents (in_serviceConfig) {
                 commands_after_packages: [
                     'STRING'
                 ],
+                commands_after_filesystem: [
+                    'STRING'
+                ],
                 filesystem: [
                     {
                         path: 'PATH',
@@ -117,13 +152,7 @@ function getDockerfileContents (in_serviceConfig) {
                         ]
                     }
 
-                ],
-                commands_after_filesystem: [
-                    'STRING'
-                ],
-                working_directory: 'PATH',
-                nginx: 'ANY',
-                language: 'STRING'
+                ]
             }
         },
         service: {
@@ -137,7 +166,7 @@ function getDockerfileContents (in_serviceConfig) {
     let scripts = (serviceConfig.docker.image.scripts || []);
 
     let generateScripts = scripts
-        .filter(s => (s.language && s.commands));
+        .filter(s => (s.language && (s.contents || s.commands))); // TODO: Deprecate commands
 
     let aptGetPackages = serviceConfig.docker.image.apt_get_packages || [];
     let aptGetUpdate = serviceConfig.docker.image.apt_get_update || false;
@@ -148,9 +177,13 @@ function getDockerfileContents (in_serviceConfig) {
     let condaUpdate = serviceConfig.docker.image.conda_update || false;
     let npmPackages = serviceConfig.docker.image.npm_packages || [];
     let filesystem = serviceConfig.docker.image.filesystem || [];
-    let commandsAfterPackages = serviceConfig.docker.image.commands_after_pacakges || serviceConfig.docker.image.commands || [];
+    let operations = serviceConfig.docker.image.operations || [];
+    let commands = serviceConfig.docker.image.commands || [];
+    let commandsAfterPackages = serviceConfig.docker.image.commands_after_packages || [];
     let commandsAfterFilesystem = serviceConfig.docker.image.commands_after_filesystem || [];
     let workdir = serviceConfig.docker.image.working_directory || '.';
+
+    commandsAfterPackages = commandsAfterPackages.concat(commands);
 
     let enableNginx = false;
 
@@ -190,7 +223,119 @@ function getDockerfileContents (in_serviceConfig) {
             `# ----------------------`,
             ``,
             `    WORKDIR $BASE_DIR`].join('\n') : '') +
-    (aptGetPackages.length ?
+    (operations.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# OPERATIONS`,
+            `#`,
+            `# ----------------------`,
+            ``].join('\n') +
+        operations
+            .map(f => {
+                if (f.type === 'packages') {
+                    let command = `\n    # Install ${f.packages_source} packages...\n`
+
+                    switch (f.packages_source) {
+                        case 'conda':
+                            command += f.channels
+                                .map(c => {
+                                    return `    RUN conda config --add channels "${c}"`;
+                                }).join(' \\\n');
+                            command += `    RUN conda install -y \\\n`;
+                            command += f.packages
+                                .map(p => {
+                                    return `        "${p}"`;
+                                }).join(' \\\n');
+                            break;
+
+                        case 'pip':
+                            command += `    RUN ${f.update ? 'pip install pip --upgrade && ' : ''}pip install \\\n`;
+                            command += f.packages
+                                .map(p => {
+                                    return `        "${p}"`;
+                                }).join(' \\\n');
+                            break;
+
+                        case 'npm':
+                            command += `    RUN npm install --prefix ./node \\\n`;
+                            command += f.packages
+                                .map(p => {
+                                    return `        "${p}"`;
+                                }).join(' \\\n');
+                            break;
+
+                        case 'apt-get':
+                            command += `    RUN ${f.update ? 'apt-get update -y && apt-get upgrade -y && ' : ''}apt-get install -y \\\n`;
+                            command += f.packages
+                                .map(p => {
+                                    return `        "${p}"`;
+                                }).join(' \\\n');
+                            break;
+                    }
+                    return command;
+
+                } else if (f.type === 'folder') {
+                    let command = `\n    # Create folder "${f.path}"\n`
+                    command += `    RUN mkdir -p "${f.path}"`;
+
+                    if (f.permissions) {
+                        command += ` && chmod ${f.permissions} "${f.path}"`;
+                    }
+
+                    return command;
+                } else if (f.type === 'copy_folder') {
+                    let command = `\n    # Copy from contents of "${f.source}" into "${f.destination}"\n`
+                    command += `    COPY "${f.source}" "${f.destination}"`;
+
+                    if (f.permissions) {
+                        command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
+                    }
+
+                    return command;
+                } else if (f.type === 'copy_file') {
+                    let command = `\n    # Copy file from "${f.source}" to "${f.destination}"\n`
+                    command += `    COPY "${f.source}" "${f.destination}"`;
+
+                    if (f.permissions) {
+                        command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
+                    }
+
+                    return command;
+                } else if (f.type === 'file') {
+                    let command = `\n    # Create file "${f.path}"\n`
+                    command += `    RUN touch "${f.path}"`;
+
+                    if (f.permissions) {
+                        command += ` && chmod ${f.permissions} "${f.path}"`;
+                    }
+
+                    if (f.contents && f.contents.length) {
+                        command += '\n    RUN \\' +
+                        f.contents
+                            .map(c => `\n        echo "${c}" >> "${f.path}"`)
+                            .join(' && \\');
+                    }
+
+                    return command;
+                } else if (f.type === 'link') {
+                    let command = `\n    # Create link "${f.destination}" with source" ${f.source}"\n`
+                    command += `    RUN ln -s "${f.source}" "${f.destination}"`
+                    return command;
+
+                } else if (f.type === 'commands') {
+                    let command = `\n    # ${f.description}\n`
+                    command += f.commands
+                        .map(c => {
+                            return `    RUN ${c}`;
+                        }).join('\n');
+                    return command;
+                }
+            }).join('\n')
+        : '') +
+    (aptGetPackages.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -207,7 +352,7 @@ function getDockerfileContents (in_serviceConfig) {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
-    (pipPackages.length ?
+    (pipPackages.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -224,7 +369,7 @@ function getDockerfileContents (in_serviceConfig) {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
-    (condaChannels.length ?
+    (condaChannels.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -240,7 +385,7 @@ function getDockerfileContents (in_serviceConfig) {
                 return `    RUN conda config --add channels "${c}"`;
             }).join(' \\\n')
         : '') +
-    (condaPackages.length ?
+    (condaPackages.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -257,7 +402,7 @@ function getDockerfileContents (in_serviceConfig) {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
-    (npmPackages.length ?
+    (npmPackages.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -274,7 +419,7 @@ function getDockerfileContents (in_serviceConfig) {
                 return `        "${p}"`;
             }).join(' \\\n')
         : '') +
-    (commandsAfterPackages.length ?
+    (commandsAfterPackages.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -298,7 +443,7 @@ function getDockerfileContents (in_serviceConfig) {
             ``,
             `    RUN rm -v /etc/nginx/nginx.conf`,
             `    ADD nginx.conf /etc/nginx/`].join('\n') : '') +
-    (filesystem.length ?
+    (filesystem.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -355,7 +500,7 @@ function getDockerfileContents (in_serviceConfig) {
                 }
             }).join('\n')
         : '') +
-    (commandsAfterFilesystem.length ?
+    (commandsAfterFilesystem.length ? // TODO: Deprecate section
         [
             ``,
             ``,
@@ -388,7 +533,7 @@ function getDockerfileContents (in_serviceConfig) {
                         `    RUN \\`,
                         `        echo "#! /bin/bash" > $${s.key} && \\`,
                     ].join('\n') +
-                    s.commands
+                    (s.contents || s.commands) // TODO: Deprecate commands
                         .map(c => `\n        echo "${c}" >> $${s.key}`)
                         .join(' && \\');
                 }
@@ -493,6 +638,9 @@ function getIgnoreDockerContents (in_serviceConfig) {
         model: 'ANY',
         docker: {
             image: {
+                ignore: [
+                    'STRING'
+                ],
                 language: 'STRING',
                 log: 'BOOLEAN'
             }
@@ -525,6 +673,8 @@ function getIgnoreDockerContents (in_serviceConfig) {
     if (serviceConfig.model) {
         ignoreFiles.push('model/*');
     }
+
+    ignoreFiles = ignoreFiles.concat(serviceConfig.docker.image.ignore || []);
 
     return ignoreFiles.join('\n');
 }

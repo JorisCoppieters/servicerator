@@ -20,7 +20,7 @@ let str = require('../utils/string');
 // Functions:
 // ******************************
 
-function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
+function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             name: 'STRING',
@@ -69,11 +69,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
         let clusters = serviceConfig.service.clusters
             .filter(c => {
-                if (!in_prod) {
-                    return c.environment !== 'production';
-                } else {
-                    return c.environment === 'production';
-                }
+                return c.environment === in_environment;
             });
 
         if (serviceName) {
@@ -160,7 +156,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
                     if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
                         print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
                     } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '???');
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '[]');
                     }
                 }
 
@@ -272,7 +268,7 @@ function printAwsServiceInfo (in_serviceConfig, in_prod, in_extra) {
 
 // ******************************
 
-function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
+function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         docker: {
             image: {
@@ -317,15 +313,14 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
         return false;
     }
 
-    let environment = (in_prod) ? 'prod' : 'test';
-    let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environment = in_environment;
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environmentNameLong
+            return c.environment === environment;
         });
 
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environmentNameLong + '" environment');
+        cprint.yellow('No cluster set for "' + environment + '" environment');
         return false;
     }
 
@@ -356,14 +351,16 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
 
     print.keyVal('AWS Task Definition', '...', true);
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!taskDefinitionArn) {
         return;
     }
 
     let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!awsClusterServiceArn) {
         return;
@@ -378,7 +375,8 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_prod) {
 
     print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
     let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!awsClusterTaskArns) {
         return;
@@ -415,6 +413,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                 memory_limit: 'NUMBER',
                 ports: [
                     {
+                        test: "BOOLEAN",
                         host: 'NUMBER',
                         container: 'NUMBER',
                         env: 'STRING'
@@ -429,6 +428,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                 ],
                 commands: [
                     {
+                        test: "BOOLEAN",
                         val: 'STRING',
                         env: 'STRING'
                     }
@@ -518,20 +518,21 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     };
 
     serviceConfig.docker.container.commands.forEach(command => {
-        // TODO - remove TM specific environment
-        if (command.env === 'prod') {
-            serviceContainerDefinition.command = command.val
-                .split(' ')
+        if (command.test || command.env === 'test') { // TODO: Deprecated
             return;
         }
+
+        serviceContainerDefinition.command = command.val
+            .split(' ')
+        return;
     });
 
     serviceConfig.docker.container.ports.forEach(port => {
         if (!port.host || !port.container) {
             return;
         }
-        // TODO - remove TM specific environment
-        if (port.env !== 'prod') {
+
+        if (port.test || port.env === 'test') { // TODO: Deprecated
             return;
         }
 
@@ -699,7 +700,7 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
 
 // ******************************
 
-function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
+function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             name: 'STRING',
@@ -751,17 +752,23 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
         return false;
     }
 
-    let environment = (in_prod) ? 'prod' : 'test';
-    let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environment = in_environment;
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environmentNameLong
+            return c.environment === environment
         });
 
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environmentNameLong + '" environment');
+        cprint.yellow('No cluster set for "' + environment + '" environment');
         return false;
     }
+
+    let awsLaunchConfigurationName = cluster.launch_configuration_name;
+    if (!awsLaunchConfigurationName) {
+        cprint.yellow('Launch configuration name not set');
+        return false;
+    }
+    awsLaunchConfigurationName = awsLaunchConfigurationName + '-' + date.getTimestampTag();
 
     let awsClusterName = cluster.name;
     let awsInstanceType = cluster.instance.type || 't2.micro';
@@ -775,7 +782,6 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     print.keyVal('AWS IAM Role', awsIamRole);
     print.keyVal('AWS AMI', awsAmi);
 
-    let awsLaunchConfigurationName = cluster.launch_configuration_name + '-' + date.getTimestampTag();
     print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', awsLaunchConfigurationName);
 
     let pemKeyName = cluster.identity_file;
@@ -786,7 +792,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
     let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!awsVpcId) {
         return;
@@ -796,7 +803,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
     let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!awsVpcSecurityGroupId) {
         return;
@@ -809,7 +817,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
     let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!awsVpcSubnetId) {
         return;
@@ -864,6 +873,325 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_prod) {
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created launch configuration');
+    }
+
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    cprint.magenta('----');
+}
+
+// ******************************
+
+function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    name: 'STRING',
+                    vpc_name: 'STRING',
+                    vpc_subnet_name: 'STRING',
+                    load_balancer_name: 'STRING',
+                    launch_configuration_name: 'STRING',
+                    auto_scaling_group_name: 'STRING',
+                    environment: 'STRING'
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    let dockerImageName = serviceConfig.docker.image.name;
+    if (!dockerImageName) {
+        cprint.yellow('Docker image name not set');
+        return false;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let launchConfigurationTemplateName = cluster.launch_configuration_name;
+    if (!launchConfigurationTemplateName) {
+        cprint.yellow('Launch configuration name not set');
+        return false;
+    }
+
+    let awsAutoScalingGroupName = cluster.auto_scaling_group_name;
+    if (!awsAutoScalingGroupName) {
+        cprint.yellow('Auto scaling group name not set');
+        return false;
+    }
+
+    let awsLoadBalancerName = cluster.load_balancer_name || false;
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    let awsAutoScalingGroupMinSize = 0;
+    let awsAutoScalingGroupMaxSize = 4;
+
+    cprint.magenta('-- Auto Scaling Group --');
+
+    print.keyVal('AWS ' + environmentTitle + ' Auto Scaling Group', awsAutoScalingGroupName);
+
+    print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', '...', true);
+    let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(launchConfigurationTemplateName, {
+        cache: awsCache,
+        showWarning: true
+    });
+    if (!awsLaunchConfigurationName) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', awsLaunchConfigurationName);
+
+
+    let awsVpcName = cluster.vpc_name;
+    print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
+    let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
+        cache: awsCache,
+        showWarning: true
+    });
+    if (!awsVpcId) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
+
+    let awsVpcSubnetName = cluster.vpc_subnet_name;
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
+    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+        cache: awsCache,
+        showWarning: true
+    });
+    if (!awsVpcSubnetId) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+
+    cprint.cyan('Creating auto scaling group...');
+
+    let tagsDict = {
+        "DockerImageName": dockerImageName,
+        "Environment": environment,
+        "ServiceName": serviceName,
+        "Name": serviceName + '-group-instance',
+        "autospotting_on_demand_number": "1",
+        "spot-enabled": "false"
+    }
+
+    let tags = Object.keys(tagsDict).map(key => {
+        let val = tagsDict[key];
+        return {
+            "ResourceId": awsAutoScalingGroupName,
+            "ResourceType": "auto-scaling-group",
+            "Key": key,
+            "Value": val,
+            "PropagateAtLaunch": true
+        }
+    });
+
+    let args = [
+        'autoscaling',
+        'create-auto-scaling-group',
+
+        '--auto-scaling-group-name',
+        awsAutoScalingGroupName,
+
+        '--launch-configuration-name',
+        awsLaunchConfigurationName,
+
+        '--min-size',
+        awsAutoScalingGroupMinSize,
+
+        '--max-size',
+        awsAutoScalingGroupMaxSize,
+
+        '--vpc-zone-identifier',
+        awsVpcSubnetId,
+
+        '--tags',
+        JSON.stringify(tags)
+    ];
+
+    // TODO
+    // - Correct health check grace period
+    // - Correct private subnets not public
+
+    // if (awsLoadBalancerName) {
+    //     args = args.concat([
+    //         '--load-balancer-names',
+    //         awsLoadBalancerName
+    //     ]);
+    // }
+
+    let cmdResult = aws.cmd(args);
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+    } else {
+        cmdResult.printResult('  ');
+        cprint.green('Created auto scaling group');
+    }
+
+    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    cprint.magenta('----');
+}
+
+// ******************************
+
+function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    name: 'STRING',
+                    vpc_name: 'STRING',
+                    vpc_subnet_name: 'STRING',
+                    load_balancer_name: 'STRING',
+                    launch_configuration_name: 'STRING',
+                    environment: 'STRING'
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let awsLoadBalancerName = cluster.load_balancer_name;
+    if (!awsLoadBalancerName) {
+        cprint.yellow('Load balancer name not set');
+        return false;
+    }
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    cprint.magenta('-- Load Balancer --');
+
+    print.keyVal('AWS ' + environmentTitle + ' Load Balancer', awsLoadBalancerName);
+
+    let awsVpcName = cluster.vpc_name;
+    print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
+    let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
+        cache: awsCache,
+        showWarning: true
+    });
+    if (!awsVpcId) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
+    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
+        cache: awsCache,
+        showWarning: true
+    });
+    if (!awsVpcSecurityGroupId) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
+
+    let awsVpcSubnetName = cluster.vpc_subnet_name;
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
+    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+        cache: awsCache,
+        showWarning: true
+    });
+    if (!awsVpcSubnetId) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+
+    cprint.cyan('Creating load balancer...');
+
+    // TODO
+    let args = [
+        'elb',
+        'create-load-balancer',
+
+        '--load-balancer-name',
+        awsLoadBalancerName,
+
+        // '--listeners',
+        // '--availability-zones',
+        // '--subnets',
+        // '--security-groups',
+        // '--tags'
+    ];
+
+    let cmdResult = aws.cmd(args);
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+    } else {
+        cmdResult.printResult('  ');
+        cprint.green('Created load balancer');
     }
 
     if (init.hasServiceConfigFile(serviceConfig.cwd)) {
@@ -942,7 +1270,7 @@ function awsCreateRepository (in_serviceConfig) {
 
 // ******************************
 
-function awsCreateCluster (in_serviceConfig, in_prod) {
+function awsCreateCluster (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             name: 'STRING',
@@ -970,15 +1298,14 @@ function awsCreateCluster (in_serviceConfig, in_prod) {
         return false;
     }
 
-    let environment = (in_prod) ? 'prod' : 'test';
-    let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environment = in_environment;
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environmentNameLong
+            return c.environment === environment
         });
 
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environmentNameLong + '" environment');
+        cprint.yellow('No cluster set for "' + environment + '" environment');
         return false;
     }
 
@@ -1015,7 +1342,7 @@ function awsCreateCluster (in_serviceConfig, in_prod) {
 
 // ******************************
 
-function awsCreateClusterService (in_serviceConfig, in_prod) {
+function awsCreateClusterService (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         docker: {
             image: {
@@ -1077,8 +1404,8 @@ function awsCreateClusterService (in_serviceConfig, in_prod) {
         if (!port.host || !port.container) {
             return;
         }
-        // TODO - remove TM specific environment
-        if (port.env !== 'prod') {
+
+        if (port.test || port.env === 'test') { // TODO: Deprecated
             return;
         }
 
@@ -1104,15 +1431,14 @@ function awsCreateClusterService (in_serviceConfig, in_prod) {
 
     let dockerContainerName = serviceName;
 
-    let environment = (in_prod) ? 'prod' : 'test';
-    let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environment = in_environment;
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environmentNameLong
+            return c.environment === environment
         });
 
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environmentNameLong + '" environment');
+        cprint.yellow('No cluster set for "' + environment + '" environment');
         return false;
     }
 
@@ -1149,7 +1475,8 @@ function awsCreateClusterService (in_serviceConfig, in_prod) {
 
     print.keyVal('AWS Task Definition', '...', true);
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
-        cache: awsCache
+        cache: awsCache,
+        showWarning: true
     });
     if (!taskDefinitionArn) {
         return;
@@ -1214,7 +1541,7 @@ function awsDockerLogin (in_serviceConfig) {
 
 // ******************************
 
-function awsStartCluster (in_serviceConfig, in_prod) {
+function awsStartCluster (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             name: 'STRING',
@@ -1241,10 +1568,9 @@ function awsStartCluster (in_serviceConfig, in_prod) {
         return false;
     }
 
-    let environment = (in_prod) ? 'prod' : 'test';
-    let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environment = in_environment;
     let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environmentNameLong
+            return c.environment === environment
         });
     if (!cluster) {
         cprint.yellow('AWS cluster doesn\'t exist');
@@ -1274,7 +1600,7 @@ function awsStartCluster (in_serviceConfig, in_prod) {
 
 // ******************************
 
-function awsStopCluster (in_serviceConfig, in_prod) {
+function awsStopCluster (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             name: 'STRING',
@@ -1301,10 +1627,9 @@ function awsStopCluster (in_serviceConfig, in_prod) {
         return false;
     }
 
-    let environment = (in_prod) ? 'prod' : 'test';
-    let environmentNameLong = (in_prod) ? 'production' : 'test';
+    let environment = in_environment;
     let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environmentNameLong
+            return c.environment === environment
         });
     if (!cluster) {
         cprint.yellow('AWS cluster doesn\'t exist');
@@ -1338,20 +1663,18 @@ function awsStopCluster (in_serviceConfig, in_prod) {
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
-    let _arg_prod = in_args['prod'];
+    let env = in_args['env'] || in_args['environment'] || 'test';
     let extra = in_args['extra'];
     let stopTasks = in_args['stop-tasks'];
 
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
 
-    let prod = false;
     let allowProdAccess = serviceConfigAws.__allow_prod_access__;
+    let isProd = (env === 'prod' || env === 'production');
 
-    if (_arg_prod && allowProdAccess) {
-        prod = true;
-    } else if (_arg_prod) {
-        cprint.red('Prod access has been denied');
+    if (isProd && !allowProdAccess) {
+        cprint.red('Production access has been denied');
         return true;
     }
 
@@ -1361,7 +1684,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         case 'info':
         case 'state':
         case 'service':
-            printAwsServiceInfo(in_serviceConfig, prod, extra);
+            printAwsServiceInfo(in_serviceConfig, env, extra);
             break;
 
         case 'docker-login':
@@ -1378,7 +1701,15 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             break;
 
         case 'create-launch-configuration':
-            awsCreateLaunchConfiguration(in_serviceConfig, prod);
+            awsCreateLaunchConfiguration(in_serviceConfig, env);
+            break;
+
+        case 'create-auto-scaling-group':
+            awsCreateAutoScalingGroup(in_serviceConfig, env);
+            break;
+
+        case 'create-load-balancer':
+            awsCreateLoadBalancer(in_serviceConfig, env);
             break;
 
         case 'create-repository':
@@ -1386,25 +1717,25 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             break;
 
         case 'create-cluster':
-            awsCreateCluster(in_serviceConfig, prod);
+            awsCreateCluster(in_serviceConfig, env);
             break;
 
         case 'create-cluster-service':
-            awsCreateClusterService(in_serviceConfig, prod);
+            awsCreateClusterService(in_serviceConfig, env);
             break;
 
         case 'deploy':
-            awsDeploy(in_serviceConfig, stopTasks, prod);
+            awsDeploy(in_serviceConfig, stopTasks, env);
             break;
 
         case 'start-cluster':
         case 'start':
-            awsStartCluster(in_serviceConfig, prod);
+            awsStartCluster(in_serviceConfig, env);
             break;
 
         case 'stop-cluster':
         case 'stop':
-            awsStopCluster(in_serviceConfig, prod);
+            awsStopCluster(in_serviceConfig, env);
             break;
 
         default:
@@ -1424,19 +1755,19 @@ function getBaseCommands () {
 function getCommands () {
     return [
         { params: ['', 'info', 'state', 'service'], description: 'Print AWS state information', options: [
-            {param:'prod', description:'Include production environment information'},
+            {param:'environment', description:'Environment'},
             {param:'extra', description:'Include extra information'}
         ] },
         { params: ['docker-login'], description: 'Log into AWS docker repository' },
         { params: ['create-task-definition'], description: 'Create task definition for the service' },
         { params: ['clean-task-definitions', 'clean'], description: 'Deregister old task definitions for the service' },
-        { params: ['create-launch-configuration'], description: 'Create launch configuration for the service' },
+        { params: ['create-launch-configuration'], description: 'Create launch configuration for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-repository'], description: 'Create repository for the service' },
-        { params: ['create-cluster'], description: 'Create cluster for the service' },
-        { params: ['create-cluster-service'], description: 'Create cluster-service for the service' },
-        { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'prod', description:'Production cluster'}] },
-        { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
-        { params: ['stop-cluster', 'stop'], description: 'Stop AWS cluster', options: [{param:'prod', description:'Production cluster'}] },
+        { params: ['create-cluster'], description: 'Create cluster for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['create-cluster-service'], description: 'Create cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
+        { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'environment', description:'Environment'}] },
+        { params: ['stop-cluster', 'stop'], description: 'Stop AWS cluster', options: [{param:'environment', description:'Environment'}] },
     ];
 }
 

@@ -9,6 +9,7 @@ function getServiceSchema () {
         "auth": {
             "certificate": "STRING",
             "key": "STRING",
+            "pkcs8": "STRING",
             "rootCAKey": "PATH",
             "rootCACertificate": "PATH",
             "type": "STRING"
@@ -27,10 +28,14 @@ function getServiceSchema () {
             "version": "STRING"
         },
         "cwd": "STRING",
+        "ignore": [
+            "STRING"
+        ],
         "docker": {
             "container": {
                 "commands": [
                     {
+                        "test": "BOOLEAN",
                         "env": "STRING",
                         "val": "STRING"
                     }
@@ -40,6 +45,7 @@ function getServiceSchema () {
                 "memory_limit": "NUMBER",
                 "ports": [
                     {
+                        "test": "BOOLEAN",
                         "container": "NUMBER",
                         "host": "NUMBER",
                         "env": "STRING"
@@ -55,41 +61,63 @@ function getServiceSchema () {
                 ]
             },
             "image": {
-                "apt_get_packages": [
-                    "STRING"
-                ],
-                "apt_get_update": "BOOLEAN",
+                "name": "STRING",
                 "base": "STRING",
-                "commands": [
+                "language": "STRING",
+                "log": "BOOLEAN",
+                "tag_with_date": "BOOLEAN",
+                "tags": [
                     "STRING"
                 ],
-                "commands_after_packages": [
-                    "STRING"
-                ],
-                "commands_after_filesystem": [
-                    "STRING"
-                ],
+                "version": "STRING",
+                "working_directory": "PATH",
                 "env_variables": [
                     {
                         "key": "STRING",
                         "val": "STRING"
                     }
                 ],
-                "filesystem": [
+                "ignore": [
+                    "STRING"
+                ],
+                "scripts": [
                     {
+                        "key": "STRING",
+                        "cmd": "BOOLEAN",
                         "contents": [
                             "STRING"
                         ],
-                        "destination": "PATH",
-                        "path": "PATH",
-                        "permissions": "STRING",
-                        "source": "PATH",
-                        "type": "STRING"
+                        "commands": [
+                            "STRING"
+                        ],
+                        "language": "STRING",
+                        "name": "STRING"
                     }
                 ],
-                "language": "STRING",
-                "log": "BOOLEAN",
-                "name": "STRING",
+                "operations": [
+                    {
+                        "type": "STRING",
+                        "packages_source": "STRING",
+                        "contents": [
+                            "STRING"
+                        ],
+                        "packages": [
+                            "STRING"
+                        ],
+                        "channels": [
+                            "STRING"
+                        ],
+                        "description": "STRING",
+                        "commands": [
+                            "STRING"
+                        ],
+                        "update": "BOOLEAN",
+                        "destination": "PATH",
+                        "path": "PATH",
+                        "source": "PATH",
+                        "permissions": "STRING"
+                    },
+                ],
                 "nginx": {
                     "servers": [
                         {
@@ -114,6 +142,24 @@ function getServiceSchema () {
                     ],
                     "daemon_off": "BOOLEAN"
                 },
+                "ports": [
+                    "NUMBER"
+                ],
+                "tests": [
+                    {
+                        "name": "STRING",
+                        "type": "STRING",
+                        "url": "STRING",
+                        "method": "STRING",
+                        "request_data": "ANY",
+                        "expected": "STRING"
+                    }
+                ],
+
+                "apt_get_packages": [
+                    "STRING"
+                ],
+                "apt_get_update": "BOOLEAN",
                 "pip_packages": [
                     "STRING"
                 ],
@@ -128,34 +174,25 @@ function getServiceSchema () {
                 "npm_packages": [
                     "STRING"
                 ],
-                "ports": [
-                    "NUMBER"
-                ],
-                "scripts": [
-                    {
-                        "key": "STRING",
-                        "cmd": "BOOLEAN",
-                        "commands": [
-                            "STRING"
-                        ],
-                        "language": "STRING",
-                        "name": "STRING"
-                    }
-                ],
-                "tag_with_date": "BOOLEAN",
-                "tags": [
+                "commands": [
                     "STRING"
                 ],
-                "version": "STRING",
-                "working_directory": "PATH",
-                "tests": [
+                "commands_after_packages": [
+                    "STRING"
+                ],
+                "commands_after_filesystem": [
+                    "STRING"
+                ],
+                "filesystem": [
                     {
-                        "name": "STRING",
-                        "type": "STRING",
-                        "url": "STRING",
-                        "method": "STRING",
-                        "request_data": "ANY",
-                        "expected": "STRING"
+                        "contents": [
+                            "STRING"
+                        ],
+                        "destination": "PATH",
+                        "path": "PATH",
+                        "permissions": "STRING",
+                        "source": "PATH",
+                        "type": "STRING"
                     }
                 ]
             },

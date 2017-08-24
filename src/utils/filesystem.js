@@ -74,14 +74,14 @@ function setupFileLink (in_fileTitle, in_source, in_destination, in_options) {
 
     if (!fileExists(in_source)) {
         if (!opt.suppressOutput) {
-            cprint.yellow('  File source "' + in_source + '" doesn\'t exist');
+            cprint.yellow('  Link source "' + in_source + '" doesn\'t exist');
         }
         return;
     }
 
     if (!fileExists(in_destination)) {
         if (!opt.suppressOutput) {
-            cprint.cyan('  Copying ' + in_fileTitle + ' from "' + in_source + '" => "' + in_destination + '"...');
+            cprint.cyan('  Linking ' + in_fileTitle + ' "' + in_source + '" => "' + in_destination + '"...');
         }
 
         linkFile(in_source, in_destination);

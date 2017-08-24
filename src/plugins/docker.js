@@ -1052,7 +1052,8 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
 
     let dockerUsername = serviceConfig.docker.username;
     let dockerImageName = serviceConfig.docker.image.name;
-    let dockerImageTag = 'latest';
+    let dockerImageTags = docker.getImageTags(in_serviceConfig) || [];
+    let dockerImageTag = dockerImageTags[0] || 'latest';
     let dockerImagePath = dockerUsername + '/' + dockerImageName + ':' + dockerImageTag;
     let dockerImageStartCommand = '';
 
