@@ -25,7 +25,6 @@ let help = require('./src/help');
 let tests = require('./src/tests');
 
 let env = require('./src/utils/env');
-let init = require('./src/utils/init');
 let service = require('./src/utils/service');
 let plugins = env.getPlugins();
 

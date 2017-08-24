@@ -6,7 +6,7 @@
 
 let cprint = require('color-print');
 
-let init = require('../utils/init');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
@@ -66,7 +66,7 @@ function setServiceValue (in_serviceConfig, in_keyPath, in_keyValue) {
     keyPathPart = keyPathParts.shift();
     configSubObject[keyPathPart] = keyValue;
 
-    serviceConfig = init.updateServiceConfig(serviceConfig, updateConfig);
+    serviceConfig = service.updateConfig(serviceConfig, updateConfig);
 }
 
 // ******************************

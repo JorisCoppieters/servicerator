@@ -1264,7 +1264,7 @@ function getAwsRepositoryServiceConfig () {
 function getMergedAwsServiceConfig (in_serviceConfig) {
     let serviceConfig = in_serviceConfig || {};
     let awsServiceConfig = getAwsServiceConfig();
-    service.copyConfig(awsServiceConfig, serviceConfig);
+    service.combineConfig(awsServiceConfig, serviceConfig);
     return serviceConfig;
 }
 

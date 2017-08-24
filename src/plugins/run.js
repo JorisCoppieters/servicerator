@@ -35,7 +35,7 @@ function runService (in_serviceConfig) {
 
     let args = serviceConfig.service.run.args || [];
     args = args
-        .map(a => service.replaceServiceConfigReferences(in_serviceConfig, a));
+        .map(a => service.replaceConfigReferences(in_serviceConfig, a));
 
     exec.cmd(cmd, args);
 }

@@ -15,11 +15,11 @@ const k_DEFAULT_IMAGE = 'ubuntu:trusty';
 let cprint = require('color-print');
 let path = require('path');
 
-let aws = require('./aws');
 let bash = require('./bash');
 let docker = require('./docker');
-let schema = require('./service.schema').get();
+let env = require('./env');
 let fs = require('./filesystem');
+let schema = require('./service.schema').get();
 
 // ******************************
 // Functions:
@@ -51,8 +51,8 @@ function getServiceConfig (in_folderName) {
     if (bashEnvFile && fs.fileExists(bashEnvFile)) {
         let bashServiceConfig = bash.parseEnvFile(bashEnvFile);
         if (bashServiceConfig) {
-            serviceConfig = copyServiceConfig(bashServiceConfig, serviceConfig);
-            serviceConfig = copyServiceConfig(serviceConfig, {
+            serviceConfig = _copyToServiceConfig(bashServiceConfig, serviceConfig);
+            serviceConfig = _copyToServiceConfig(serviceConfig, {
                 build: {
                     language: 'bash'
                 }
@@ -64,8 +64,8 @@ function getServiceConfig (in_folderName) {
     if (dockerfile && fs.fileExists(dockerfile)) {
         let dockerServiceConfig = docker.parseDockerfile(dockerfile);
         if (dockerServiceConfig) {
-            serviceConfig = copyServiceConfig(serviceConfig, dockerServiceConfig);
-            serviceConfig = copyServiceConfig(serviceConfig, {
+            serviceConfig = _copyToServiceConfig(serviceConfig, dockerServiceConfig);
+            serviceConfig = _copyToServiceConfig(serviceConfig, {
                 service: {
                     name: path.basename(path.resolve(sourceFolder))
                 }
@@ -75,7 +75,7 @@ function getServiceConfig (in_folderName) {
 
     let pythonFolder = path.resolve(sourceFolder, 'python');
     if (pythonFolder && fs.folderExists(pythonFolder)) {
-        serviceConfig = copyServiceConfig(serviceConfig, {
+        serviceConfig = _copyToServiceConfig(serviceConfig, {
             docker: {
                 image: {
                     language: 'python',
@@ -90,7 +90,7 @@ function getServiceConfig (in_folderName) {
 
     let nodeFolder = path.resolve(sourceFolder, 'node');
     if (nodeFolder && fs.folderExists(nodeFolder)) {
-        serviceConfig = copyServiceConfig(serviceConfig, {
+        serviceConfig = _copyToServiceConfig(serviceConfig, {
             docker: {
                 image: {
                     language: 'node'
@@ -103,7 +103,7 @@ function getServiceConfig (in_folderName) {
     }
 
     if (serviceConfig.docker) {
-        serviceConfig = copyServiceConfig(serviceConfig, {
+        serviceConfig = _copyToServiceConfig(serviceConfig, {
             docker: {
                 image: {
                     env_variables: [],
@@ -184,7 +184,7 @@ function getServiceConfig (in_folderName) {
         }
 
         if (serviceConfig.aws) {
-            serviceConfig = copyServiceConfig(serviceConfig, {
+            serviceConfig = _copyToServiceConfig(serviceConfig, {
                 docker: {
                     image: {
                         log: true,
@@ -271,7 +271,7 @@ function getServiceConfig (in_folderName) {
     }
 
     if (modelFolder && fs.folderExists(modelFolder)) {
-        serviceConfig = copyServiceConfig(serviceConfig, {
+        serviceConfig = _copyToServiceConfig(serviceConfig, {
             model: {
                 source: path.relative(sourceFolder, modelFolder),
                 type: bundledModel ? 'bundled' : 'model_store'
@@ -318,7 +318,7 @@ function getServiceConfig (in_folderName) {
         }
     }
 
-    serviceConfig = copyServiceConfig(serviceConfig, {
+    serviceConfig = _copyToServiceConfig(serviceConfig, {
         docker: {
             image: {
                 name: path.basename(path.resolve(sourceFolder)),
@@ -356,7 +356,7 @@ function getServiceConfigSchema () {
 
 // ******************************
 
-function maskServiceConfig (in_source, in_mask, in_k) {
+function maskServiceConfig (in_source, in_mask) {
     let source = in_source;
     let mask = in_mask;
     let result = {};
@@ -393,7 +393,7 @@ function maskServiceConfig (in_source, in_mask, in_k) {
         let mv = mask[k];
 
         if (typeof(mv) === 'object') {
-            result[k] = maskServiceConfig(sv, mv, k);
+            result[k] = maskServiceConfig(sv, mv);
             return;
         }
 
@@ -406,67 +406,6 @@ function maskServiceConfig (in_source, in_mask, in_k) {
     });
 
     return result;
-}
-
-// ******************************
-
-function copyServiceConfig (in_source, in_destination) {
-    let source = in_source || {};
-    let destination = in_destination || {};
-
-    if (Array.isArray(source)) {
-        destination = source;
-    } else {
-        Object.keys(source).forEach(k => {
-            let v = source[k];
-            if (typeof(v) === 'object') {
-                destination[k] = copyServiceConfig(v, destination[k]);
-                return;
-            }
-
-            if (typeof(destination) !== 'object') {
-                destination = {};
-            }
-
-            destination[k] = v;
-        });
-    }
-
-    return destination;
-}
-
-// ******************************
-
-function removeServiceConfig (in_source, in_destination) {
-    let source = in_source || {};
-    let destination = in_destination;
-    if (!destination) {
-        return undefined;
-    }
-
-    if (Array.isArray(source)) {
-        destination = [];
-    } else {
-        Object.keys(source).forEach(k => {
-            let v = source[k];
-            if (!destination[k]) {
-                return;
-            }
-
-            if (typeof(v) === 'object') {
-                destination[k] = removeServiceConfig(v, destination[k]);
-                return;
-            }
-
-            if (typeof(destination) !== 'object') {
-                return;
-            }
-
-            delete destination[k];
-        });
-    }
-
-    return destination;
 }
 
 // ******************************
@@ -749,7 +688,208 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 }
 
 // ******************************
+
+function initFolder (in_folderName) {
+    if (in_folderName.match(/\.\.\/?/)) {
+        cprint.yellow('Invalid path: ' + in_folderName);
+        return false;
+    }
+
+    let sourceFolder = fs.cwd();
+    if (in_folderName !== '.') {
+        sourceFolder = fs.createFolder(in_folderName);
+    }
+
+    let serviceConfig = _loadServiceConfig(sourceFolder);
+    if (!serviceConfig) {
+        if (in_folderName === '.') {
+            cprint.cyan('Initialising folder...');
+        } else {
+            cprint.cyan('Initialising "' + in_folderName + '"...');
+        }
+
+        serviceConfig = getServiceConfig(sourceFolder) || {};
+        serviceConfig.cwd = sourceFolder;
+
+        _saveServiceConfig(serviceConfig);
+    }
+
+    if (!serviceConfig) {
+        cprint.yellow('Failed to create service config');
+        return;
+    }
+
+    return serviceConfig;
+}
+
+// ******************************
+
+function hasServiceConfigFile (in_sourceFolder) {
+    let serviceConfig = false;
+    let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+
+    if (fs.fileExists(serviceConfigFile)) {
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (serviceConfigContents.trim()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// ******************************
+
+function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd;
+    if (!sourceFolder) {
+        cprint.yellow('Invalid source folder: ' + sourceFolder);
+        return false;
+    }
+
+    let savedServiceConfig = _loadServiceConfig(sourceFolder);
+    if (savedServiceConfig) {
+        let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, savedServiceConfig);
+        _saveServiceConfig(updatedServiceConfig);
+    }
+
+    let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, in_serviceConfig);
+    return updatedServiceConfig;
+}
+
+// ******************************
+
+function combineServiceConfig (in_serviceConfig1, in_serviceConfig2) {
+    let combinedServiceConfig = _copyToServiceConfig(in_serviceConfig1, in_serviceConfig2);
+    return combinedServiceConfig;
+}
+
+// ******************************
+
+function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd;
+    if (!sourceFolder) {
+        cprint.yellow('Invalid source folder: ' + sourceFolder);
+        return false;
+    }
+
+    let savedServiceConfig = _loadServiceConfig(sourceFolder);
+    if (savedServiceConfig) {
+        let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, savedServiceConfig);
+        _saveServiceConfig(updatedServiceConfig);
+    }
+
+    let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, in_serviceConfig);
+    return updatedServiceConfig;
+}
+
+// ******************************
 // Helper Functions:
+// ******************************
+
+function _loadServiceConfig (in_sourceFolder) {
+    let serviceConfig = false;
+    let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+
+    if (fs.fileExists(serviceConfigFile)) {
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (serviceConfigContents.trim()) {
+            serviceConfig = JSON.parse(serviceConfigContents);
+            serviceConfig.cwd = in_sourceFolder;
+        }
+    }
+
+    return serviceConfig;
+}
+
+// ******************************
+
+function _saveServiceConfig (in_serviceConfig) {
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd;
+    if (!sourceFolder) {
+        cprint.yellow('Invalid source folder: ' + sourceFolder);
+        return false;
+    }
+
+    cprint.cyan('Saving service config...');
+    let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+    let serviceConfigContents = JSON.stringify(in_serviceConfig, _serviceConfigReplacer, 4);
+    fs.writeFile(serviceConfigFile, serviceConfigContents, true);
+}
+
+// ******************************
+
+function _removeFromServiceConfig (in_source, in_destination) {
+    let source = in_source || {};
+    let destination = in_destination;
+    if (!destination) {
+        return undefined;
+    }
+
+    if (Array.isArray(source)) {
+        destination = [];
+    } else {
+        Object.keys(source).forEach(k => {
+            let v = source[k];
+            if (!destination[k]) {
+                return;
+            }
+
+            if (typeof(v) === 'object') {
+                destination[k] = _removeFromServiceConfig(v, destination[k]);
+                return;
+            }
+
+            if (typeof(destination) !== 'object') {
+                return;
+            }
+
+            delete destination[k];
+        });
+    }
+
+    return destination;
+}
+
+// ******************************
+
+function _copyToServiceConfig (in_source, in_destination) {
+    let source = in_source || {};
+    let destination = in_destination || {};
+
+    if (Array.isArray(source)) {
+        destination = source;
+    } else {
+        Object.keys(source).forEach(k => {
+            let v = source[k];
+            if (typeof(v) === 'object') {
+                destination[k] = _copyToServiceConfig(v, destination[k]);
+                return;
+            }
+
+            if (typeof(destination) !== 'object') {
+                destination = {};
+            }
+
+            destination[k] = v;
+        });
+    }
+
+    return destination;
+}
+
 // ******************************
 
 function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsType) {
@@ -874,17 +1014,36 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
 }
 
 // ******************************
+
+function _serviceConfigReplacer (in_key, in_val) {
+    if (in_key === 'cwd') {
+        return undefined;
+    }
+    if (in_key === 'secret_key') {
+        return undefined;
+    }
+    if (in_key === 'password') {
+        return undefined;
+    }
+    return in_val;
+}
+
+// ******************************
 // Exports:
 // ******************************
 
-module.exports['getConfig'] = getServiceConfig;
-module.exports['copyConfig'] = copyServiceConfig;
-module.exports['maskConfig'] = maskServiceConfig;
+module.exports['initFolder'] = initFolder;
+module.exports['hasConfigFile'] = hasServiceConfigFile;
+module.exports['updateConfig'] = updateServiceConfig;
+module.exports['combineConfig'] = combineServiceConfig;
 module.exports['removeConfig'] = removeServiceConfig;
+
+module.exports['getConfig'] = getServiceConfig;
+module.exports['maskConfig'] = maskServiceConfig;
 module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['accessConfig'] = accessServiceConfig;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
-module.exports['replaceServiceConfigReferences'] = replaceServiceConfigReferences;
+module.exports['replaceConfigReferences'] = replaceServiceConfigReferences;
 module.exports['createFolder'] = createServiceFolder;
 module.exports['linkFolder'] = linkServiceFolder;
 module.exports['createFile'] = createServiceFile;

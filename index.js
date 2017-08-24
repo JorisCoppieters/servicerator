@@ -24,7 +24,6 @@ let path = require('path');
 let help = require('./src/help');
 
 let env = require('./src/utils/env');
-let init = require('./src/utils/init');
 let service = require('./src/utils/service');
 let print = require('./src/utils/print');
 let plugins = env.getPlugins();
@@ -45,7 +44,6 @@ if (g_ARGV['help']) {
     help.printVersion();
 } else {
     let params = g_ARGV['_'] || false;
-    let overwrite = g_ARGV['overwrite'];
 
     let command = params.length ? params.shift().toLowerCase() : 'info';
     if (command === 'help') {
@@ -60,7 +58,7 @@ if (g_ARGV['help']) {
 
     if (command === 'init') {
         let folderName = params.length ? params.shift() : '.';
-        init.folder(folderName, overwrite);
+        service.initFolder(folderName);
         return;
     }
 

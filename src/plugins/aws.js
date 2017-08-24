@@ -10,7 +10,6 @@ let aws = require('../utils/aws');
 let cache = require('../utils/cache');
 let date = require('../utils/date');
 let docker = require('../utils/docker');
-let init = require('../utils/init');
 let object = require('../utils/object');
 let print = require('../utils/print');
 let service = require('../utils/service');
@@ -259,7 +258,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
         }
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -393,7 +392,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
     aws.deployTaskDefinitionToCluster(awsClusterName, awsClusterServiceArn, taskDefinitionArn, awsClusterServiceInstanceCount);
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -549,8 +548,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
-        let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
+        let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
+        let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
         serviceContainerDefinition.mountPoints = serviceContainerDefinition.mountPoints || [];
         serviceContainerDefinition.mountPoints.push({
@@ -577,8 +576,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
-        let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
+        let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
+        let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
         filebeatContainerDefinition.mountPoints = filebeatContainerDefinition.mountPoints || [];
         filebeatContainerDefinition.mountPoints.push({
@@ -602,15 +601,15 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     serviceConfig.docker.container.volumes
         .concat(awsTaskDefinitionFilebeatVolumes)
         .forEach(volume => {
-            let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
+            let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
             uniqueHosts[volumeName] = volume;
         });
 
     Object.keys(uniqueHosts)
         .forEach(host => {
             let volume = uniqueHosts[host];
-            let volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volume.container);
-            let volumeName = service.replaceServiceConfigReferences(in_serviceConfig, volume.name || volume.host);
+            let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
+            let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
             awsTaskDefinitionStructure.volumes = awsTaskDefinitionStructure.volumes || [];
             awsTaskDefinitionStructure.volumes.push({
@@ -639,7 +638,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         aws.clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, cache);
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -693,7 +692,7 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
             aws.deregisterTaskDefinition(t);
         });
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 }
@@ -827,7 +826,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
 
     let userData = (cluster.instance.user_data || []).join('\n');
-    userData = service.replaceServiceConfigReferences(in_serviceConfig, userData, {
+    userData = service.replaceConfigReferences(in_serviceConfig, userData, {
         'ENVIRONMENT': environment,
         'AWS_CLUSTER_NAME': awsClusterName
     });
@@ -875,7 +874,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         cprint.green('Created launch configuration');
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -1066,7 +1065,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         cprint.green('Created auto scaling group');
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -1194,7 +1193,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         cprint.green('Created load balancer');
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -1261,7 +1260,7 @@ function awsCreateRepository (in_serviceConfig) {
         return;
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -1333,7 +1332,7 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -1498,7 +1497,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 
@@ -1523,7 +1522,7 @@ function awsDockerLogin (in_serviceConfig) {
     }
 
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
-    serviceConfig = init.updateServiceConfig(in_serviceConfig, {
+    serviceConfig = service.updateConfig(in_serviceConfig, {
         aws: {
             account_id: awsDockerCredentials.account_id,
             region: awsDockerCredentials.region
@@ -1593,7 +1592,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         cprint.green('AWS cluster already started');
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 }
@@ -1652,7 +1651,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         cprint.green('AWS cluster already stopped');
     }
 
-    if (init.hasServiceConfigFile(serviceConfig.cwd)) {
+    if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
 }

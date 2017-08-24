@@ -12,7 +12,6 @@ let docker = require('../utils/docker');
 let fs = require('../utils/filesystem');
 let git = require('../utils/git');
 let hg = require('../utils/mercurial');
-let init = require('../utils/init');
 let nginx = require('../utils/nginx');
 let service = require('../utils/service');
 

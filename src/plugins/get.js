@@ -7,7 +7,6 @@
 let cprint = require('color-print');
 
 let print = require('../utils/print');
-let init = require('../utils/init');
 
 // ******************************
 // Functions:

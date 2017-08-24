@@ -9,7 +9,6 @@ let cprint = require('color-print');
 let docker = require('../utils/docker');
 let edit = require('../utils/edit');
 let env = require('../utils/env');
-let init = require('../utils/init');
 let service = require('../utils/service');
 
 // ******************************
@@ -19,7 +18,7 @@ let service = require('../utils/service');
 function editServiceConfigFile () {
     let serviceConfigFile = env.getServiceConfigFile();
     if (!serviceConfigFile) {
-        init.folder('.')
+        service.initFolder('.')
         serviceConfigFile = env.getServiceConfigFile();
         if (!serviceConfigFile) {
             cprint.yellow("No service config file set");

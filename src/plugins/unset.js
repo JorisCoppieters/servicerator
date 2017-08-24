@@ -6,7 +6,7 @@
 
 let cprint = require('color-print');
 
-let init = require('../utils/init');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
@@ -43,7 +43,7 @@ function unsetServiceValue (in_serviceConfig, in_keyPath) {
     keyPathPart = keyPathParts.shift();
     configSubObject[keyPathPart] = false;
 
-    serviceConfig = init.removeServiceConfig(serviceConfig, removeConfig);
+    serviceConfig = service.removeConfig(serviceConfig, removeConfig);
 }
 
 // ******************************

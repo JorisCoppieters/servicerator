@@ -14,7 +14,6 @@ let shell = require('../utils/shell');
 let edit = require('../utils/edit');
 let fs = require('../utils/filesystem');
 let http = require('../utils/http');
-let init = require('../utils/init');
 let print = require('../utils/print');
 let service = require('../utils/service');
 let sync = require('../utils/sync');
@@ -493,7 +492,7 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
     });
 
     if (in_version) {
-        init.updateServiceConfig(in_serviceConfig, {
+        service.updateConfig(in_serviceConfig, {
             docker: {
                 image: {
                     version: in_version
@@ -526,7 +525,7 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
         version = '0.0.1';
     }
 
-    init.updateServiceConfig(in_serviceConfig, {
+    service.updateConfig(in_serviceConfig, {
         docker: {
             image: {
                 version: version
@@ -1124,8 +1123,8 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             volumeHost = volumeHost.replace(new RegExp('\\\\', 'g'), '/');
         }
 
-        volumeHost = service.replaceServiceConfigReferences(in_serviceConfig, volumeHost);
-        volumeContainer = service.replaceServiceConfigReferences(in_serviceConfig, volumeContainer);
+        volumeHost = service.replaceConfigReferences(in_serviceConfig, volumeHost);
+        volumeContainer = service.replaceConfigReferences(in_serviceConfig, volumeContainer);
 
         args.push('--volume');
         args.push(volumeHost + ':' + volumeContainer);
