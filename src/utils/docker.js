@@ -533,7 +533,7 @@ function getDockerfileContents (in_serviceConfig) {
                         `    RUN \\`,
                         `        echo "#! /bin/bash" > $${s.key} && \\`,
                     ].join('\n') +
-                    (s.contents || s.commands) // TODO: Deprecate commands
+                    (s.contents || []).concat(s.commands || []) // TODO: Deprecate commands
                         .map(c => `\n        echo "${c}" >> $${s.key}`)
                         .join(' && \\');
                 }

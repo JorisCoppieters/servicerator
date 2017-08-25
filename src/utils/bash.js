@@ -221,9 +221,13 @@ function parseBashEnvContents (in_bashEnvContents) {
 
             object.setIfNotSet(c, 'name', serviceName + '-' + environment + '-cluster');
             object.setIfNotSet(c, 'service_name', serviceName + '-' + environment + '-service');
-            object.setIfNotSet(c, 'launch_configuration_name', serviceName + '-' + environment + '-launch-configuration');
-            object.setIfNotSet(c, 'auto_scaling_group_name', serviceName + '-' + environment + '-auto-scaling-group');
             object.setIfNotSet(c, 'instance', serviceConfig.service.clusters[0].instance);
+
+            c.launch_configuration = c.launch_configuration || {};
+            object.setIfNotSet(c.launch_configuration, 'name', serviceName + '-' + environment + '-launch-configuration');
+
+            c.auto_scaling_group = c.auto_scaling_group || {};
+            object.setIfNotSet(c.auto_scaling_group, 'name', serviceName + '-' + environment + '-auto-scaling-group');
         });
 
         object.setIfNotSet(serviceConfig.service, 'task_definition_name', serviceName + '-task-definition');

@@ -237,10 +237,19 @@ function getServiceSchema () {
                     "environment": "STRING",
                     "url": "STRING",
                     "vpc_name": "STRING",
-                    "vpc_subnet_name": "STRING",
-                    "launch_configuration_name": "STRING",
+                    "launch_configuration": {
+                        "name": "STRING",
+                        "security_groups": [
+                            "STRING"
+                        ]
+                    },
                     "load_balancer_name": "STRING",
-                    "auto_scaling_group_name": "STRING",
+                    "auto_scaling_group": {
+                        "name": "STRING",
+                        "subnets": [
+                            "STRING"
+                        ]
+                    },
                     "name": "STRING",
                     "service_name": "STRING",
                     "identity_file": "STRING",

@@ -1010,15 +1010,15 @@ function getVpcIdForVpc (in_vpcName, in_options) {
 
 // ******************************
 
-function getVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
+function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
     let opt = in_options || {};
 
     if (opt.verbose) {
-        cprint.cyan('Retrieving AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"...');
+        cprint.cyan('Retrieving Default AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"...');
     }
 
     let cache = opt.cache || {};
-    let cacheItem = cache['VpcSecurityGroupId_' + in_vpcId];
+    let cacheItem = cache['VpcDefaultSecurityGroupId_' + in_vpcId];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1039,22 +1039,74 @@ function getVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
         return false;
     }
 
-    let awsVpcSecurityGroupId;
+    let awsDefaultVpcSecurityGroupId;
     let awsResult = parseAwsCmdResult(cmdResult);
     if (awsResult && awsResult.SecurityGroups) {
-        awsVpcSecurityGroupId = awsResult.SecurityGroups
+        awsDefaultVpcSecurityGroupId = awsResult.SecurityGroups
             .sort()
             .reverse()
             .map(obj => obj.GroupId)
             .find(obj => true);
     }
 
-    if (!awsVpcSecurityGroupId) {
-        cprint.yellow('Couldn\'t find AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"');
+    if (!awsDefaultVpcSecurityGroupId) {
+        cprint.yellow('Couldn\'t find Default AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"');
         return false;
     }
 
-    cache['VpcSecurityGroupId_' + in_vpcId] = {
+    cache['VpcDefaultSecurityGroupId_' + in_vpcId] = {
+        val: awsDefaultVpcSecurityGroupId,
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+    };
+
+    return awsDefaultVpcSecurityGroupId;
+}
+
+// ******************************
+
+function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Security Group Id for AWS VPC Id "' + in_vpcId + '" from name "' + in_groupName + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['VpcSecurityGroupId_' + in_vpcId + '_' + in_groupName];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'ec2',
+        'describe-security-groups',
+        '--filters',
+        `Name=vpc-id,Values="${in_vpcId}"`
+    ], {
+        hide: !opt.verbose
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let awsVpcSecurityGroupId;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.SecurityGroups) {
+        awsVpcSecurityGroupId = awsResult.SecurityGroups
+            .filter(obj => obj.GroupName === in_groupName)
+            .map(obj => obj.GroupId)
+            .find(obj => true);
+    }
+
+    if (!awsVpcSecurityGroupId) {
+        cprint.yellow('Couldn\'t find AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"" from name "' + in_groupName + '"');
+        return false;
+    }
+
+    cache['VpcSecurityGroupId_' + in_vpcId + '_' + in_groupName] = {
         val: awsVpcSecurityGroupId,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -1518,7 +1570,8 @@ module.exports['getTaskDefinitionArnForClusterService'] = getTaskDefinitionArnFo
 module.exports['getTaskDetails'] = getTaskDetails;
 module.exports['getTasks'] = getTasks;
 module.exports['getVpcIdForVpc'] = getVpcIdForVpc;
-module.exports['getVpcSecurityGroupIdForVpc'] = getVpcSecurityGroupIdForVpc;
+module.exports['getDefaultVpcSecurityGroupIdForVpc'] = getDefaultVpcSecurityGroupIdForVpc;
+module.exports['getVpcSecurityGroupIdFromGroupName'] = getVpcSecurityGroupIdFromGroupName;
 module.exports['getVpcSubnetIdForVpc'] = getVpcSubnetIdForVpc;
 module.exports['installed'] = awsInstalled;
 module.exports['login'] = awsLogin;

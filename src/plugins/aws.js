@@ -28,9 +28,10 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     name: 'STRING',
                     service_name: 'STRING',
                     environment: 'STRING',
-                    auto_scaling_group_name: 'STRING',
-                    vpc_name: 'STRING',
-                    vpc_subnet_name: 'STRING'
+                    auto_scaling_group: {
+                        name: 'STRING'
+                    },
+                    vpc_name: 'STRING'
                 }
             ]
         },
@@ -82,16 +83,18 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
                 cprint.magenta('-- AWS ' + environmentTitle + ' Clusters State --');
 
-                let awsAutoScalingGroupName = cluster.auto_scaling_group_name || '(Not Set)';
+                let autoScalingGroupName = cluster.auto_scaling_group.name;
+
+                let awsAutoScalingGroupName = autoScalingGroupName || '(Not Set)';
                 let awsClusterName = cluster.name || '(Not Set)';
                 let awsClusterServiceName = cluster.service_name || '(Not Set)';
 
                 print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
                 print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
 
-                if (cluster.auto_scaling_group_name) {
+                if (autoScalingGroupName) {
                     print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
-                    let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(cluster.auto_scaling_group_name, {
+                    let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
                         cache: awsCache
                     });
                     print.clearLine();
@@ -225,31 +228,16 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                         print.keyVal('AWS ' + environmentTitle + ' VPC Id', '???');
                     }
 
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
-                    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
+                    let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
                         cache: awsCache
                     });
                     print.clearLine();
 
-                    if (awsVpcSecurityGroupId) {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
+                    if (awsDefaultVpcSecurityGroupId) {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
                     } else {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '???');
-                    }
-
-                    let awsVpcSubnetName = cluster.vpc_subnet_name;
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
-
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
-                    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (awsVpcSubnetId) {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '???');
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '???');
                     }
                 }
 
@@ -708,8 +696,12 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
                     name: 'STRING',
                     identity_file: 'STRING',
                     vpc_name: 'STRING',
-                    vpc_subnet_name: 'STRING',
-                    launch_configuration_name: 'STRING',
+                    launch_configuration: {
+                        name: 'STRING',
+                        security_groups: [
+                            'STRING'
+                        ]
+                    },
                     environment: 'STRING',
                     instance: {
                         type: 'STRING',
@@ -762,12 +754,14 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsLaunchConfigurationName = cluster.launch_configuration_name;
+    let awsLaunchConfigurationName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationName) {
         cprint.yellow('Launch configuration name not set');
         return false;
     }
     awsLaunchConfigurationName = awsLaunchConfigurationName + '-' + date.getTimestampTag();
+
+    let awsLaunchConfigurationSecurityGroupNames = cluster.launch_configuration.security_groups || [];
 
     let awsClusterName = cluster.name;
     let awsInstanceType = cluster.instance.type || 't2.micro';
@@ -800,30 +794,37 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
-    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
-    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
-        cache: awsCache,
-        showWarning: true
-    });
-    if (!awsVpcSecurityGroupId) {
-        return;
-    }
-    print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
+    let awsLaunchConfigurationSecurityGroups = [];
 
-    let awsVpcSubnetName = cluster.vpc_subnet_name;
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
+    if (awsLaunchConfigurationSecurityGroupNames.length) {
+        awsLaunchConfigurationSecurityGroups = awsLaunchConfigurationSecurityGroupNames
+            .map(name => {
+                print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
+                let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
+                    cache: awsCache,
+                    showWarning: true
+                });
+                if (!awsVpcSecurityGroupId) {
+                    return;
+                }
+                print.clearLine();
+                print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
+                return awsVpcSecurityGroupId;
+            });
 
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
-    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
-        cache: awsCache,
-        showWarning: true
-    });
-    if (!awsVpcSubnetId) {
-        return;
+    } else {
+        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
+        let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
+            cache: awsCache,
+            showWarning: true
+        });
+        if (!awsDefaultVpcSecurityGroupId) {
+            return;
+        }
+        print.clearLine();
+        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
+        awsLaunchConfigurationSecurityGroups.push(awsDefaultVpcSecurityGroupId);
     }
-    print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
 
     let userData = (cluster.instance.user_data || []).join('\n');
     userData = service.replaceConfigReferences(in_serviceConfig, userData, {
@@ -846,7 +847,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         awsLaunchConfigurationName,
 
         '--security-groups',
-        awsVpcSecurityGroupId,
+        JSON.stringify(awsLaunchConfigurationSecurityGroups),
 
         '--key-name',
         pemKeyName,
@@ -896,10 +897,16 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                 {
                     name: 'STRING',
                     vpc_name: 'STRING',
-                    vpc_subnet_name: 'STRING',
                     load_balancer_name: 'STRING',
-                    launch_configuration_name: 'STRING',
-                    auto_scaling_group_name: 'STRING',
+                    launch_configuration: {
+                        name: 'STRING'
+                    },
+                    auto_scaling_group: {
+                        name: 'STRING',
+                        subnets: [
+                            'STRING'
+                        ]
+                    },
                     environment: 'STRING'
                 }
             ]
@@ -938,15 +945,27 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let launchConfigurationTemplateName = cluster.launch_configuration_name;
+    let launchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!launchConfigurationTemplateName) {
         cprint.yellow('Launch configuration name not set');
         return false;
     }
 
-    let awsAutoScalingGroupName = cluster.auto_scaling_group_name;
+    let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
     if (!awsAutoScalingGroupName) {
         cprint.yellow('Auto scaling group name not set');
+        return false;
+    }
+
+    let awsVpcName = cluster.vpc_name;
+    if (!awsVpcName) {
+        cprint.yellow('VPC name not set');
+        return false;
+    }
+
+    let awsVpcSubnetNames = (cluster.auto_scaling_group.subnets || []);
+    if (!awsVpcSubnetNames.length) {
+        cprint.yellow('No VPC subnet names set');
         return false;
     }
 
@@ -972,8 +991,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', awsLaunchConfigurationName);
 
-
-    let awsVpcName = cluster.vpc_name;
     print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
@@ -987,19 +1004,23 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
-    let awsVpcSubnetName = cluster.vpc_subnet_name;
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
+    let awsVpcSubnetIds = awsVpcSubnetNames
+        .map(awsVpcSubnetName => {
 
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
-    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
-        cache: awsCache,
-        showWarning: true
-    });
-    if (!awsVpcSubnetId) {
-        return;
-    }
-    print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+            print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
+
+            print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
+            let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+                cache: awsCache,
+                showWarning: true
+            });
+            if (!awsVpcSubnetId) {
+                return;
+            }
+            print.clearLine();
+            print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+            return awsVpcSubnetId;
+        })
 
     cprint.cyan('Creating auto scaling group...');
 
@@ -1040,7 +1061,10 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         awsAutoScalingGroupMaxSize,
 
         '--vpc-zone-identifier',
-        awsVpcSubnetId,
+        awsVpcSubnetIds.join(','),
+
+        '--health-check-grace-period',
+        300,
 
         '--tags',
         JSON.stringify(tags)
@@ -1082,9 +1106,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                 {
                     name: 'STRING',
                     vpc_name: 'STRING',
-                    vpc_subnet_name: 'STRING',
                     load_balancer_name: 'STRING',
-                    launch_configuration_name: 'STRING',
                     environment: 'STRING'
                 }
             ]
@@ -1143,30 +1165,16 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
-    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
-    let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdForVpc(awsVpcId, {
+    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
+    let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
         cache: awsCache,
         showWarning: true
     });
-    if (!awsVpcSecurityGroupId) {
+    if (!awsDefaultVpcSecurityGroupId) {
         return;
     }
     print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
-
-    let awsVpcSubnetName = cluster.vpc_subnet_name;
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
-
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
-    let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
-        cache: awsCache,
-        showWarning: true
-    });
-    if (!awsVpcSubnetId) {
-        return;
-    }
-    print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
 
     cprint.cyan('Creating load balancer...');
 
@@ -1547,7 +1555,12 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     environment: 'STRING',
-                    auto_scaling_group_name: 'STRING'
+                    auto_scaling_group: {
+                        name: 'STRING'
+                    },
+                    instance: {
+                        count: 'NUMBER'
+                    }
                 }
             ]
         },
@@ -1576,7 +1589,9 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    let autoScalingGroupName = cluster.auto_scaling_group_name;
+    let instanceCount = cluster.instance.count || 2;
+
+    let autoScalingGroupName = cluster.auto_scaling_group.name;
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName);
     if (autoScalingGroupInstanceCount < 0) {
         cprint.yellow('AWS cluster doesn\'t exist');
@@ -1585,7 +1600,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
 
     if (autoScalingGroupInstanceCount == 0) {
         cprint.cyan('Starting AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 2, {
+        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, instanceCount, {
             cache: awsCache
         });
     } else {
@@ -1606,7 +1621,9 @@ function awsStopCluster (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     environment: 'STRING',
-                    auto_scaling_group_name: 'STRING'
+                    auto_scaling_group: {
+                        name: 'STRING'
+                    }
                 }
             ]
         },
@@ -1635,7 +1652,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    let autoScalingGroupName = cluster.auto_scaling_group_name;
+    let autoScalingGroupName = cluster.auto_scaling_group.name;
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName);
     if (autoScalingGroupInstanceCount < 0) {
         cprint.yellow('AWS cluster doesn\'t exist');
