@@ -1127,7 +1127,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         volumeContainer = service.replaceConfigReferences(in_serviceConfig, volumeContainer);
 
         args.push('--volume');
-        args.push(volumeHost + ':' + volumeContainer);
+        args.push('"' + volumeHost + '":' + volumeContainer);
     });
 
     args.push(dockerImagePath);

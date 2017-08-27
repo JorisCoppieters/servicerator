@@ -48,7 +48,8 @@ function getServiceSchema () {
                         "test": "BOOLEAN",
                         "container": "NUMBER",
                         "host": "NUMBER",
-                        "env": "STRING"
+                        "env": "STRING",
+                        "description": "STRING"
                     }
                 ],
                 "volumes": [
@@ -142,9 +143,6 @@ function getServiceSchema () {
                     ],
                     "daemon_off": "BOOLEAN"
                 },
-                "ports": [
-                    "NUMBER"
-                ],
                 "tests": [
                     {
                         "name": "STRING",

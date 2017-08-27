@@ -70,9 +70,6 @@ function getDockerfileContents (in_serviceConfig) {
                         val: 'STRING'
                     }
                 ],
-                ports: [
-                    'NUMBER'
-                ],
                 scripts: [
                     {
                         key: 'STRING',
@@ -153,6 +150,14 @@ function getDockerfileContents (in_serviceConfig) {
                     }
 
                 ]
+            },
+            container: {
+                ports: [
+                    {
+                        "container": 'NUMBER',
+                        "description": 'STRING'
+                    }
+                ]
             }
         },
         service: {
@@ -162,7 +167,7 @@ function getDockerfileContents (in_serviceConfig) {
 
     let baseImage = serviceConfig.docker.image.base || 'ubuntu:trusty';
     let envVariables = serviceConfig.docker.image.env_variables || [];
-    let imagePorts = serviceConfig.docker.image.ports || [];
+    let imagePorts = (serviceConfig.docker.container.ports || []);
     let scripts = (serviceConfig.docker.image.scripts || []);
 
     let generateScripts = scripts
@@ -192,6 +197,22 @@ function getDockerfileContents (in_serviceConfig) {
         aptGetPackages.push('nginx');
     }
 
+    let exposedPorts = [];
+    let exposePortsLines = [];
+
+    imagePorts
+        .forEach(p => {
+            if (exposedPorts.indexOf(p) >= 0) {
+                return;
+            }
+
+            exposedPorts.push(p);
+            if (p.description) {
+                exposePortsLines.push(`# ${p.description}`);
+            }
+            exposePortsLines.push(`EXPOSE ${p.container}\n`);
+        })
+
     return [
         `# ----------------------`,
         `#`,
@@ -209,12 +230,11 @@ function getDockerfileContents (in_serviceConfig) {
     (envVariables.length ?
         '\n\n' + envVariables.map(v => `    ENV ${v.key} "${v.val}"`).join('\n') : ''
     ) +
-    (imagePorts.length ?
-        '\n\n' + imagePorts.map(p => `    EXPOSE ${p}`).join('\n') : ''
+    (exposePortsLines.length ?
+        '\n\n    ' + exposePortsLines.join('\n    ') : '\n'
     ) +
     (workdir !== './' && workdir !== '.' ?
         [
-            ``,
             ``,
             `# ----------------------`,
             `#`,
@@ -235,15 +255,18 @@ function getDockerfileContents (in_serviceConfig) {
             ``].join('\n') +
         operations
             .map(f => {
+                let description = f.description || false;
+
                 if (f.type === 'packages') {
-                    let command = `\n    # Install ${f.packages_source} packages...\n`
+                    description = description || `Install ${f.packages_source} packages...`;
+                    let command = `\n    # ${description}\n`;
 
                     switch (f.packages_source) {
                         case 'conda':
                             command += f.channels
                                 .map(c => {
                                     return `    RUN conda config --add channels "${c}"`;
-                                }).join(' \\\n');
+                                }).join(' \\\n') + `\n`;
                             command += `    RUN conda install -y \\\n`;
                             command += f.packages
                                 .map(p => {
@@ -278,7 +301,8 @@ function getDockerfileContents (in_serviceConfig) {
                     return command;
 
                 } else if (f.type === 'folder') {
-                    let command = `\n    # Create folder "${f.path}"\n`
+                    description = description || `Create folder "${f.path}"`;
+                    let command = `\n    # ${description}\n`;
                     command += `    RUN mkdir -p "${f.path}"`;
 
                     if (f.permissions) {
@@ -287,7 +311,8 @@ function getDockerfileContents (in_serviceConfig) {
 
                     return command;
                 } else if (f.type === 'copy_folder') {
-                    let command = `\n    # Copy from contents of "${f.source}" into "${f.destination}"\n`
+                    description = description || `Copy from contents of "${f.source}" into "${f.destination}"`;
+                    let command = `\n    # ${description}\n`;
                     command += `    COPY "${f.source}" "${f.destination}"`;
 
                     if (f.permissions) {
@@ -296,7 +321,8 @@ function getDockerfileContents (in_serviceConfig) {
 
                     return command;
                 } else if (f.type === 'copy_file') {
-                    let command = `\n    # Copy file from "${f.source}" to "${f.destination}"\n`
+                    description = description || `Copy file from "${f.source}" to "${f.destination}"`;
+                    let command = `\n    # ${description}\n`;
                     command += `    COPY "${f.source}" "${f.destination}"`;
 
                     if (f.permissions) {
@@ -305,7 +331,8 @@ function getDockerfileContents (in_serviceConfig) {
 
                     return command;
                 } else if (f.type === 'file') {
-                    let command = `\n    # Create file "${f.path}"\n`
+                    description = description || `Create file "${f.path}"`;
+                    let command = `\n    # ${description}\n`;
                     command += `    RUN touch "${f.path}"`;
 
                     if (f.permissions) {
@@ -321,12 +348,14 @@ function getDockerfileContents (in_serviceConfig) {
 
                     return command;
                 } else if (f.type === 'link') {
-                    let command = `\n    # Create link "${f.destination}" with source" ${f.source}"\n`
+                    description = description || `Create link "${f.destination}" with source" ${f.source}"`;
+                    let command = `\n    # ${description}\n`;
                     command += `    RUN ln -s "${f.source}" "${f.destination}"`
                     return command;
 
                 } else if (f.type === 'commands') {
-                    let command = `\n    # ${f.description}\n`
+                    description = description || `Running custom commands...`;
+                    let command = `\n    # ${description}\n`;
                     command += f.commands
                         .map(c => {
                             return `    RUN ${c}`;
