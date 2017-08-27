@@ -1121,13 +1121,15 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
 
         if (!runWithBash) {
             volumeHost = volumeHost.replace(new RegExp('\\\\', 'g'), '/');
+        } else {
+            volumeHost = '"' + volumeHost + '"';
         }
 
         volumeHost = service.replaceConfigReferences(in_serviceConfig, volumeHost);
         volumeContainer = service.replaceConfigReferences(in_serviceConfig, volumeContainer);
 
         args.push('--volume');
-        args.push('"' + volumeHost + '":' + volumeContainer);
+        args.push(volumeHost + ':' + volumeContainer);
     });
 
     args.push(dockerImagePath);
