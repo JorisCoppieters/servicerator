@@ -88,9 +88,6 @@ function getServiceSchema () {
                         "contents": [
                             "STRING"
                         ],
-                        "commands": [
-                            "STRING"
-                        ],
                         "language": "STRING",
                         "name": "STRING"
                     }

@@ -1059,7 +1059,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     let dockerImageStartCommand = '';
 
     serviceConfig.docker.container.commands.forEach(command => {
-        if (command.test || command.env === 'test') { // TODO: Deprecated env
+        if (command.test) {
             dockerImageStartCommand = command.val;
             return;
         }
@@ -1102,7 +1102,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             return;
         }
 
-        if (port.test || port.env === 'test') { // TODO: Deprecated env
+        if (port.test) {
             testPortArgs[port.container] = port.host;
         } else {
             portArgs[port.container] = port.host;

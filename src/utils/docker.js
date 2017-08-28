@@ -77,9 +77,6 @@ function getDockerfileContents (in_serviceConfig) {
                         contents: [
                             'STRING'
                         ],
-                        commands: [
-                            'STRING'
-                        ],
                         name: 'STRING',
                         language: 'STRING'
                     }
@@ -171,7 +168,7 @@ function getDockerfileContents (in_serviceConfig) {
     let scripts = (serviceConfig.docker.image.scripts || []);
 
     let generateScripts = scripts
-        .filter(s => (s.language && (s.contents || s.commands))); // TODO: Deprecate commands
+        .filter(s => (s.language && s.contents && s.contents.length));
 
     let aptGetPackages = serviceConfig.docker.image.apt_get_packages || [];
     let aptGetUpdate = serviceConfig.docker.image.apt_get_update || false;
@@ -364,102 +361,6 @@ function getDockerfileContents (in_serviceConfig) {
                 }
             }).join('\n')
         : '') +
-    (aptGetPackages.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# APT-GET PACKAGES`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            `    RUN ${aptGetUpdate ? 'apt-get update -y && apt-get upgrade -y && ' : ''}apt-get install -y \\`,
-            ``].join('\n') +
-        aptGetPackages
-            .map(p => {
-                return `        "${p}"`;
-            }).join(' \\\n')
-        : '') +
-    (pipPackages.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# PIP PACKAGES`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            `    RUN ${pipUpdate ? 'pip install pip --upgrade && ' : ''}pip install \\`,
-            ``].join('\n') +
-        pipPackages
-            .map(p => {
-                return `        "${p}"`;
-            }).join(' \\\n')
-        : '') +
-    (condaChannels.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# CONDA CHANNELS`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ``].join('\n') +
-        condaChannels
-            .map(c => {
-                return `    RUN conda config --add channels "${c}"`;
-            }).join(' \\\n')
-        : '') +
-    (condaPackages.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# CONDA PACKAGES`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            `    RUN conda install -y \\`,
-            ``].join('\n') +
-        condaPackages
-            .map(p => {
-                return `        "${p}"`;
-            }).join(' \\\n')
-        : '') +
-    (npmPackages.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# NPM PACKAGES`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            `    RUN npm install --prefix ./node \\`,
-            ``].join('\n') +
-        npmPackages
-            .map(p => {
-                return `        "${p}"`;
-            }).join(' \\\n')
-        : '') +
-    (commandsAfterPackages.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# AFTER PACKAGES`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ``].join('\n') + commandsAfterPackages.map(c => `    RUN ${c}`).join('\n')
-        : '') +
     (enableNginx ?
         [
             ``,
@@ -472,75 +373,6 @@ function getDockerfileContents (in_serviceConfig) {
             ``,
             `    RUN rm -v /etc/nginx/nginx.conf`,
             `    ADD nginx.conf /etc/nginx/`].join('\n') : '') +
-    (filesystem.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# FILESYSTEM`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ``].join('\n') +
-        filesystem
-            .map(f => {
-                if (f.type === 'folder') {
-                    let command = `    RUN mkdir -p "${f.path}"`;
-
-                    if (f.permissions) {
-                        command += ` && chmod ${f.permissions} "${f.path}"`;
-                    }
-
-                    return command;
-                } else if (f.type === 'copy_folder') {
-                    let command = `    COPY "${f.source}" "${f.destination}"`;
-
-                    if (f.permissions) {
-                        command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
-                    }
-
-                    return command;
-                } else if (f.type === 'copy_file') {
-                    let command = `    COPY "${f.source}" "${f.destination}"`;
-
-                    if (f.permissions) {
-                        command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
-                    }
-
-                    return command;
-                } else if (f.type === 'file') {
-                    let command = `    RUN touch "${f.path}"`;
-
-                    if (f.permissions) {
-                        command += ` && chmod ${f.permissions} "${f.path}"`;
-                    }
-
-                    if (f.contents && f.contents.length) {
-                        command += '\n    RUN \\' +
-                        f.contents
-                            .map(c => `\n        echo "${c}" >> "${f.path}"`)
-                            .join(' && \\');
-                    }
-
-                    return command;
-                } else if (f.type === 'link') {
-                    return `    RUN ln -s "${f.source}" "${f.destination}"`;
-                }
-            }).join('\n')
-        : '') +
-    (commandsAfterFilesystem.length ? // TODO: Deprecate section
-        [
-            ``,
-            ``,
-            `# ----------------------`,
-            `#`,
-            `# AFTER FILESYSTEM`,
-            `#`,
-            `# ----------------------`,
-            ``,
-            ``].join('\n') + commandsAfterFilesystem.map(c => `    RUN ${c}`).join('\n')
-        : '') +
     (generateScripts.length ?
         [
             ``,
@@ -552,7 +384,6 @@ function getDockerfileContents (in_serviceConfig) {
             `# ----------------------`,
             ``,
             ].join('\n') +
-
         generateScripts
             .map(s => {
                 if (s.language === 'bash') {
@@ -562,7 +393,7 @@ function getDockerfileContents (in_serviceConfig) {
                         `    RUN \\`,
                         `        echo "#! /bin/bash" > $${s.key} && \\`,
                     ].join('\n') +
-                    (s.contents || []).concat(s.commands || []) // TODO: Deprecate commands
+                    (s.contents || [])
                         .map(c => `\n        echo "${c}" >> $${s.key}`)
                         .join(' && \\');
                 }
