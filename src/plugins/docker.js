@@ -1102,7 +1102,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             return;
         }
 
-        if (port.test || port.env !== 'test') { // TODO: Deprecated env
+        if (port.test || port.env === 'test') { // TODO: Deprecated env
             testPortArgs[port.container] = port.host;
         } else {
             portArgs[port.container] = port.host;

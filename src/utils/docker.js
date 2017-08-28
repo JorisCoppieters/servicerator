@@ -202,11 +202,11 @@ function getDockerfileContents (in_serviceConfig) {
 
     imagePorts
         .forEach(p => {
-            if (exposedPorts.indexOf(p) >= 0) {
+            if (exposedPorts.indexOf(p.container) >= 0) {
                 return;
             }
 
-            exposedPorts.push(p);
+            exposedPorts.push(p.container);
             if (p.description) {
                 exposePortsLines.push(`# ${p.description}`);
             }
@@ -759,7 +759,7 @@ function getDockerImageTags (in_serviceConfig) {
         }
     });
 
-    let dockerImageTags = serviceConfig.docker.image.tags || [];
+    let dockerImageTags = [];
 
     let dockerImageVersion = serviceConfig.docker.image.version;
     if (dockerImageVersion) {
@@ -795,6 +795,8 @@ function getDockerImageTags (in_serviceConfig) {
     if (dockerImageTags.indexOf('latest') < 0) {
         dockerImageTags.push('latest');
     }
+
+    dockerImageTags = dockerImageTags.concat(serviceConfig.docker.image.tags || []);
 
     return dockerImageTags;
 }

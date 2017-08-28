@@ -24,6 +24,7 @@
     "clone": "^2.1.1",
     "color-print": "^1.0.2",
     "minimist": "^1.2.0",
+    "open": "0.0.5",
     "querystring": "^0.2.0",
     "request": "^2.81.0",
     "rimraf": "^2.6.1"

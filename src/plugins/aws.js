@@ -5,6 +5,7 @@
 // ******************************
 
 let cprint = require('color-print');
+let open = require('open');
 
 let aws = require('../utils/aws');
 let cache = require('../utils/cache');
@@ -1674,6 +1675,253 @@ function awsStopCluster (in_serviceConfig, in_environment) {
 }
 
 // ******************************
+
+function awsViewAll (in_serviceConfig, in_environment) {
+    awsViewInstances(in_serviceConfig, in_environment);
+    awsViewLoadBalancer(in_serviceConfig, in_environment);
+    awsViewLaunchConfiguration(in_serviceConfig, in_environment);
+    awsViewAutoScalingGroup(in_serviceConfig, in_environment);
+    awsViewCluster(in_serviceConfig, in_environment);
+    awsViewClusterService(in_serviceConfig, in_environment);
+}
+
+// ******************************
+
+function awsViewInstances (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment;
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    let awsRegion = awsDockerCredentials.region;
+
+    let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environmentTitle};tag:ServiceName=${serviceName}`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    open(url);
+}
+
+// ******************************
+
+function awsViewLoadBalancer (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    load_balancer_name: 'STRING',
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment;
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let awsLoadBalancerName = cluster.load_balancer_name;
+    if (!awsLoadBalancerName) {
+        cprint.yellow('Load balancer name not set');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    let awsRegion = awsDockerCredentials.region;
+
+    let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#LoadBalancers:search=${awsLoadBalancerName}`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    open(url);
+}
+
+// ******************************
+
+function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    launch_configuration: {
+                        name: 'STRING'
+                    },
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment;
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let awsLaunchConfigurationName = cluster.launch_configuration.name;
+    if (!awsLaunchConfigurationName) {
+        cprint.yellow('Launch configuration name not set');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    let awsRegion = awsDockerCredentials.region;
+
+    let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#LaunchConfigurations:id=${awsLaunchConfigurationName};filter=${awsLaunchConfigurationName}`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    open(url);
+}
+
+// ******************************
+
+function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    auto_scaling_group: {
+                        name: 'STRING'
+                    },
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment;
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
+    if (!awsAutoScalingGroupName) {
+        cprint.yellow('Auto scaling group name not set');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    let awsRegion = awsDockerCredentials.region;
+
+    let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#AutoScalingGroups:id=${awsAutoScalingGroupName};filter=${awsAutoScalingGroupName}`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    open(url);
+}
+
+// ******************************
+
+function awsViewCluster (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    name: 'STRING',
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment;
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    let awsRegion = awsDockerCredentials.region;
+    let awsClusterName = cluster.name;
+
+    let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/tasks`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    open(url);
+}
+
+// ******************************
+
+function awsViewClusterService (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    name: 'STRING',
+                    service_name: 'STRING',
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let environment = in_environment;
+    let environmentTitle = str.toTitleCase(environment);
+    let cluster = (serviceConfig.service.clusters || []).find(c => {
+            return c.environment === environment;
+        });
+
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + environment + '" environment');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
+    let awsRegion = awsDockerCredentials.region;
+    let awsClusterName = cluster.name;
+    let awsClusterServiceName = cluster.service_name;
+
+    let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/services/${awsClusterServiceName}/tasks`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    open(url);
+}
+
+// ******************************
 // Plugin Functions:
 // ******************************
 
@@ -1740,6 +1988,41 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             awsCreateClusterService(in_serviceConfig, env);
             break;
 
+        case 'open-all':
+        case 'view-all':
+            awsViewAll(in_serviceConfig, env);
+            break;
+
+        case 'open-instances':
+        case 'view-instances':
+            awsViewInstances(in_serviceConfig, env);
+            break;
+
+        case 'open-load-balancer':
+        case 'view-load-balancer':
+            awsViewLoadBalancer(in_serviceConfig, env);
+            break;
+
+        case 'open-launch-configuration':
+        case 'view-launch-configuration':
+            awsViewLaunchConfiguration(in_serviceConfig, env);
+            break;
+
+        case 'open-auto-scaling-group':
+        case 'view-auto-scaling-group':
+            awsViewAutoScalingGroup(in_serviceConfig, env);
+            break;
+
+        case 'open-cluster':
+        case 'view-cluster':
+            awsViewCluster(in_serviceConfig, env);
+            break;
+
+        case 'open-cluster-service':
+        case 'view-cluster-service':
+            awsViewClusterService(in_serviceConfig, env);
+            break;
+
         case 'deploy':
             awsDeploy(in_serviceConfig, stopTasks, env);
             break;
@@ -1784,6 +2067,13 @@ function getCommands () {
         { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
         { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'environment', description:'Environment'}] },
         { params: ['stop-cluster', 'stop'], description: 'Stop AWS cluster', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-all', 'open-all'], description: 'View all details for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-instances', 'open-instances'], description: 'View instances for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-load-balancer', 'open-load-balancer'], description: 'View load-balancer for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-launch-configuration', 'open-launch-configuration'], description: 'View launch-configuration for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-auto-scaling-group', 'open-auto-scaling-group'], description: 'View auto-scaling-group for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-cluster', 'open-cluster'], description: 'View cluster for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-cluster-service', 'open-cluster-service'], description: 'View cluster-service for the service', options: [{param:'environment', description:'Environment'}] }
     ];
 }
 
