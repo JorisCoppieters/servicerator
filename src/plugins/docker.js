@@ -1016,7 +1016,8 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                     {
                         host: 'NUMBER',
                         container: 'NUMBER',
-                        env: 'STRING'
+                        env: 'STRING',
+                        test: 'BOOLEAN'
                     }
                 ],
                 volumes: [
@@ -1028,6 +1029,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                 commands: [
                     {
                         env: 'STRING',
+                        test: 'BOOLEAN',
                         val: 'STRING'
                     }
                 ]
@@ -1057,7 +1059,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     let dockerImageStartCommand = '';
 
     serviceConfig.docker.container.commands.forEach(command => {
-        if (command.env === 'test') {
+        if (command.test || command.env === 'test') { // TODO: Deprecated env
             dockerImageStartCommand = command.val;
             return;
         }
@@ -1092,15 +1094,26 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         args.push(parseInt(memoryLimit) + 'm');
     }
 
+    let testPortArgs = {};
+    let portArgs = {};
+
     serviceConfig.docker.container.ports.forEach(port => {
         if (!port.host || !port.container) {
             return;
         }
-        if (port.env !== 'test') {
-            return;
+
+        if (port.test || port.env !== 'test') { // TODO: Deprecated env
+            testPortArgs[port.container] = port.host;
+        } else {
+            portArgs[port.container] = port.host;
         }
+    });
+
+    Object.assign(portArgs, testPortArgs);
+    Object.keys(portArgs).forEach(containerPort => {
+        let hostPort = portArgs[containerPort];
         args.push('--publish');
-        args.push(port.host + ':' + port.container);
+        args.push(hostPort + ':' + containerPort);
     });
 
     serviceConfig.docker.container.volumes.forEach(volume => {

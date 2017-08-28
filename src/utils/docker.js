@@ -580,8 +580,7 @@ function getDockerfileContents (in_serviceConfig) {
                 `#`,
                 `# ----------------------`,
                 ``,
-                `    CMD $${s.key}`,
-                ``].join('\n');
+                `    CMD $${s.key}`].join('\n');
         })[0] || '') +
     '\n';
 }

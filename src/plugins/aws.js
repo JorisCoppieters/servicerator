@@ -505,7 +505,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     };
 
     serviceConfig.docker.container.commands.forEach(command => {
-        if (command.test || command.env === 'test') { // TODO: Deprecated
+        if (command.test || command.env === 'test') { // TODO: Deprecated env
             return;
         }
 
@@ -519,7 +519,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        if (port.test || port.env === 'test') { // TODO: Deprecated
+        if (port.test || port.env === 'test') { // TODO: Deprecated env
             return;
         }
 
@@ -1412,7 +1412,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             return;
         }
 
-        if (port.test || port.env === 'test') { // TODO: Deprecated
+        if (port.test || port.env === 'test') { // TODO: Deprecated env
             return;
         }
 
