@@ -5,7 +5,10 @@
 // ******************************
 //
 //
-// SERVICERATOR v0.5.3
+// SERVICERATOR v0.5.4
+//
+// 0.5.4
+// - Bug fixes for home folder
 //
 // 0.1.0
 // - Initial release
