@@ -105,47 +105,6 @@ function getDockerfileContents (in_serviceConfig) {
                         source: 'PATH',
                         permissions: 'STRING'
                     },
-                ],
-
-                apt_get_packages: [
-                    'STRING'
-                ],
-                apt_get_update: 'BOOLEAN',
-                pip_packages: [
-                    'STRING'
-                ],
-                pip_update: 'BOOLEAN',
-                conda_packages: [
-                    'STRING'
-                ],
-                conda_channels: [
-                    'STRING'
-                ],
-                conda_update: 'BOOLEAN',
-                npm_packages: [
-                    'STRING'
-                ],
-                commands: [
-                    'STRING'
-                ],
-                commands_after_packages: [
-                    'STRING'
-                ],
-                commands_after_filesystem: [
-                    'STRING'
-                ],
-                filesystem: [
-                    {
-                        path: 'PATH',
-                        permissions: 'STRING',
-                        type: 'STRING',
-                        destination: 'PATH',
-                        source: 'PATH',
-                        contents: [
-                            'STRING'
-                        ]
-                    }
-
                 ]
             },
             container: {
@@ -170,28 +129,13 @@ function getDockerfileContents (in_serviceConfig) {
     let generateScripts = scripts
         .filter(s => (s.language && s.contents && s.contents.length));
 
-    let aptGetPackages = serviceConfig.docker.image.apt_get_packages || [];
-    let aptGetUpdate = serviceConfig.docker.image.apt_get_update || false;
-    let pipPackages = serviceConfig.docker.image.pip_packages || [];
-    let pipUpdate = serviceConfig.docker.image.pip_update || false;
-    let condaPackages = serviceConfig.docker.image.conda_packages || [];
-    let condaChannels = serviceConfig.docker.image.conda_channels || [];
-    let condaUpdate = serviceConfig.docker.image.conda_update || false;
-    let npmPackages = serviceConfig.docker.image.npm_packages || [];
-    let filesystem = serviceConfig.docker.image.filesystem || [];
     let operations = serviceConfig.docker.image.operations || [];
-    let commands = serviceConfig.docker.image.commands || [];
-    let commandsAfterPackages = serviceConfig.docker.image.commands_after_packages || [];
-    let commandsAfterFilesystem = serviceConfig.docker.image.commands_after_filesystem || [];
     let workdir = serviceConfig.docker.image.working_directory || '.';
-
-    commandsAfterPackages = commandsAfterPackages.concat(commands);
 
     let enableNginx = false;
 
     if (serviceConfig.docker.image.nginx) {
         enableNginx = true;
-        aptGetPackages.push('nginx');
     }
 
     let exposedPorts = [];
@@ -208,7 +152,7 @@ function getDockerfileContents (in_serviceConfig) {
                 exposePortsLines.push(`# ${p.description}`);
             }
             exposePortsLines.push(`EXPOSE ${p.container}\n`);
-        })
+        });
 
     return [
         `# ----------------------`,
@@ -217,21 +161,26 @@ function getDockerfileContents (in_serviceConfig) {
         `#`,
         `# ----------------------`,
         ``,
-        `    FROM ${baseImage}`,
-        ``,
-        `# ----------------------`,
-        `#`,
-        `# ENVIRONMENT`,
-        `#`,
-        `# ----------------------`].join('\n') +
+        `    FROM ${baseImage}`].join('\n') +
+    (envVariables.length || exposePortsLines.length ?
+        [
+            ``,
+            ``,
+            `# ----------------------`,
+            `#`,
+            `# ENVIRONMENT`,
+            `#`,
+            `# ----------------------`].join('\n') : ''
+    ) +
     (envVariables.length ?
         '\n\n' + envVariables.map(v => `    ENV ${v.key} "${v.val}"`).join('\n') : ''
     ) +
     (exposePortsLines.length ?
-        '\n\n    ' + exposePortsLines.join('\n    ') : '\n'
+        '\n\n    ' + exposePortsLines.join('\n    ') : ''
     ) +
-    (workdir !== './' && workdir !== '.' ?
+    (workdir !== './' && workdir !== '.' && envVariables.filter(v => v.key === 'BASE_DIR').length ?
         [
+            ``,
             ``,
             `# ----------------------`,
             `#`,
@@ -503,9 +452,6 @@ function getIgnoreDockerContents (in_serviceConfig) {
                 language: 'STRING',
                 log: 'BOOLEAN'
             }
-        },
-        build: {
-            language: 'STRING'
         }
     });
 
@@ -521,12 +467,6 @@ function getIgnoreDockerContents (in_serviceConfig) {
 
     if (serviceConfig.docker.image.log) {
         ignoreFiles.push('logs/*');
-    }
-
-    if (serviceConfig.build.language === 'bash') {
-        ignoreFiles.push('setup-aws-infrastructure.sh');
-        ignoreFiles.push('create-docker-image.sh');
-        ignoreFiles.push('_env.sh');
     }
 
     if (serviceConfig.model) {

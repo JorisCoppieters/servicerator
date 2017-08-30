@@ -141,21 +141,9 @@ function runTests () {
             }
         }
     }));
-    test.assertEquals('docker ignore contents with bash as build language', [
-        'setup-aws-infrastructure.sh',
-        'create-docker-image.sh',
-        '_env.sh'
-    ].join('\n'), docker.getIgnoreDockerContents({
-        build: {
-            language: 'bash'
-        }
-    }));
     test.assertEquals('docker ignore contents with all', [
         'node/node_modules/*',
         'logs/*',
-        'setup-aws-infrastructure.sh',
-        'create-docker-image.sh',
-        '_env.sh',
         'model/*'
     ].join('\n'), docker.getIgnoreDockerContents({
         auth: {
@@ -172,9 +160,6 @@ function runTests () {
                 language: 'node',
                 log: true
             },
-        },
-        build: {
-            language: 'bash'
         }
     }));
     test.assertEquals('docker tags for empty config', ['latest'], docker.getImageTags());

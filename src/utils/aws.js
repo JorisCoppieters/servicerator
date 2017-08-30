@@ -1257,10 +1257,15 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 // ******************************
 
 function getAwsServiceConfig () {
-    let homeFolder = env.getShellHome();
     let serviceConfig = {
         aws: {}
     };
+
+    let homeFolder = env.getShellHome();
+    if (!homeFolder || !fs.folderExists(homeFolder)) {
+        cprint.yellow('Home folder doesn\'t exist');
+        return;
+    }
 
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);

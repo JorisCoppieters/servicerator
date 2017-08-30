@@ -52,11 +52,6 @@ function getServiceConfig (in_folderName) {
         let bashServiceConfig = bash.parseEnvFile(bashEnvFile);
         if (bashServiceConfig) {
             serviceConfig = _copyToServiceConfig(bashServiceConfig, serviceConfig);
-            serviceConfig = _copyToServiceConfig(serviceConfig, {
-                build: {
-                    language: 'bash'
-                }
-            });
         }
     }
 
@@ -108,7 +103,7 @@ function getServiceConfig (in_folderName) {
                 image: {
                     env_variables: [],
                     scripts: [],
-                    filesystem: [],
+                    operations: [],
                     working_directory: '/root'
                 }
             }
@@ -144,7 +139,7 @@ function getServiceConfig (in_folderName) {
                 s.key = scriptKey
             });
 
-            serviceConfig.docker.image.filesystem.push(
+            serviceConfig.docker.image.operations.push(
                 {
                     'path': '$SCRIPTS_DIR',
                     'type': 'folder'
@@ -158,7 +153,7 @@ function getServiceConfig (in_folderName) {
                 val: '$BASE_DIR/auth'
             });
 
-            serviceConfig.docker.image.filesystem.push(
+            serviceConfig.docker.image.operations.push(
                 {
                     'path': '$AUTH_DIR',
                     'type': 'folder'
@@ -166,14 +161,14 @@ function getServiceConfig (in_folderName) {
             );
 
             if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
-                serviceConfig.docker.image.filesystem.push(
+                serviceConfig.docker.image.operations.push(
                     {
                         'source': `${serviceConfig.auth.certificate}`,
                         'destination': '$AUTH_DIR',
                         'type': 'copy_file'
                     }
                 );
-                serviceConfig.docker.image.filesystem.push(
+                serviceConfig.docker.image.operations.push(
                     {
                         'source': `${serviceConfig.auth.key}`,
                         'destination': '$AUTH_DIR',
@@ -204,12 +199,12 @@ function getServiceConfig (in_folderName) {
                 name: '$SERVICE_NAME-logs'
             });
 
-            serviceConfig.docker.image.filesystem.push({
+            serviceConfig.docker.image.operations.push({
                 path: '/var/log/tm-services/$SERVICE_NAME',
                 type: 'folder'
             });
 
-            serviceConfig.docker.image.filesystem.push({
+            serviceConfig.docker.image.operations.push({
                 path: '/var/log/tm-services/$SERVICE_NAME/api.log',
                 type: 'file'
             });
@@ -225,13 +220,13 @@ function getServiceConfig (in_folderName) {
                 val: '$BASE_DIR/python'
             });
 
-            serviceConfig.docker.image.filesystem.push(
+            serviceConfig.docker.image.operations.push(
                 {
                     'path': '$PYTHON_DIR',
                     'type': 'folder'
                 }
             );
-            serviceConfig.docker.image.filesystem.push(
+            serviceConfig.docker.image.operations.push(
                 {
                     'source': 'python',
                     'destination': '$PYTHON_DIR',
@@ -244,13 +239,13 @@ function getServiceConfig (in_folderName) {
                 val: '$BASE_DIR/node'
             });
 
-            serviceConfig.docker.image.filesystem.push(
+            serviceConfig.docker.image.operations.push(
                 {
                     'path': '$NODE_DIR',
                     'type': 'folder'
                 }
             );
-            serviceConfig.docker.image.filesystem.push(
+            serviceConfig.docker.image.operations.push(
                 {
                     'source': 'node',
                     'destination': '$NODE_DIR',
@@ -282,7 +277,7 @@ function getServiceConfig (in_folderName) {
                 },
                 image: {
                     env_variables: [],
-                    filesystem: []
+                    operations: []
                 }
             }
         });
@@ -293,18 +288,18 @@ function getServiceConfig (in_folderName) {
         });
 
         if (bundledModel) {
-            serviceConfig.docker.image.filesystem.push({
+            serviceConfig.docker.image.operations.push({
                 'path': '$MODEL_DIR',
                 'type': 'folder'
             });
 
-            serviceConfig.docker.image.filesystem.push({
+            serviceConfig.docker.image.operations.push({
                 'source': `${serviceConfig.model.source}`,
                 'destination': '$MODEL_DIR',
                 'type': 'copy_folder'
             });
         } else {
-            serviceConfig.docker.image.filesystem.push({
+            serviceConfig.docker.image.operations.push({
                 'source': '/model',
                 'destination': '$MODEL_DIR',
                 'type': 'link'

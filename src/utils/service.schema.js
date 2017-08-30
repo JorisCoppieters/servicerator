@@ -6,6 +6,10 @@
 
 function getServiceSchema () {
     return {
+        "cwd": "STRING",
+        "ignore": [
+            "STRING"
+        ],
         "auth": {
             "certificate": "STRING",
             "key": "STRING",
@@ -21,16 +25,31 @@ function getServiceSchema () {
             "secret_key": "STRING",
             "region": "STRING"
         },
-        "build": {
-            "language": "STRING"
-        },
         "corpus": {
             "version": "STRING"
         },
-        "cwd": "STRING",
-        "ignore": [
-            "STRING"
+        "model": {
+            "source": "STRING",
+            "type": "STRING",
+            "version": "STRING"
+        },
+        "filesystem": [
+            {
+                "contents": [
+                    "STRING"
+                ],
+                "source": "PATH",
+                "destination": "PATH",
+                "path": "PATH",
+                "type": "STRING",
+                "on_open": "BOOLEAN",
+                "on_close": "BOOLEAN",
+                "on_setup": "BOOLEAN",
+                "overwrite": "BOOLEAN"
+            }
         ],
+
+
         "docker": {
             "container": {
                 "commands": [
@@ -149,46 +168,6 @@ function getServiceSchema () {
                         "request_data": "ANY",
                         "expected": "STRING"
                     }
-                ],
-
-                "apt_get_packages": [
-                    "STRING"
-                ],
-                "apt_get_update": "BOOLEAN",
-                "pip_packages": [
-                    "STRING"
-                ],
-                "pip_update": "BOOLEAN",
-                "conda_channels": [
-                    "STRING"
-                ],
-                "conda_packages": [
-                    "STRING"
-                ],
-                "conda_update": "BOOLEAN",
-                "npm_packages": [
-                    "STRING"
-                ],
-                "commands": [
-                    "STRING"
-                ],
-                "commands_after_packages": [
-                    "STRING"
-                ],
-                "commands_after_filesystem": [
-                    "STRING"
-                ],
-                "filesystem": [
-                    {
-                        "contents": [
-                            "STRING"
-                        ],
-                        "destination": "PATH",
-                        "path": "PATH",
-                        "permissions": "STRING",
-                        "source": "PATH",
-                        "type": "STRING"
-                    }
                 ]
             },
             "other_repositories": [
@@ -198,11 +177,6 @@ function getServiceSchema () {
             ],
             "password": "STRING",
             "username": "STRING"
-        },
-        "model": {
-            "source": "STRING",
-            "type": "STRING",
-            "version": "STRING"
         },
         "service": {
             "run": {

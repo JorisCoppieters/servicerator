@@ -165,13 +165,21 @@ function getPlugins () {
 // ******************************
 
 function getUserHome() {
-  return process.env[(process.platform == 'win32') ? 'HOME' : 'HOME'];
+  let home = process.env['HOME'];
+  if (!home && process.platform === 'win32') {
+    home = process.env['USERPROFILE'];
+  }
+  return home;
 }
 
 // ******************************
 
 function getShellHome() {
-  return process.env['HOME'];
+  let home = process.env['HOME'];
+  if (!home && process.platform === 'win32') {
+    home = process.env['USERPROFILE'];
+  }
+  return home;
 }
 
 // ******************************

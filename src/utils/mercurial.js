@@ -26,9 +26,6 @@ function getIgnoreFileContents (in_serviceConfig) {
                 log: 'BOOLEAN'
             }
         },
-        build: {
-            language: 'STRING'
-        },
         cwd: 'STRING'
     });
 
@@ -60,12 +57,6 @@ function getIgnoreFileContents (in_serviceConfig) {
     if (serviceConfig.auth) {
         ignoreFiles.push(dockerRelativePath + 'auth/service.crt');
         ignoreFiles.push(dockerRelativePath + 'auth/service.key');
-    }
-
-    if (serviceConfig.build.language === 'bash') {
-        ignoreFiles.push(dockerRelativePath + '.aws_cache/*');
-        ignoreFiles.push(dockerRelativePath + 'setup-aws-infrastructure.sh');
-        ignoreFiles.push(dockerRelativePath + 'create-docker-image.sh');
     }
 
     ignoreFiles = ignoreFiles.concat(serviceConfig.ignore || []);
