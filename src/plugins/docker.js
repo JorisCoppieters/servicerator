@@ -10,12 +10,12 @@ let Promise = require('bluebird');
 
 let aws = require('../utils/aws');
 let docker = require('../utils/docker');
-let shell = require('../utils/shell');
 let edit = require('../utils/edit');
 let fs = require('../utils/filesystem');
 let http = require('../utils/http');
 let print = require('../utils/print');
 let service = require('../utils/service');
+let shell = require('../utils/shell');
 let sync = require('../utils/sync');
 
 // ******************************
@@ -107,6 +107,8 @@ function printDockerInfo (in_serviceConfig) {
                 return;
             }
 
+            let imageTagLines = [];
+
             cmdResult.rows
                 .filter(r => dockerImagePaths.find(p => r.match(new RegExp('^' + p + ':'))))
                 .forEach(r => {
@@ -114,11 +116,21 @@ function printDockerInfo (in_serviceConfig) {
                     let dockerImage = c[0];
                     let currentDockerImage = (dockerImageTaggedPaths.indexOf(dockerImage) >= 0);
                     if (currentDockerImage) {
-                        print.out(cprint.toGreen(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toCyan(c[1]) + '\n');
+                        imageTagLines.push(cprint.toGreen(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toCyan(c[1]));
                     } else {
-                        print.out(cprint.toYellow(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow(c[1]) + '\n');
+                        imageTagLines.push(cprint.toYellow(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow(c[1]));
                     }
                 });
+
+            dockerImageTaggedPaths
+                .filter(p => !cmdResult.rows.find(r => r.match(new RegExp('^' + p))))
+                .forEach(p => {
+                    imageTagLines.push(cprint.toGreen(p) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow('untagged'));
+                });
+
+            imageTagLines = imageTagLines.sort();
+
+            print.out(imageTagLines.join('\n'));
             print.out('\n');
         }
     }

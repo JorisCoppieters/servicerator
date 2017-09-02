@@ -6,11 +6,60 @@
 
 let path = require('path');
 
-let service = require('./service');
 let docker = require('./docker');
+let exec = require('./exec');
+let service = require('./service');
+
+// ******************************
+// Globals:
+// ******************************
+
+let g_MERCURIAL_INSTALLED = undefined;
 
 // ******************************
 // Functions:
+// ******************************
+
+function mercurialCmd (in_args, in_options) {
+    let options = in_options || {};
+    let hide = options.hide;
+
+    if (!mercurialInstalled()) {
+        cprint.yellow('Mercurial isn\'t installed');
+        return false;
+    }
+
+    if (!in_args) {
+        return false;
+    }
+
+    if (!Array.isArray(in_args)) {
+        in_args = [in_args]
+    }
+
+    return exec.cmdSync('hg', in_args, '  ', !hide, true);
+}
+
+// ******************************
+
+function mercurialInstalled () {
+    if (g_MERCURIAL_INSTALLED === undefined) {
+        g_MERCURIAL_INSTALLED = !!mercurialVersion();
+    }
+    return g_MERCURIAL_INSTALLED;
+}
+
+// ******************************
+
+function mercurialVersion () {
+    let cmdResult = exec.cmdSync('hg', ['version'], '', false, true);
+    if (cmdResult.hasError) {
+        return false;
+    } else {
+        return cmdResult.result;
+    }
+}
+
 // ******************************
 
 function getIgnoreFileContents (in_serviceConfig) {
@@ -35,6 +84,7 @@ function getIgnoreFileContents (in_serviceConfig) {
 
     let ignoreFiles = [
         'syntax: glob',
+        '**/.idea/**',
         dockerRelativePath + '.cache'
     ];
 
@@ -65,9 +115,36 @@ function getIgnoreFileContents (in_serviceConfig) {
 }
 
 // ******************************
+
+function getRootFolder (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        version_control: {
+            type: 'STRING',
+            root_folder: 'STRING'
+        },
+    });
+
+    let mercurialRootFolder = serviceConfig.version_control.root_folder || false;
+    if (!mercurialRootFolder) {
+        cprint.yellow("Mercurial root folder not set");
+        return;
+    }
+
+    mercurialRootFolder = service.replaceConfigReferences(in_serviceConfig, mercurialRootFolder);
+    mercurialRootFolder = path.resolve(mercurialRootFolder);
+    mercurialRootFolder = mercurialRootFolder.replace(/\\/g, '/');
+
+    return mercurialRootFolder;
+}
+
+// ******************************
 // Exports:
 // ******************************
 
 module.exports['getIgnoreFileContents'] = getIgnoreFileContents;
+module.exports['getRootFolder'] = getRootFolder;
+module.exports['cmd'] = mercurialCmd;
+module.exports['installed'] = mercurialInstalled;
+module.exports['version'] = mercurialVersion;
 
 // ******************************

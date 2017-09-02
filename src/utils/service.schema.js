@@ -48,7 +48,10 @@ function getServiceSchema () {
                 "overwrite": "BOOLEAN"
             }
         ],
-
+        "version_control": {
+            "type": "STRING",
+            "root_folder": "STRING"
+        },
 
         "docker": {
             "container": {
@@ -61,6 +64,7 @@ function getServiceSchema () {
                 ],
                 "cpu_core_count": "NUMBER",
                 "name": "STRING",
+                "logging_support": "BOOLEAN",
                 "memory_limit": "NUMBER",
                 "ports": [
                     {
@@ -86,6 +90,7 @@ function getServiceSchema () {
                 "language": "STRING",
                 "log": "BOOLEAN",
                 "tag_with_date": "BOOLEAN",
+                "tag_with_revision": "BOOLEAN",
                 "tags": [
                     "STRING"
                 ],
@@ -225,6 +230,12 @@ function getServiceSchema () {
                     "instance": {
                         "count": "NUMBER",
                         "type": "STRING",
+                        "tags": [
+                            {
+                                "key": "STRING",
+                                "val": "STRING"
+                            }
+                        ],
                         "volumes": [
                             {
                                 "DeviceName": "STRING",

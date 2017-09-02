@@ -399,6 +399,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             },
             container: {
                 memory_limit: 'NUMBER',
+                logging_support: 'BOOLEAN',
                 ports: [
                     {
                         test: "BOOLEAN",
@@ -435,6 +436,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     let dockerFolder = docker.getFolder(sourceFolder);
+
+    let loggingSupport = !!serviceConfig.docker.container.logging_support;
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -576,19 +579,25 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         });
     });
 
+    let containerDefinitions = [serviceContainerDefinition];
+    if (loggingSupport) {
+        containerDefinitions.push(filebeatContainerDefinition);
+    }
+
     let awsTaskDefinitionStructure = {
-        'containerDefinitions': [
-            serviceContainerDefinition,
-            filebeatContainerDefinition
-        ],
+        'containerDefinitions': containerDefinitions,
         'family': awsTaskDefinitionName,
         'networkMode': 'bridge',
         'placementConstraints': []
     };
 
+    let containerVolumes = serviceConfig.docker.container.volumes;
+    if (loggingSupport) {
+        containerVolumes = containerVolumes.concat(awsTaskDefinitionFilebeatVolumes);
+    }
+
     let uniqueHosts = {};
-    serviceConfig.docker.container.volumes
-        .concat(awsTaskDefinitionFilebeatVolumes)
+    containerVolumes
         .forEach(volume => {
             let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
             uniqueHosts[volumeName] = volume;
@@ -624,7 +633,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         cmdResult.printResult('  ');
         let taskDefinitionArn = (cmdResult.resultObj.taskDefinition || {}).taskDefinitionArn;
         cprint.green('Created task definition "' + taskDefinitionArn + '"');
-        aws.clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, cache);
+        aws.clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -755,12 +764,12 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsLaunchConfigurationName = cluster.launch_configuration.name;
-    if (!awsLaunchConfigurationName) {
+    let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
+    if (!awsLaunchConfigurationTemplateName) {
         cprint.yellow('Launch configuration name not set');
         return false;
     }
-    awsLaunchConfigurationName = awsLaunchConfigurationName + '-' + date.getTimestampTag();
+    let awsLaunchConfigurationName = awsLaunchConfigurationTemplateName + '-' + date.getTimestampTag();
 
     let awsLaunchConfigurationSecurityGroupNames = cluster.launch_configuration.security_groups || [];
 
@@ -874,6 +883,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created launch configuration');
+        aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName, awsCache);
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -908,7 +918,16 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                             'STRING'
                         ]
                     },
-                    environment: 'STRING'
+                    environment: 'STRING',
+                    instance: {
+                        count: 'NUMBER',
+                        tags: [
+                            {
+                                key: 'STRING',
+                                val: 'STRING'
+                            }
+                        ]
+                    }
                 }
             ]
         },
@@ -946,8 +965,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let launchConfigurationTemplateName = cluster.launch_configuration.name;
-    if (!launchConfigurationTemplateName) {
+    let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
+    if (!awsLaunchConfigurationTemplateName) {
         cprint.yellow('Launch configuration name not set');
         return false;
     }
@@ -974,15 +993,17 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
+    let desiredCount = cluster.instance.count || 0;
+
     let awsAutoScalingGroupMinSize = 0;
-    let awsAutoScalingGroupMaxSize = 4;
+    let awsAutoScalingGroupMaxSize = desiredCount + 2;
 
     cprint.magenta('-- Auto Scaling Group --');
 
     print.keyVal('AWS ' + environmentTitle + ' Auto Scaling Group', awsAutoScalingGroupName);
 
     print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', '...', true);
-    let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(launchConfigurationTemplateName, {
+    let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(awsLaunchConfigurationTemplateName, {
         cache: awsCache,
         showWarning: true
     });
@@ -1029,10 +1050,13 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         "DockerImageName": dockerImageName,
         "Environment": environment,
         "ServiceName": serviceName,
-        "Name": serviceName + '-group-instance',
-        "autospotting_on_demand_number": "1",
-        "spot-enabled": "false"
+        "Name": serviceName + '-group-instance'
     }
+
+    let clusterTags = cluster.instance.tags || [];
+    clusterTags.forEach(t => {
+        tagsDict[t.key] = t.val;
+    });
 
     let tags = Object.keys(tagsDict).map(key => {
         let val = tagsDict[key];
@@ -1067,20 +1091,19 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         '--health-check-grace-period',
         300,
 
+        '--termination-policies',
+        'OldestInstance',
+
         '--tags',
         JSON.stringify(tags)
     ];
 
-    // TODO
-    // - Correct health check grace period
-    // - Correct private subnets not public
-
-    // if (awsLoadBalancerName) {
-    //     args = args.concat([
-    //         '--load-balancer-names',
-    //         awsLoadBalancerName
-    //     ]);
-    // }
+    if (awsLoadBalancerName) {
+        args = args.concat([
+            '--load-balancer-names',
+            awsLoadBalancerName
+        ]);
+    }
 
     let cmdResult = aws.cmd(args);
     if (cmdResult.hasError) {
@@ -1586,7 +1609,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             return c.environment === environment
         });
     if (!cluster) {
-        cprint.yellow('AWS cluster doesn\'t exist');
+        cprint.yellow('No cluster set for "' + environment + '" environment');
         return;
     }
 
@@ -1649,7 +1672,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
             return c.environment === environment
         });
     if (!cluster) {
-        cprint.yellow('AWS cluster doesn\'t exist');
+        cprint.yellow('No cluster set for "' + environment + '" environment');
         return;
     }
 
@@ -1927,7 +1950,7 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
-    let env = in_args['env'] || in_args['environment'] || 'test';
+    let env = in_args['env'] || in_args['environment'] || 'default';
     let extra = in_args['extra'];
     let stopTasks = in_args['stop-tasks'];
 

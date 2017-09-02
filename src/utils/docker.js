@@ -11,6 +11,7 @@ let date = require('./date');
 let env = require('./env');
 let exec = require('./exec');
 let fs = require('./filesystem');
+let hg = require('./mercurial');
 let service = require('./service');
 
 // ******************************
@@ -151,7 +152,7 @@ function getDockerfileContents (in_serviceConfig) {
             if (p.description) {
                 exposePortsLines.push(`# ${p.description}`);
             }
-            exposePortsLines.push(`EXPOSE ${p.container}\n`);
+            exposePortsLines.push(`EXPOSE ${p.container}`);
         });
 
     return [
@@ -173,7 +174,7 @@ function getDockerfileContents (in_serviceConfig) {
             `# ----------------------`].join('\n') : ''
     ) +
     (envVariables.length ?
-        '\n\n' + envVariables.map(v => `    ENV ${v.key} "${v.val}"`).join('\n') : ''
+        '\n\n    ' + envVariables.map(v => `ENV ${v.key} "${v.val}"`).join('\n    ') : ''
     ) +
     (exposePortsLines.length ?
         '\n\n    ' + exposePortsLines.join('\n    ') : ''
@@ -200,19 +201,20 @@ function getDockerfileContents (in_serviceConfig) {
             `# ----------------------`,
             ``].join('\n') +
         operations
-            .map(f => {
+            .map((f,idx) => {
                 let description = f.description || false;
+                let firstSpacing = (idx === 0 && !description ? '\n' : '');
+                let lastSpacing = (idx === operations.length - 1 ? '\n' : '');
 
                 if (f.type === 'packages') {
-                    description = description || `Install ${f.packages_source} packages...`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
 
                     switch (f.packages_source) {
                         case 'conda':
-                            command += f.channels
+                            command += f.channels && f.channels.length ? f.channels
                                 .map(c => {
                                     return `    RUN conda config --add channels "${c}"`;
-                                }).join(' \\\n') + `\n`;
+                                }).join(' \\\n') + `\n` : '';
                             command += `    RUN conda install -y \\\n`;
                             command += f.packages
                                 .map(p => {
@@ -244,41 +246,37 @@ function getDockerfileContents (in_serviceConfig) {
                                 }).join(' \\\n');
                             break;
                     }
-                    return command;
+                    return command + lastSpacing;
 
                 } else if (f.type === 'folder') {
-                    description = description || `Create folder "${f.path}"`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
                     command += `    RUN mkdir -p "${f.path}"`;
 
                     if (f.permissions) {
                         command += ` && chmod ${f.permissions} "${f.path}"`;
                     }
 
-                    return command;
+                    return command + lastSpacing;
                 } else if (f.type === 'copy_folder') {
-                    description = description || `Copy from contents of "${f.source}" into "${f.destination}"`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
                     command += `    COPY "${f.source}" "${f.destination}"`;
 
                     if (f.permissions) {
                         command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
                     }
 
-                    return command;
+                    return command + lastSpacing;
                 } else if (f.type === 'copy_file') {
-                    description = description || `Copy file from "${f.source}" to "${f.destination}"`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
                     command += `    COPY "${f.source}" "${f.destination}"`;
 
                     if (f.permissions) {
                         command += `\n    RUN chmod ${f.permissions} "${f.destination}"`;
                     }
 
-                    return command;
+                    return command + lastSpacing;
                 } else if (f.type === 'file') {
-                    description = description || `Create file "${f.path}"`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
                     command += `    RUN touch "${f.path}"`;
 
                     if (f.permissions) {
@@ -292,27 +290,24 @@ function getDockerfileContents (in_serviceConfig) {
                             .join(' && \\');
                     }
 
-                    return command;
+                    return command + lastSpacing;
                 } else if (f.type === 'link') {
-                    description = description || `Create link "${f.destination}" with source" ${f.source}"`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
                     command += `    RUN ln -s "${f.source}" "${f.destination}"`
-                    return command;
+                    return command + lastSpacing;
 
                 } else if (f.type === 'commands') {
-                    description = description || `Running custom commands...`;
-                    let command = `\n    # ${description}\n`;
+                    let command = firstSpacing + (description ? `\n    # ${description}\n` : '');
                     command += f.commands
                         .map(c => {
                             return `    RUN ${c}`;
                         }).join('\n');
-                    return command;
+                    return command + lastSpacing;
                 }
             }).join('\n')
         : '') +
     (enableNginx ?
         [
-            ``,
             ``,
             `# ----------------------`,
             `#`,
@@ -568,6 +563,7 @@ function getDockerImageTags (in_serviceConfig) {
     }
 
     dockerImageTags = dockerImageTags.concat(serviceConfig.docker.image.tags || []);
+    dockerImageTags = dockerImageTags.concat(_getDockerImageVersionControlTags(in_serviceConfig) || []);
 
     return dockerImageTags;
 }
@@ -698,6 +694,49 @@ function dockerRunningCommand () {
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _getDockerImageVersionControlTags (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            image: {
+                tag_with_revision: 'BOOLEAN'
+            }
+        },
+        version_control: {
+            type: 'STRING',
+            root_folder: 'STRING'
+        }
+    });
+
+    let dockerImageTags = [];
+
+    if (serviceConfig.docker.image.tag_with_revision) {
+        if (serviceConfig.version_control.type === 'mercurial') {
+
+            let hgRootFolder = hg.getRootFolder(in_serviceConfig);
+            if (!hgRootFolder) {
+                return;
+            }
+
+            let cmdResult = hg.cmd(['-R', hgRootFolder, 'id', '-i'], {
+                hide: true
+            });
+
+            if (cmdResult.hasError) {
+                cmdResult.printError('  ');
+                return;
+            }
+
+            let hgChangeSet = cmdResult.result;
+            hgChangeSet = hgChangeSet.trim().replace(/\+$/,'');
+            dockerImageTags.push(hgChangeSet);
+        }
+    }
+
+    return dockerImageTags;
+}
+
 // ******************************
 
 function _uniqueByField (in_collection, in_key) {

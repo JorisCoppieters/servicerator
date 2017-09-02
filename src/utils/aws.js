@@ -804,6 +804,13 @@ function clearCachedTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, i
 }
 
 // ******************************
+
+function clearCachedLaunchConfigurationLike (in_launchConfigurationTemplate, in_cache) {
+    let cache = in_cache || {};
+    cache['LaunchConfiguration_' + in_launchConfigurationTemplate] = undefined;
+}
+
+// ******************************
 // Launch Configuration Functions:
 // ******************************
 
@@ -1546,6 +1553,7 @@ function awsVersion () {
 module.exports['arnToTitle'] = awsArnToTitle;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;
 module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
+module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
 module.exports['cmd'] = awsCmd;
 module.exports['createCluster'] = createCluster;
 module.exports['createClusterService'] = createClusterService;
