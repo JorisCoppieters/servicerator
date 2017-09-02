@@ -1028,7 +1028,6 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                     {
                         host: 'NUMBER',
                         container: 'NUMBER',
-                        env: 'STRING',
                         test: 'BOOLEAN'
                     }
                 ],
@@ -1040,7 +1039,6 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                 ],
                 commands: [
                     {
-                        env: 'STRING',
                         test: 'BOOLEAN',
                         val: 'STRING'
                     }

@@ -58,7 +58,6 @@ function getServiceSchema () {
                 "commands": [
                     {
                         "test": "BOOLEAN",
-                        "env": "STRING",
                         "val": "STRING"
                     }
                 ],
@@ -71,7 +70,6 @@ function getServiceSchema () {
                         "test": "BOOLEAN",
                         "container": "NUMBER",
                         "host": "NUMBER",
-                        "env": "STRING",
                         "description": "STRING"
                     }
                 ],
@@ -218,6 +216,37 @@ function getServiceSchema () {
                         ]
                     },
                     "load_balancer_name": "STRING",
+                    "load_balancer": {
+                        "name": "STRING",
+                        "subnets": [
+                            "STRING"
+                        ],
+                        "security_groups": [
+                            "STRING"
+                        ],
+                        "tags": [
+                            {
+                                "key": "STRING",
+                                "val": "STRING"
+                            }
+                        ],
+                        "ports": [
+                            {
+                                "protocol": "STRING",
+                                "load_balancer_port": "NUMBER",
+                                "instance_protocol": "STRING",
+                                "instance_port": "NUMBER",
+                                "ssl_certificate_id": "arn:aws:iam::123456789012:server-certificate/my-server-cert"
+                            }
+                        ],
+                        "healthcheck": {
+                            "target": "STRING",
+                            "interval": "NUMBER",
+                            "timeout": "NUMBER",
+                            "unhealthy_threshold": "NUMBER",
+                            "healthy_threshold": "NUMBER"
+                        }
+                    },
                     "auto_scaling_group": {
                         "name": "STRING",
                         "subnets": [

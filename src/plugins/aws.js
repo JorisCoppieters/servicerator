@@ -404,8 +404,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                     {
                         test: "BOOLEAN",
                         host: 'NUMBER',
-                        container: 'NUMBER',
-                        env: 'STRING'
+                        container: 'NUMBER'
                     }
                 ],
                 volumes: [
@@ -418,8 +417,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                 commands: [
                     {
                         test: "BOOLEAN",
-                        val: 'STRING',
-                        env: 'STRING'
+                        val: 'STRING'
                     }
                 ]
             }
@@ -809,7 +807,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     if (awsLaunchConfigurationSecurityGroupNames.length) {
         awsLaunchConfigurationSecurityGroups = awsLaunchConfigurationSecurityGroupNames
             .map(name => {
-                print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', '...', true);
+                print.keyVal('AWS ' + environmentTitle + ' VPC "' + name + '" Security Group Id', '...', true);
                 let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
                     cache: awsCache,
                     showWarning: true
@@ -818,7 +816,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
                     return;
                 }
                 print.clearLine();
-                print.keyVal('AWS ' + environmentTitle + ' VPC Security Group Id', awsVpcSecurityGroupId);
+                print.keyVal('AWS ' + environmentTitle + ' VPC "' + name + '" Security Group Id', awsVpcSecurityGroupId);
                 return awsVpcSecurityGroupId;
             });
 
@@ -908,7 +906,9 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                 {
                     name: 'STRING',
                     vpc_name: 'STRING',
-                    load_balancer_name: 'STRING',
+                    load_balancer: {
+                        name: 'STRING'
+                    },
                     launch_configuration: {
                         name: 'STRING'
                     },
@@ -989,7 +989,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsLoadBalancerName = cluster.load_balancer_name || false;
+    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name || false; // TODO: Remove load_balancer_name
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -1028,10 +1028,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let awsVpcSubnetIds = awsVpcSubnetNames
         .map(awsVpcSubnetName => {
-
-            print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Name', awsVpcSubnetName);
-
-            print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', '...', true);
+            print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
                 showWarning: true
@@ -1040,17 +1037,17 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                 return;
             }
             print.clearLine();
-            print.keyVal('AWS ' + environmentTitle + ' VPC Subnet Id', awsVpcSubnetId);
+            print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', awsVpcSubnetId);
             return awsVpcSubnetId;
-        })
+        });
 
     cprint.cyan('Creating auto scaling group...');
 
     let tagsDict = {
-        "DockerImageName": dockerImageName,
-        "Environment": environment,
-        "ServiceName": serviceName,
-        "Name": serviceName + '-group-instance'
+        DockerImageName: dockerImageName,
+        Environment: environment,
+        ServiceName: serviceName,
+        Name: serviceName + '-group-instance'
     }
 
     let clusterTags = cluster.instance.tags || [];
@@ -1061,11 +1058,11 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     let tags = Object.keys(tagsDict).map(key => {
         let val = tagsDict[key];
         return {
-            "ResourceId": awsAutoScalingGroupName,
-            "ResourceType": "auto-scaling-group",
-            "Key": key,
-            "Value": val,
-            "PropagateAtLaunch": true
+            ResourceId: awsAutoScalingGroupName,
+            ResourceType: "auto-scaling-group",
+            Key: key,
+            Value: val,
+            PropagateAtLaunch: true
         }
     });
 
@@ -1130,7 +1127,37 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                 {
                     name: 'STRING',
                     vpc_name: 'STRING',
-                    load_balancer_name: 'STRING',
+                    load_balancer: {
+                        name: 'STRING',
+                        subnets: [
+                            'STRING'
+                        ],
+                        security_groups: [
+                            'STRING'
+                        ],
+                        tags: [
+                            {
+                                key: 'STRING',
+                                val: 'STRING'
+                            }
+                        ],
+                        ports: [
+                            {
+                                protocol: "STRING",
+                                load_balancer_port: "NUMBER",
+                                instance_protocol: "STRING",
+                                instance_port: "NUMBER",
+                                ssl_certificate_id: "arn:aws:iam::123456789012:server-certificate/my-server-cert"
+                            }
+                        ],
+                        healthcheck: {
+                            target: "STRING",
+                            interval: "NUMBER",
+                            timeout: "NUMBER",
+                            unhealthy_threshold: "NUMBER",
+                            healthy_threshold: "NUMBER"
+                        }
+                    },
                     environment: 'STRING'
                 }
             ]
@@ -1163,9 +1190,17 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsLoadBalancerName = cluster.load_balancer_name;
+    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (!awsLoadBalancerName) {
         cprint.yellow('Load balancer name not set');
+        return false;
+    }
+
+    let awsLoadBalancerSecurityGroupNames = cluster.load_balancer.security_groups || [];
+
+    let awsVpcSubnetNames = (cluster.load_balancer.subnets || []);
+    if (!awsVpcSubnetNames.length) {
+        cprint.yellow('No VPC subnet names set');
         return false;
     }
 
@@ -1189,20 +1224,106 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
-    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
-    let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
-        cache: awsCache,
-        showWarning: true
-    });
-    if (!awsDefaultVpcSecurityGroupId) {
-        return;
+    let awsLoadBalancerSecurityGroups = [];
+
+    if (awsLoadBalancerSecurityGroupNames.length) {
+        awsLoadBalancerSecurityGroups = awsLoadBalancerSecurityGroupNames
+            .map(name => {
+                print.keyVal('AWS ' + environmentTitle + ' VPC "' + name + '" Security Group Id', '...', true);
+                let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
+                    cache: awsCache,
+                    showWarning: true
+                });
+                if (!awsVpcSecurityGroupId) {
+                    return;
+                }
+                print.clearLine();
+                print.keyVal('AWS ' + environmentTitle + ' VPC "' + name + '" Security Group Id', awsVpcSecurityGroupId);
+                return awsVpcSecurityGroupId;
+            });
+
+    } else {
+        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
+        let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
+            cache: awsCache,
+            showWarning: true
+        });
+        if (!awsDefaultVpcSecurityGroupId) {
+            return;
+        }
+        print.clearLine();
+        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
+        awsLoadBalancerSecurityGroups.push(awsDefaultVpcSecurityGroupId);
     }
-    print.clearLine();
-    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
+
+    let awsVpcSubnetIds = awsVpcSubnetNames
+        .map(awsVpcSubnetName => {
+            print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
+            let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+                cache: awsCache,
+                showWarning: true
+            });
+            if (!awsVpcSubnetId) {
+                return;
+            }
+            print.clearLine();
+            print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', awsVpcSubnetId);
+            return awsVpcSubnetId;
+        });
+
+    let tagsDict = {
+        LoadBalancer: awsLoadBalancerName
+    }
+
+    let clusterTags = cluster.load_balancer.tags || [];
+    clusterTags.forEach(t => {
+        tagsDict[t.key] = t.val;
+    });
+
+    let tags = Object.keys(tagsDict).map(key => {
+        let val = tagsDict[key];
+        return {
+            Key: key,
+            Value: val
+        }
+    });
+
+    let listeners = cluster.load_balancer.ports
+        .map(port => {
+            let awsPort = {};
+            awsPort["Protocol"] = port.protocol;
+            awsPort["LoadBalancerPort"] = port.load_balancer_port;
+            awsPort["InstanceProtocol"] = port.instance_protocol;
+            awsPort["InstancePort"] = port.instance_port;
+
+            if (port.ssl_certificate_id) {
+                awsPort["SSLCertificateId"] = port.ssl_certificate_id;
+            }
+            return awsPort;
+        });
+
+    let healthcheck = cluster.load_balancer.healthcheck || false;
+    let awsHealthcheck = {};
+    if (healthcheck) {
+        awsHealthcheck["Target"] = healthcheck.target;
+        awsHealthcheck["Interval"] = healthcheck.interval;
+        awsHealthcheck["Timeout"] = healthcheck.timeout;
+        awsHealthcheck["UnhealthyThreshold"] = healthcheck.unhealthy_threshold;
+        awsHealthcheck["HealthyThreshold"] = healthcheck.healthy_threshold;
+    }
+
+    let listenerArgs = listeners
+        .map(l => {
+            return Object.keys(l)
+                .map(k => {
+                    let v = l[k];
+                    return `${k}=${v}`
+                })
+        })
+        .join(' ');
 
     cprint.cyan('Creating load balancer...');
 
-    // TODO
     let args = [
         'elb',
         'create-load-balancer',
@@ -1210,11 +1331,17 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         '--load-balancer-name',
         awsLoadBalancerName,
 
-        // '--listeners',
-        // '--availability-zones',
-        // '--subnets',
-        // '--security-groups',
-        // '--tags'
+        '--listeners',
+        listenerArgs,
+
+        '--subnets',
+        awsVpcSubnetIds.join(','),
+
+        '--security-groups',
+        JSON.stringify(awsLoadBalancerSecurityGroups),
+
+        '--tags',
+        JSON.stringify(tags)
     ];
 
     let cmdResult = aws.cmd(args);
@@ -1223,6 +1350,34 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created load balancer');
+    }
+
+    if (awsHealthcheck) {
+        let healthCheckArgs = Object.keys(awsHealthcheck)
+            .map(k => {
+                let v = awsHealthcheck[k];
+                return `${k}=${v}`
+            })
+            .join(',');
+
+        let args = [
+            'elb',
+            'configure-health-check',
+
+            '--load-balancer-name',
+            awsLoadBalancerName,
+
+            '--health-check',
+            healthCheckArgs
+        ];
+
+        let cmdResult = aws.cmd(args);
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+        } else {
+            cmdResult.printResult('  ');
+            cprint.green('Added health check to load balancer');
+        }
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -1383,9 +1538,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             container: {
                 ports: [
                     {
-                        "container": 'NUMBER',
-                        "env": 'STRING',
-                        "host": 'NUMBER'
+                        container: 'NUMBER',
+                        host: 'NUMBER'
                     }
                 ]
             }
@@ -1398,7 +1552,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                     name: 'STRING',
                     service_name: 'STRING',
                     environment: 'STRING',
-                    load_balancer_name: 'STRING',
+                    load_balancer: {
+                        name: 'STRING'
+                    },
                     instance: {
                         count: 'NUMBER'
                     }
@@ -1487,9 +1643,10 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let loadBalancers = [];
 
-    if (cluster.load_balancer_name) {
+    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
+    if (awsLoadBalancerName) {
         loadBalancers.push({
-            loadBalancerName: cluster.load_balancer_name,
+            awsLoadBalancerName: awsLoadBalancerName,
             containerName: dockerContainerName,
             containerPort: dockerImagePort
         });
@@ -1755,7 +1912,9 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
-                    load_balancer_name: 'STRING',
+                    load_balancer: {
+                        name: 'STRING'
+                    },
                     environment: 'STRING'
                 }
             ]
@@ -1773,7 +1932,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsLoadBalancerName = cluster.load_balancer_name;
+    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (!awsLoadBalancerName) {
         cprint.yellow('Load balancer name not set');
         return false;
