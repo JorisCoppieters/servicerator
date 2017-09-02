@@ -44,13 +44,7 @@ function runTests () {
         '#',
         '# ----------------------',
         '',
-        '    FROM ubuntu:trusty',
-        '',
-        '# ----------------------',
-        '#',
-        '# ENVIRONMENT',
-        '#',
-        '# ----------------------'
+        '    FROM ubuntu:trusty'
     ].join('\n')));
     test.assertMatch('docker default repository', '.+', docker.getDefaultRepository());
     test.assertMatch('docker version', 'Docker version .*, build .*', docker.version());
@@ -61,13 +55,7 @@ function runTests () {
         '#',
         '# ----------------------',
         '',
-        '    FROM ubuntu:trusty',
-        '',
-        '# ----------------------',
-        '#',
-        '# ENVIRONMENT',
-        '#',
-        '# ----------------------'
+        '    FROM ubuntu:trusty'
     ].join('\n'), docker.getDockerfileContents({}));
     test.assertEquals('docker file with service configured', [
         '# ----------------------',
@@ -180,7 +168,7 @@ function runTests () {
             }
         }
     }));
-    test.assertEquals('docker tags for config with image tags', ['tag1', 'tag2', 'latest'], docker.getImageTags({
+    test.assertEquals('docker tags for config with image tags', ['latest','tag1', 'tag2'], docker.getImageTags({
         docker: {
             image: {
                 tags: ['tag1', 'tag2']
@@ -194,7 +182,7 @@ function runTests () {
             }
         }
     }));
-    test.assertEquals('docker tags for config with all tags', ['tag1','tag2','7alpha',date.getTag(),'model-version-1.2.3','corpus-version-4.5.6','latest'], docker.getImageTags({
+    test.assertEquals('docker tags for config with all tags', ['7alpha',date.getTag(),'model-version-1.2.3','corpus-version-4.5.6','latest','tag1','tag2'], docker.getImageTags({
         corpus: {
             version: '4.5.6'
         },
