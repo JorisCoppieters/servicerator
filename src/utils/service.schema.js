@@ -206,6 +206,7 @@ function getServiceSchema () {
             ],
             "clusters": [
                 {
+                    "default": "BOOLEAN",
                     "environment": "STRING",
                     "url": "STRING",
                     "vpc_name": "STRING",

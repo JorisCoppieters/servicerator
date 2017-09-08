@@ -70,7 +70,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
         let clusters = serviceConfig.service.clusters
             .filter(c => {
-                return c.environment === in_environment;
+                return c.environment === _getEnvironment(in_serviceConfig, in_environment);
             });
 
         if (serviceName) {
@@ -301,7 +301,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -751,7 +751,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
@@ -954,7 +954,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
@@ -1179,7 +1179,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
@@ -1319,8 +1319,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                     let v = l[k];
                     return `${k}=${v}`
                 })
-        })
-        .join(' ');
+        });
 
     cprint.cyan('Creating load balancer...');
 
@@ -1331,18 +1330,15 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         '--load-balancer-name',
         awsLoadBalancerName,
 
-        '--listeners',
-        listenerArgs,
-
-        '--subnets',
-        awsVpcSubnetIds.join(','),
-
         '--security-groups',
         JSON.stringify(awsLoadBalancerSecurityGroups),
 
         '--tags',
         JSON.stringify(tags)
     ];
+
+    args = args.concat('--listeners').concat(listenerArgs);
+    args = args.concat('--subnets').concat(awsVpcSubnetIds);
 
     let cmdResult = aws.cmd(args);
     if (cmdResult.hasError) {
@@ -1484,7 +1480,7 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
@@ -1618,7 +1614,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let dockerContainerName = serviceName;
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
@@ -1646,7 +1642,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (awsLoadBalancerName) {
         loadBalancers.push({
-            awsLoadBalancerName: awsLoadBalancerName,
+            loadBalancerName: awsLoadBalancerName,
             containerName: dockerContainerName,
             containerPort: dockerImagePort
         });
@@ -1761,7 +1757,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
         });
@@ -1824,7 +1820,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment
         });
@@ -1879,7 +1875,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -1921,7 +1917,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -1963,7 +1959,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -2005,7 +2001,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -2045,7 +2041,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -2081,7 +2077,7 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = in_environment;
+    let environment = _getEnvironment(in_serviceConfig, in_environment);
     let environmentTitle = str.toTitleCase(environment);
     let cluster = (serviceConfig.service.clusters || []).find(c => {
             return c.environment === environment;
@@ -2101,6 +2097,37 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     open(url);
+}
+
+// ******************************
+// Helper Functions:
+// ******************************
+
+function _getEnvironment (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
+    let clusters = serviceConfig.service.clusters || [];
+    if (clusters.length === 1 && clusters[0].environment) {
+        return clusters[0].environment;
+    }
+
+    let defaultCluster = clusters
+        .find(c => c.default && c.environment);
+
+    if (defaultCluster) {
+        return defaultCluster.environment;
+    }
+
+    return in_environment;
 }
 
 // ******************************
