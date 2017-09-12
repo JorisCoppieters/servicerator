@@ -19,6 +19,7 @@ function runService (in_serviceConfig) {
         service: {
             run: {
                 cmd: 'STRING',
+                cwd: 'STRING',
                 args: [
                     'STRING'
                 ]
@@ -33,11 +34,17 @@ function runService (in_serviceConfig) {
         return;
     }
 
+    let cwd = serviceConfig.service.run.cwd || '/';
+    cwd = service.replaceConfigReferences(in_serviceConfig, cwd);
+    cwd = path.resolve(cwd);
+
     let args = serviceConfig.service.run.args || [];
     args = args
         .map(a => service.replaceConfigReferences(in_serviceConfig, a));
 
-    exec.cmd(cmd, args);
+    exec.cmd(cmd, args, {
+        cwd: cwd
+    });
 }
 
 // ******************************

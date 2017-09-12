@@ -1505,7 +1505,10 @@ function awsCmd (in_args, in_options) {
         in_args = [in_args]
     }
 
-    return exec.cmdSync('aws', in_args, '  ', !hide);
+    return exec.cmdSync('aws', in_args, {
+        indent: '  ',
+        hide: hide
+    });
 }
 
 // ******************************
@@ -1538,7 +1541,12 @@ function awsInstalled () {
 // ******************************
 
 function awsVersion () {
-    let cmdResult = exec.cmdSync('aws', ['--version'], '', false, true);
+    let cmdResult = exec.cmdSync('aws', ['--version'], {
+        indent: '',
+        hide: true,
+        errToOut: true
+    });
+
     if (cmdResult.hasError) {
         return false;
     } else {

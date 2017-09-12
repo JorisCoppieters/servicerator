@@ -184,6 +184,7 @@ function getServiceSchema () {
         "service": {
             "run": {
                 "cmd": "STRING",
+                "cwd": "STRING",
                 "args": [
                     "STRING"
                 ]

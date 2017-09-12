@@ -37,7 +37,11 @@ function mercurialCmd (in_args, in_options) {
         in_args = [in_args]
     }
 
-    return exec.cmdSync('hg', in_args, '  ', !hide, true);
+    return exec.cmdSync('hg', in_args, {
+        indent: '  ',
+        hide: hide,
+        errToOut: true
+    });
 }
 
 // ******************************
@@ -52,7 +56,12 @@ function mercurialInstalled () {
 // ******************************
 
 function mercurialVersion () {
-    let cmdResult = exec.cmdSync('hg', ['version'], '', false, true);
+    let cmdResult = exec.cmdSync('hg', ['version'], {
+        indent: '',
+        hide: true,
+        errToOut: true
+    });
+
     if (cmdResult.hasError) {
         return false;
     } else {

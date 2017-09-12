@@ -282,39 +282,55 @@ function generateAuthFiles (in_serviceConfig) {
 
         cprint.cyan('Creating certificate key...');
         cmdResult = openssl.cmd(['genrsa', '-out', serviceKey, 2048]);
+        if (!cmdResult) {
+            return;
+        }
+
         if (cmdResult.hasError) {
             cmdResult.printError();
             return;
-        } else {
-            cmdResult.printResult();
         }
+
+        cmdResult.printResult();
 
         cprint.cyan('Generating certificate signing request...');
         cmdResult = openssl.cmd(['req', '-config', reqCrtConfig, '-extensions', 'req_ext', '-key', serviceKey, '-new', '-out', serviceSigningRequest]);
+        if (!cmdResult) {
+            return;
+        }
+
         if (cmdResult.hasError) {
             cmdResult.printError();
             return;
-        } else {
-            cmdResult.printResult();
         }
+
+        cmdResult.printResult();
 
         cprint.cyan('Signing certificate...');
         cmdResult = openssl.cmd(['ca', '-config', caSignConfig, '-extfile', caSignExtConfig, '-in', serviceSigningRequest, '-batch', '-out', serviceCertificate]);
+        if (!cmdResult) {
+            return;
+        }
+
         if (cmdResult.hasError) {
             cmdResult.printError();
             return;
-        } else {
-            cmdResult.printResult();
         }
+
+        cmdResult.printResult();
 
         cprint.cyan('Verifying certificate...');
         cmdResult = openssl.cmd(['verify', '-CAfile', rootCACertificate, serviceCertificate]);
+        if (!cmdResult) {
+            return;
+        }
+
         if (cmdResult.hasError) {
             cmdResult.printError();
             return;
-        } else {
-            cmdResult.printResult();
         }
+
+        cmdResult.printResult();
 
         let servicePk8Name = serviceConfig.auth.pkcs8 || false;
         if (servicePk8Name) {

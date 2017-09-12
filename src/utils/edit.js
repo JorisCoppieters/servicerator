@@ -39,7 +39,9 @@ function editFiles (in_paths) {
         args = ['-a'].concat(args);
     }
 
-    exec.cmdSync(editor, args);
+    exec.cmdSync(editor, args, {
+        indent: ''
+    });
 }
 
 // ******************************

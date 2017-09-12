@@ -646,10 +646,20 @@ function dockerCmd (in_args, in_options) {
     let errToOut = false;
 
     if (async) {
-        return exec.cmd(command, args, '  ', !hide, knownCmdErrors, asyncCb);
+        return exec.cmd(command, args, {
+            indent: '  ',
+            hide: hide,
+            knownErrors: knownCmdErrors,
+            doneCb: asyncCb
+        });
     }
 
-    return exec.cmdSync(command, args, '  ', !hide, errToOut, knownCmdErrors);
+    return exec.cmdSync(command, args, {
+        indent: '  ',
+        hide: hide,
+        errToOut: errToOut,
+        knownErrors: knownCmdErrors
+    });
 }
 
 // ******************************
@@ -673,7 +683,11 @@ function dockerRunning () {
 // ******************************
 
 function dockerVersion () {
-    let cmdResult = exec.cmdSync('docker', ['--version'], '', false);
+    let cmdResult = exec.cmdSync('docker', ['--version'], {
+        indent: '',
+        hide: true
+    });
+
     if (cmdResult.hasError) {
         return false;
     } else {
@@ -684,7 +698,11 @@ function dockerVersion () {
 // ******************************
 
 function dockerRunningCommand () {
-    let cmdResult = exec.cmdSync('docker', ['info'], '', false);
+    let cmdResult = exec.cmdSync('docker', ['info'], {
+        indent: '',
+        hide: true
+    });
+
     if (cmdResult.hasError) {
         return false;
     } else {

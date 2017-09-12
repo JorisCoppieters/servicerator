@@ -541,24 +541,24 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    let nginxFile = false;
+    // let nginxFile = false;
 
-    let dockerFolder = docker.getFolder(sourceFolder);
-    if (dockerFolder) {
-        nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-    }
+    // let dockerFolder = docker.getFolder(sourceFolder);
+    // if (dockerFolder) {
+    //     nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+    // }
 
     opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
 
     let filePath = path.resolve(sourceFolder, serviceFile.path);
     filePath = replaceServiceConfigReferences(in_serviceConfig, filePath);
 
-    if (filePath === nginxFile) {
-        if (!opt.suppressOutput) {
-            cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
-        }
-        return;
-    }
+    // if (filePath === nginxFile) {
+    //     if (!opt.suppressOutput) {
+    //         cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
+    //     }
+    //     return;
+    // }
 
     let fileFolder = path.dirname(filePath);
     if (!fs.folderExists(fileFolder)) {
@@ -597,12 +597,12 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    let nginxFile = false;
+    // let nginxFile = false;
 
-    let dockerFolder = docker.getFolder(sourceFolder);
-    if (dockerFolder) {
-        nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-    }
+    // let dockerFolder = docker.getFolder(sourceFolder);
+    // if (dockerFolder) {
+    //     nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+    // }
 
     opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
 
@@ -612,12 +612,12 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
     let destination = path.resolve(sourceFolder, serviceFile.destination);
     destination = replaceServiceConfigReferences(in_serviceConfig, destination);
 
-    if (destination === nginxFile) {
-        if (!opt.suppressOutput) {
-            cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
-        }
-        return;
-    }
+    // if (destination === nginxFile) {
+    //     if (!opt.suppressOutput) {
+    //         cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
+    //     }
+    //     return;
+    // }
 
     let fileFolder = path.dirname(destination);
     if (!fs.folderExists(fileFolder)) {
@@ -652,12 +652,12 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    let nginxFile = false;
+    // let nginxFile = false;
 
-    let dockerFolder = docker.getFolder(sourceFolder);
-    if (dockerFolder) {
-        nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-    }
+    // let dockerFolder = docker.getFolder(sourceFolder);
+    // if (dockerFolder) {
+    //     nginxFile = path.resolve(dockerFolder, 'nginx.conf');
+    // }
 
     opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
 
@@ -667,12 +667,12 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
     let destination = path.resolve(sourceFolder, serviceFile.destination);
     destination = replaceServiceConfigReferences(in_serviceConfig, destination);
 
-    if (destination === nginxFile) {
-        if (!opt.suppressOutput) {
-            cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
-        }
-        return;
-    }
+    // if (destination === nginxFile) {
+    //     if (!opt.suppressOutput) {
+    //         cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
+    //     }
+    //     return;
+    // }
 
     let fileFolder = path.dirname(destination);
     if (!fs.folderExists(fileFolder)) {

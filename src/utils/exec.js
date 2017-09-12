@@ -14,19 +14,38 @@ let print = require('./print');
 // Functions:
 // ******************************
 
-function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut, in_knownErrors) {
-    in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
-    if (in_printCmd) {
-        cprint.white('  EXEC-SYNC: ' + in_cmd + ' ' + _flatArgs(in_args));
+function execCmdSync (in_cmd, in_args, in_options) {
+    let opt = in_options || {};
+    let indent = _defaultIndent(opt.indent);
+
+    if (!opt.hide) {
+        if (opt.cwd) {
+            cprint.white(indent + 'CWD: ' + opt.cwd);
+        }
+        cprint.white(indent + 'EXEC-SYNC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
-    let execResult = child_process.spawnSync(in_cmd, in_args);
-    let errorResult = (execResult.stderr || false).toString();
-    let cmdResult = (execResult.stdout || false).toString();
+
+    let cmdOptions = {};
+    if (opt.cwd) {
+        cmdOptions.cwd = cwd;
+    }
+
+    let execResult = child_process.spawnSync(in_cmd, in_args, cmdOptions);
+
+    let errorResult = '';
+    if (execResult.error) {
+        errorResult - errorResult.Error;
+    }
+    let stderrResult = (execResult.stderr || '').toString();
+    let stdoutResult = (execResult.stdout || '').toString();
+
+    let cmdErrorResult = errorResult || stderrResult;
+    let cmdResult = stdoutResult;
     let rows = cmdResult.trim().split(/(?:\n|(?:\r\n?))+/);
 
-    if (in_errToOut) {
-        cmdResult += errorResult;
-        errorResult = '';
+    if (opt.errToOut) {
+        cmdResult += cmdErrorResult;
+        cmdErrorResult = '';
     }
 
     let cmdResultObj = {};
@@ -35,48 +54,65 @@ function execCmdSync (in_cmd, in_args, in_indent, in_printCmd, in_errToOut, in_k
     } catch (e) {}
 
     return {
-        error: errorResult,
+        error: cmdErrorResult,
         result: cmdResult,
         resultObj: cmdResultObj,
-        printError: (in_indent) => cprint.red(str.indentContents(errorResult, in_indent)),
-        printResult: (in_indent) => _printLogLines(cmdResult, in_indent, in_knownErrors),
+        printError: (in_indent) => cprint.red(str.indentContents(cmdErrorResult, _defaultIndent(in_indent, indent))),
+        printResult: (in_indent) => _printLogLines(cmdResult, _defaultIndent(in_indent, indent), opt.knownErrors),
         rows: rows,
-        hasError: !!errorResult.trim(),
-        toString: () => errorResult.trim() ? errorResult : cmdResult
+        hasError: !!cmdErrorResult.trim(),
+        toString: () => cmdErrorResult.trim() ? cmdErrorResult : cmdResult
     };
 }
 
 // ******************************
 
-function execCmd (in_cmd, in_args, in_indent, in_printCmd, in_knownErrors, in_doneCb) {
-    in_printCmd = (typeof(in_printCmd) !== 'undefined' ? in_printCmd : true);
-    if (in_printCmd) {
-        cprint.white('  EXEC: ' + in_cmd + ' ' + _flatArgs(in_args));
+function execCmd (in_cmd, in_args, in_options) {
+    let opt = in_options || {};
+    let indent = _defaultIndent(opt.indent);
+
+    if (!opt.hide) {
+        if (opt.cwd) {
+            cprint.white(indent + 'CWD: ' + opt.cwd);
+        }
+        cprint.white(indent + 'EXEC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
-    let indent = in_indent || '  ';
-    let child = child_process.spawn(in_cmd, in_args);
+
+    let child = child_process.spawn(in_cmd, in_args, {
+        cwd: opt.cwd || '/'
+    });
 
     child.stdout.on('data', chunk => {
-        _printLogLine(chunk, indent, in_knownErrors);
+        _printLogLine(chunk, indent, opt.knownErrors);
     });
 
     child.stderr.on('data', chunk => {
-        _printLogLine(chunk, indent, in_knownErrors);
+        _printLogLine(chunk, indent, opt.knownErrors);
     });
 
     child.on('error', error => {
-        _printLogLine(error, indent, in_knownErrors);
+        _printLogLine(error, indent, opt.knownErrors);
     });
 
     child.on('close', close => {
-        if (in_doneCb) {
-            in_doneCb();
+        if (opt.doneCb) {
+            opt.doneCb();
         }
     });
 }
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _defaultIndent (in_indent, in_defaultIndent) {
+    if (typeof(in_indent) === 'undefined') {
+        return in_defaultIndent || '  ';
+    }
+
+    return in_indent || '';
+}
+
 // ******************************
 
 function _flatArgs (in_args) {
@@ -109,14 +145,14 @@ function _flatArgs (in_args) {
 function _printLogLines (in_lines, in_indent, in_knownErrors) {
     in_lines
         .split(/(?:\n|(?:\r\n?))+/)
-        .forEach(l => _printLogLine(l, in_indent, in_knownErrors));
+        .forEach(l => _printLogLine(l, _defaultIndent(in_indent), in_knownErrors));
 }
 
 // ******************************
 
 function _printLogLine (in_line, in_indent, in_knownErrors) {
     let line = in_line.toString();
-    let indent = in_indent || '';
+    let indent = _defaultIndent(in_indent);
 
     if (!line.trim()) {
         return;

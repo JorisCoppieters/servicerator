@@ -49,7 +49,10 @@ function shellCmd (in_args, in_options) {
         ]
     }
 
-    return exec.cmdSync(shell, args, '  ', !hide);
+    return exec.cmdSync(shell, args, {
+        indent: '  ',
+        hide: hide
+    });
 }
 
 // ******************************
