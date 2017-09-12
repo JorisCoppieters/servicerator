@@ -5,7 +5,7 @@
 // ******************************
 //
 //
-// SERVICERATOR v0.6.3
+// SERVICERATOR v0.6.4
 //
 // 0.5.4
 // - Bug fixes for home folder
