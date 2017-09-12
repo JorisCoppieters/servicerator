@@ -39,8 +39,7 @@ function mercurialCmd (in_args, in_options) {
 
     return exec.cmdSync('hg', in_args, {
         indent: '  ',
-        hide: hide,
-        errToOut: true
+        hide: hide
     });
 }
 
