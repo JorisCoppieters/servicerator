@@ -25,7 +25,7 @@ function gitSetupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
         return;
     }
     let gitIgnoreFile = path.resolve(sourceFolder, '.gitignore');
-    fs.writeFile(gitIgnoreFile, git.getIgnoreFileContents(in_serviceConfig), in_overwrite, in_docker, in_nginx);
+    fs.writeFile(gitIgnoreFile, git.getIgnoreFileContents(in_serviceConfig), in_overwrite);
 }
 
 // ******************************
@@ -36,7 +36,7 @@ function hgSetupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
         return;
     }
     let hgIgnoreFile = path.resolve(sourceFolder, '.hgignore');
-    fs.writeFile(hgIgnoreFile, hg.getIgnoreFileContents(in_serviceConfig), in_overwrite, in_docker, in_nginx);
+    fs.writeFile(hgIgnoreFile, hg.getIgnoreFileContents(in_serviceConfig), in_overwrite);
 }
 
 // ******************************
@@ -138,21 +138,19 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
         .forEach(f => {
             if (f.type === 'folder') {
                 service.createFolder(in_serviceConfig, f);
+
             } else if (f.type === 'link_folder') {
                 service.linkFolder(in_serviceConfig, f);
 
             } else if (f.type === 'file') {
-                service.createFile(in_serviceConfig, f, {
-                    overwrite: in_overwrite
-                });
+                service.writeFile(in_serviceConfig, f, in_overwrite);
+
             } else if (f.type === 'link_file') {
-                service.linkFile(in_serviceConfig, f, {
-                    overwrite: in_overwrite
-                });
+                service.linkFile(in_serviceConfig, f);
+
             } else if (f.type === 'copy_file') {
-                service.copyFile(in_serviceConfig, f, {
-                    overwrite: in_overwrite
-                });
+                service.copyFile(in_serviceConfig, f);
+
             }
         });
 

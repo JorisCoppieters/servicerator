@@ -1489,9 +1489,13 @@ function getCommands () {
         { params: ['', 'info', 'list', 'images'], description: 'Print out service docker information' },
         { params: ['get-version', 'version'], description: 'Get the service docker image version' },
         { params: ['set-version'], description: 'Get the service docker image version', options: [
-            {param:'M', description:'Increment major version (i.e 1.0.0 -> 2.0.0)'},
-            {param:'m', description:'Increment minor version (i.e 2.9.0 -> 2.10.0)'},
-            {param:'b', description:'Increment bug version (i.e 1.2.5 -> 1.2.6)'}] },
+            {param:'+M', description:'Increment major version (i.e 1.0.0 -> 2.0.0)'},
+            {param:'M', description:'Decrement major version (i.e 3.0.0 -> 2.0.0)'},
+            {param:'+m', description:'Increment minor version (i.e 2.9.0 -> 2.10.0)'},
+            {param:'m', description:'Decrement minor version (i.e 2.11.0 -> 2.10.0)'},
+            {param:'+b', description:'Increment bug version (i.e 1.2.5 -> 1.2.6)'},
+            {param:'b', description:'Decrement bug version (i.e 1.2.7 -> 1.2.6)'}
+        ]},
         { params: ['start-container', 'start', 'run', 'run-container'], description: 'Start the service docker container' },
         { params: ['enter-container', 'enter', 'interact', 'interactive'], description: 'Enter the running service docker container' },
         { params: ['stop-container', 'stop'], description: 'Stop the service docker container' },

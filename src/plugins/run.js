@@ -74,7 +74,7 @@ function getBaseCommands () {
 
 function getCommands () {
     return [
-        { params: [''], description: 'Print out service information' },
+        { params: [''], description: 'Run service' },
     ];
 }
 

@@ -501,7 +501,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         'environment': [],
         'essential': true,
         'image': awsTaskDefinitionImagePath,
-        'memory': awsTaskDefinitionMemoryLimit,
+        'memoryReservation': awsTaskDefinitionMemoryLimit,
         'name': serviceName,
         'volumesFrom': []
     };
@@ -555,7 +555,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         'environment': [],
         'essential': true,
         'image': awsTaskDefinitionFilebeatImagePath,
-        'memory': awsTaskDefinitionFilebeatMemoryLimit,
+        'memoryReservation': awsTaskDefinitionFilebeatMemoryLimit,
         'name': 'filebeat-tm-services',
         'portMappings': [],
         'volumesFrom': []

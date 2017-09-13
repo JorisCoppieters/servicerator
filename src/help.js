@@ -92,7 +92,12 @@ function _printPluginHelp (in_plugin, in_commands) {
                 return;
             }
 
-            optionParam = (optionParam.length > 1 ? '--' : '-') + optionParam;
+            let optionParamPrefix = (optionParam.length > 1 ? '--' : '-');
+            if (optionParam.match(/^\+.*/)) {
+                optionParamPrefix = '';
+            }
+
+            optionParam = optionParamPrefix + optionParam;
             let optionDescription = option.description || '';
 
             let indent = '  ';
