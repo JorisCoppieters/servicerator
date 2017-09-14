@@ -143,13 +143,19 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
                 service.linkFolder(in_serviceConfig, f);
 
             } else if (f.type === 'file') {
-                service.writeFile(in_serviceConfig, f, in_overwrite);
+                service.createFile(in_serviceConfig, f, {
+                    overwrite: in_overwrite
+                });
 
             } else if (f.type === 'link_file') {
-                service.linkFile(in_serviceConfig, f);
+                service.linkFile(in_serviceConfig, f, {
+                    overwrite: in_overwrite
+                });
 
             } else if (f.type === 'copy_file') {
-                service.copyFile(in_serviceConfig, f);
+                service.copyFile(in_serviceConfig, f, {
+                    overwrite: in_overwrite
+                });
 
             }
         });
