@@ -1,0 +1,57 @@
+0.7.0
+- Added bash completion
+- Added zsh completion
+- Switched memory limit from hard to soft in AWS task definitions
+
+0.6.4
+- Added load balancer functionality
+- Added version_control section, added functionality to aws
+- Bug fixes, default environment support for clusters
+- Refactored exec util library
+- Updated tests
+- Various fixes
+
+0.5.4
+- Added more desciptions to docker generation, fixed docker run command
+- Added view options and fixes
+- Bug fixes and clean up
+- Bug fixes for home folder
+- Fixed issues with port bindings
+- Fixes around auto scaling group creation
+- Removed deprecated code
+- Various changes, fixes, updates
+
+0.4.16
+- Added caching to AWS requests, improved config and aws setup, added launch configurations support
+- Added conda support and gitbash running docker
+- Added get as a plugin
+- Added instance stats
+- Added onClose,onOpen plugin behaviour, cleaned up AWS utils, added cluster, cluster service and cluster repo creation
+- Added readme
+- Added schema plugin, more fies
+- Added setting and unsetting of config values
+- Added some more tests, fixed up issue
+- Added subhelp menus, added replacer to JSON stringify
+- Added task definition cleaning, fixed editor
+- Added task definition to info and cleaned up ARN display
+- Changed license
+- Cleaned up service key name
+- Extended AWS functionality
+- Fixed auth generation
+- Fixed shell behaviour
+- Fixed up editor
+- Made it play more nicely with AWS
+- Various fixes, added schema access, bug fixes, tests
+
+0.3.0
+- Did plugins better added more support to docker and aws
+- More clean up and extended AWS
+
+0.2.1
+- Big clean up and started work on docker func
+- Clean up and fixes
+- Made help menu
+- Various fixes
+
+0.1.3
+- Initial release
