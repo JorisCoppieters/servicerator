@@ -1042,6 +1042,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             image: {
                 name: 'STRING'
             },
+            organization: 'STRING',
             container: {
                 memory_limit: 'NUMBER',
                 ports: [
@@ -1085,7 +1086,15 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     let dockerImageName = serviceConfig.docker.image.name;
     let dockerImageTags = docker.getImageTags(in_serviceConfig) || [];
     let dockerImageTag = dockerImageTags[0] || 'latest';
-    let dockerImagePath = dockerUsername + '/' + dockerImageName + ':' + dockerImageTag;
+
+    let dockerImageDetails = _getDockerImageDetails(
+        in_serviceConfig,
+        docker.k_REPO_TYPE_DEFAULT,
+        dockerUsername,
+        serviceConfig.docker.organization,
+        serviceConfig.docker.image.name);
+
+    let dockerImagePath = dockerImageDetails.shortImagePath;
     let dockerImageStartCommand = '';
 
     serviceConfig.docker.container.commands.forEach(command => {
