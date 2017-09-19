@@ -1238,6 +1238,7 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
     let dockerRepository;
     let dockerRepositoryStore;
     let dockerImagePath;
+    let shortDockerImagePath;
 
     switch (in_repositoryType)
     {
@@ -1247,6 +1248,7 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
             dockerRepository = in_dockerRepository || in_dockerUsername;
             dockerRepositoryStore = in_dockerRepositoryStore || docker.getDefaultRepositoryStore();
             dockerImagePath = dockerRepositoryStore + '/' + dockerRepository + '/' + in_dockerImageName;
+            shortDockerImagePath = dockerRepository + '/' + in_dockerImageName;
             break;
         case docker.k_REPO_TYPE_AWS:
             if (!aws.installed()) {
@@ -1259,6 +1261,7 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
             dockerRepository = awsDockerCredentials.username;
             dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
             dockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
+            shortDockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
             break;
     }
 
@@ -1267,7 +1270,8 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
         password: dockerPassword,
         repository: dockerRepository,
         repositoryStore: dockerRepositoryStore,
-        imagePath: dockerImagePath
+        imagePath: dockerImagePath,
+        shortImagePath: shortDockerImagePath
     };
 
     return details;
@@ -1281,6 +1285,7 @@ function _getDockerImagePaths (in_serviceConfig) {
             image: {
                 name: 'STRING'
             },
+            organization: 'STRING',
             other_repositories: [
                 {
                     type: 'STRING'
@@ -1294,33 +1299,26 @@ function _getDockerImagePaths (in_serviceConfig) {
         return;
     }
 
+    let dockerOrganization = serviceConfig.docker.organization;
+
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
         cprint.yellow('Docker Image username not set');
         return;
     }
 
-    let dockerImagePaths = [];
-    dockerImagePaths.push(dockerUsername + '/' + serviceConfig.docker.image.name);
-
-    (serviceConfig.docker.other_repositories || []).forEach(repo => {
-        switch (repo.type)
+    let repos = [
         {
-            case docker.k_REPO_TYPE_DEFAULT:
-                if (repo.repository) {
-                    dockerImagePaths.push(repo.repository + '/' + dockerUsername + '/' + serviceConfig.docker.image.name);
-                }
-                break;
-            case docker.k_REPO_TYPE_AWS:
-                let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig);
-                if (awsDockerRepositoryUrl) {
-                    dockerImagePaths.push(awsDockerRepositoryUrl + '/' + serviceConfig.docker.image.name);
-                }
-                break;
+            type: docker.k_REPO_TYPE_DEFAULT,
+            username: dockerUsername,
+            organization: serviceConfig.docker.organization
         }
-    });
+    ].concat(serviceConfig.docker.other_repositories || []);
 
-    return dockerImagePaths;
+    return repos
+        .map(repo => _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name))
+        .filter(details => !!details)
+        .map(details => details.shortImagePath);
 }
 
 // ******************************
