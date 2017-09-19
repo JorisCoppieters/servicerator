@@ -32,7 +32,6 @@ let g_AWS_DOCKER_CREDENTIALS = [];
 function printDockerInfo (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING',
                 version: 'STRING'
@@ -44,7 +43,7 @@ function printDockerInfo (in_serviceConfig) {
 
     cprint.magenta('-- Docker --');
 
-    let dockerUsername = serviceConfig.docker.username || false;
+    let dockerUsername = docker.getUsername(in_serviceConfig);
     let dockerPassword = docker.getPassword(in_serviceConfig) || false;
     let dockerImageName = serviceConfig.docker.image.name || false;
     let dockerImageVersion = serviceConfig.docker.image.version || false;
@@ -125,7 +124,7 @@ function printDockerInfo (in_serviceConfig) {
             dockerImageTaggedPaths
                 .filter(p => !cmdResult.rows.find(r => r.match(new RegExp('^' + p))))
                 .forEach(p => {
-                    imageTagLines.push(cprint.toGreen(p) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow('untagged'));
+                    imageTagLines.push(cprint.toYellow(p) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow('untagged'));
                 });
 
             imageTagLines = imageTagLines.sort();
@@ -142,10 +141,10 @@ function printDockerInfo (in_serviceConfig) {
 function pullDockerImage (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             },
+            organization: 'STRING',
             other_repositories: [
                 {
                     type: 'STRING'
@@ -169,19 +168,26 @@ function pullDockerImage (in_serviceConfig) {
         return;
     }
 
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
+        cprint.yellow('Docker Image username not set');
+        return;
+    }
+
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
 
     let repos = [
         {
             type: docker.k_REPO_TYPE_DEFAULT,
-            username: serviceConfig.docker.username
+            username: dockerUsername,
+            organization: serviceConfig.docker.organization
         }
     ].concat(serviceConfig.docker.other_repositories || []);
 
     let tasks = [];
 
     repos.forEach(repo => {
-        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, serviceConfig.docker.image.name);
+        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name);
         if (!details) {
             return;
         }
@@ -190,7 +196,7 @@ function pullDockerImage (in_serviceConfig) {
             tags.push('latest');
         }
         tags.forEach(tag => {
-            tasks.push(_execCmdOnDockerImageForRepository(details.username, details.password, details.imagePath + ':' + tag, details.repository, {
+            tasks.push(_execCmdOnDockerImageForRepository(details.username, details.password, details.imagePath + ':' + tag, details.repositoryStore, {
                 value: 'pull',
                 displayName: 'Pulling'
             }));
@@ -205,7 +211,6 @@ function pullDockerImage (in_serviceConfig) {
 function buildDockerImage (in_serviceConfig, in_noCache) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             }
@@ -228,7 +233,8 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
         return;
     }
 
-    if (!serviceConfig.docker.username) {
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
         cprint.yellow('Docker Image username not set');
         return;
     }
@@ -273,11 +279,11 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
 function pushDockerImage (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             password: 'STRING',
             image: {
                 name: 'STRING'
             },
+            organization: 'STRING',
             other_repositories: [
                 {
                     type: 'STRING'
@@ -301,22 +307,29 @@ function pushDockerImage (in_serviceConfig) {
         return;
     }
 
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
+        cprint.yellow('Docker Image username not set');
+        return;
+    }
+
     let repos = [
         {
             type: docker.k_REPO_TYPE_DEFAULT,
-            username: serviceConfig.docker.username,
-            password: serviceConfig.docker.password
+            username: dockerUsername,
+            password: serviceConfig.docker.password,
+            organization: serviceConfig.docker.organization
         }
     ].concat(serviceConfig.docker.other_repositories || []);
 
     let tasks = [];
 
     repos.forEach(repo => {
-        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, serviceConfig.docker.image.name);
+        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name);
         if (!details) {
             return;
         }
-        tasks.push(_execCmdOnDockerImageForRepository(details.username, details.password, details.imagePath, details.repository, {
+        tasks.push(_execCmdOnDockerImageForRepository(details.username, details.password, details.imagePath, details.repositoryStore, {
             value: 'push',
             displayName: 'Pushing'
         }));
@@ -330,7 +343,6 @@ function pushDockerImage (in_serviceConfig) {
 function cleanDockerImages (in_serviceConfig, in_force) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             }
@@ -352,7 +364,8 @@ function cleanDockerImages (in_serviceConfig, in_force) {
         return;
     }
 
-    if (!serviceConfig.docker.username) {
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
         cprint.yellow('Docker Image username not set');
         return;
     }
@@ -408,7 +421,6 @@ function cleanDockerImages (in_serviceConfig, in_force) {
 function purgeDockerImages (in_serviceConfig, in_force) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             }
@@ -430,7 +442,8 @@ function purgeDockerImages (in_serviceConfig, in_force) {
         return;
     }
 
-    if (!serviceConfig.docker.username) {
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
         cprint.yellow('Docker Image username not set');
         return;
     }
@@ -554,7 +567,6 @@ function setDockerImageVersion (in_serviceConfig, in_M, in_m, in_b, in_version) 
 function dockerLogin (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             }
@@ -571,13 +583,22 @@ function dockerLogin (in_serviceConfig) {
         return false;
     }
 
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
+        cprint.yellow('Docker Image username not set');
+        return;
+    }
+
+    let dockerOrganization = false;
+
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
         docker.k_REPO_TYPE_DEFAULT,
-        serviceConfig.docker.username,
+        dockerUsername,
+        dockerOrganization,
         serviceConfig.docker.image.name);
 
-    docker.login(dockerImageDetails.username, dockerImageDetails.password, dockerImageDetails.repository);
+    docker.login(dockerImageDetails.username, dockerImageDetails.password, dockerImageDetails.repositoryStore);
 }
 
 // ******************************
@@ -1018,7 +1039,6 @@ function editServiceDockerfile (in_serviceConfig) {
 function _startDockerContainer (in_serviceConfig, in_useBash) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             },
@@ -1061,7 +1081,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         return;
     }
 
-    let dockerUsername = serviceConfig.docker.username;
+    let dockerUsername = docker.getUsername(in_serviceConfig);
     let dockerImageName = serviceConfig.docker.image.name;
     let dockerImageTags = docker.getImageTags(in_serviceConfig) || [];
     let dockerImageTag = dockerImageTags[0] || 'latest';
@@ -1179,7 +1199,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
 
 // ******************************
 
-function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepository, in_cmd) {
+function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd) {
     return () => {
         return new Promise((resolve, reject) => {
             if (!in_dockerUsername) {
@@ -1192,7 +1212,7 @@ function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPasswor
                 return reject();
             }
 
-            _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepository);
+            _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
 
             if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
                 cprint.yellow('Invalid command: ' + in_cmd);
@@ -1212,10 +1232,11 @@ function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPasswor
 
 // ******************************
 
-function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerUsername, in_dockerImageName, in_dockerRepository) {
+function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerUsername, in_dockerRepository, in_dockerImageName, in_dockerRepositoryStore) {
     let dockerUsername;
     let dockerPassword;
     let dockerRepository;
+    let dockerRepositoryStore;
     let dockerImagePath;
 
     switch (in_repositoryType)
@@ -1223,8 +1244,9 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
         case docker.k_REPO_TYPE_DEFAULT:
             dockerUsername = in_dockerUsername;
             dockerPassword = docker.getPassword(in_serviceConfig);
-            dockerRepository = in_dockerRepository || docker.getDefaultRepository();
-            dockerImagePath = dockerRepository + '/' + dockerUsername + '/' + in_dockerImageName;
+            dockerRepository = in_dockerRepository || in_dockerUsername;
+            dockerRepositoryStore = in_dockerRepositoryStore || docker.getDefaultRepositoryStore();
+            dockerImagePath = dockerRepositoryStore + '/' + dockerRepository + '/' + in_dockerImageName;
             break;
         case docker.k_REPO_TYPE_AWS:
             if (!aws.installed()) {
@@ -1234,8 +1256,9 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
             let awsDockerCredentials = _getAwsDockerCredentials(in_serviceConfig);
             dockerUsername = awsDockerCredentials.username;
             dockerPassword = awsDockerCredentials.password;
-            dockerRepository = aws.getDockerRepositoryUrl(in_serviceConfig);
-            dockerImagePath = dockerRepository + '/' + in_dockerImageName;
+            dockerRepository = awsDockerCredentials.username;
+            dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+            dockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
             break;
     }
 
@@ -1243,6 +1266,7 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
         username: dockerUsername,
         password: dockerPassword,
         repository: dockerRepository,
+        repositoryStore: dockerRepositoryStore,
         imagePath: dockerImagePath
     };
 
@@ -1254,7 +1278,6 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
 function _getDockerImagePaths (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             image: {
                 name: 'STRING'
             },
@@ -1271,20 +1294,21 @@ function _getDockerImagePaths (in_serviceConfig) {
         return;
     }
 
-    if (!serviceConfig.docker.username) {
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
         cprint.yellow('Docker Image username not set');
         return;
     }
 
     let dockerImagePaths = [];
-    dockerImagePaths.push(serviceConfig.docker.username + '/' + serviceConfig.docker.image.name);
+    dockerImagePaths.push(dockerUsername + '/' + serviceConfig.docker.image.name);
 
     (serviceConfig.docker.other_repositories || []).forEach(repo => {
         switch (repo.type)
         {
             case docker.k_REPO_TYPE_DEFAULT:
                 if (repo.repository) {
-                    dockerImagePaths.push(repo.repository + '/' + serviceConfig.docker.username + '/' + serviceConfig.docker.image.name);
+                    dockerImagePaths.push(repo.repository + '/' + dockerUsername + '/' + serviceConfig.docker.image.name);
                 }
                 break;
             case docker.k_REPO_TYPE_AWS:
@@ -1354,9 +1378,9 @@ function _getAwsDockerCredentials (in_serviceConfig) {
 
 // ******************************
 
-function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepository) {
+function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore) {
     if (g_CURRENT_DOCKER_USERNAME !== in_dockerUsername) {
-        docker.login(in_dockerUsername, in_dockerPassword, in_dockerRepository);
+        docker.login(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
         g_CURRENT_DOCKER_USERNAME = in_dockerUsername;
     }
 }

@@ -103,19 +103,24 @@ function getServiceConfigFile () {
 
 // ******************************
 
+function getStoredValue (in_key) {
+    if (!in_key) {
+        return false;
+    }
+
+    let envKey = in_key.toUpperCase();
+    return process.env[envKey] || false;
+}
+
+// ******************************
+
 function getStoredPassword (in_application, in_username) {
     if (!in_application || !in_username) {
         return false;
     }
 
-    let envKey;
-    let envVal;
-
-    envKey = in_application.toUpperCase() + '_' + in_username.toUpperCase() + '_PASSWORD';
-    envVal = process.env[envKey] || false;
-    if (envVal) {
-        return envVal;
-    }
+    let envKey = in_application.toUpperCase() + '_' + in_username.toUpperCase() + '_PASSWORD';
+    return process.env[envKey] || false;
 }
 
 // ******************************
@@ -127,14 +132,8 @@ function getStoredSecretKey (in_application, in_access_key) {
 
     let keyName = (in_access_key) ?  '_' + in_access_key.toUpperCase() : '';
 
-    let envKey;
-    let envVal;
-
-    envKey = in_application.toUpperCase() + keyName + '_SECRET_KEY';
-    envVal = process.env[envKey] || false;
-    if (envVal) {
-        return envVal;
-    }
+    let envKey = in_application.toUpperCase() + keyName + '_SECRET_KEY';
+    return process.env[envKey] || false;
 }
 
 // ******************************
@@ -199,6 +198,7 @@ module.exports['getServiceConfigFile'] = getServiceConfigFile;
 module.exports['getServiceConfig'] = getServiceConfig;
 module.exports['getStoredPassword'] = getStoredPassword;
 module.exports['getStoredSecretKey'] = getStoredSecretKey;
+module.exports['getStoredValue'] = getStoredValue;
 module.exports['getPlugins'] = getPlugins;
 module.exports['getUserHome'] = getUserHome;
 module.exports['getShellHome'] = getShellHome;

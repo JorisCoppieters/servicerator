@@ -179,7 +179,8 @@ function getServiceSchema () {
                 }
             ],
             "password": "STRING",
-            "username": "STRING"
+            "username": "STRING",
+            "organization": "STRING"
         },
         "service": {
             "run": {

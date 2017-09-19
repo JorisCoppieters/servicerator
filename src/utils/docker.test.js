@@ -46,7 +46,7 @@ function runTests () {
         '',
         '    FROM ubuntu:trusty'
     ].join('\n')));
-    test.assertMatch('docker default repository', '.+', docker.getDefaultRepository());
+    test.assertMatch('docker default repository', '.+', docker.getDefaultRepositoryStore());
     test.assertMatch('docker version', 'Docker version .*, build .*', docker.version());
     test.assertEquals('docker file for empty config', [
         '# ----------------------',

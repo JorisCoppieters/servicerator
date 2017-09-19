@@ -475,7 +475,7 @@ function getIgnoreDockerContents (in_serviceConfig) {
 
 // ******************************
 
-function getDefaultDockerRepository () {
+function getDefaultDockerRepositoryStore () {
   return 'docker.io';
 }
 
@@ -484,12 +484,16 @@ function getDefaultDockerRepository () {
 function getDockerPassword (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING',
             password: 'STRING'
         }
     });
 
-    let dockerUsername = serviceConfig.docker.username;
+    let dockerUsername = getDockerUsername(in_serviceConfig);
+    if (!dockerUsername) {
+        cprint.yellow('Docker Image username not set');
+        return;
+    }
+
     let dockerPassword = serviceConfig.docker.password;
 
     if (!dockerUsername) {
@@ -502,6 +506,23 @@ function getDockerPassword (in_serviceConfig) {
     }
 
     return dockerPassword;
+}
+
+// ******************************
+
+function getDockerUsername (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            username: 'STRING'
+        }
+    });
+
+    let dockerUsername = serviceConfig.docker.username;
+    if (!dockerUsername) {
+        dockerUsername = env.getStoredValue('docker_trademe_username');
+    }
+
+    return dockerUsername;
 }
 
 // ******************************
@@ -570,7 +591,7 @@ function getDockerImageTags (in_serviceConfig) {
 
 // ******************************
 
-function dockerLogin (in_username, in_password, in_repository) {
+function dockerLogin (in_username, in_password, in_repositoryStore) {
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
         return false;
@@ -586,8 +607,8 @@ function dockerLogin (in_username, in_password, in_repository) {
         return false;
     }
 
-    let repository = in_repository || getDefaultDockerRepository();
-    let args = ['login', '-u', in_username, '-p', in_password, repository];
+    let repositoryStore = in_repositoryStore || getDefaultDockerRepositoryStore();
+    let args = ['login', '-u', in_username, '-p', in_password, repositoryStore];
     cprint.cyan('Logging into docker...');
     let cmdResult = dockerCmd(args);
     if (cmdResult.hasError) {
@@ -800,8 +821,9 @@ module.exports['parseDockerfileContents'] = parseDockerfileContents;
 module.exports['getFolder'] = getDockerFolder;
 module.exports['getDockerfile'] = getDockerfile;
 module.exports['getPassword'] = getDockerPassword;
+module.exports['getUsername'] = getDockerUsername;
 module.exports['getImageTags'] = getDockerImageTags;
-module.exports['getDefaultRepository'] = getDefaultDockerRepository;
+module.exports['getDefaultRepositoryStore'] = getDefaultDockerRepositoryStore;
 module.exports['getDockerfileContents'] = getDockerfileContents;
 module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;
 

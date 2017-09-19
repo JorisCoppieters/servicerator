@@ -66,184 +66,158 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
         cprint.yellow('AWS-CLI isn\'t installed');
     }
 
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        return false;
+    }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
+
     if (awsInstalled && awsAccessKey && awsSecretKey) {
-
-        let clusters = serviceConfig.service.clusters
-            .filter(c => {
-                return c.environment === _getEnvironment(in_serviceConfig, in_environment);
-            });
-
         if (serviceName) {
-            clusters.forEach(cluster => {
-                let environment = cluster.environment;
-                if (!environment) {
-                    return;
+            cprint.magenta('-- AWS ' + environmentTitle + ' Clusters State --');
+
+            let autoScalingGroupName = cluster.auto_scaling_group.name;
+
+            let awsAutoScalingGroupName = autoScalingGroupName || '(Not Set)';
+            let awsClusterName = cluster.name || '(Not Set)';
+            let awsClusterServiceName = cluster.service_name || '(Not Set)';
+
+            print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
+            print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
+
+            if (autoScalingGroupName) {
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
+                let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
+                    cache: awsCache
+                });
+                print.clearLine();
+
+                if (awsAutoScalingGroupInstanceCount !== undefined) {
+                    let serviceState = aws.getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', serviceState);
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '???');
+                }
+            }
+
+            if (in_extra && cluster.name) {
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '...', true);
+                let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, awsClusterServiceName, {
+                    cache: awsCache
+                });
+                print.clearLine();
+
+                if (awsClusterServiceArn) {
+                    let awsClusterServiceName = aws.arnToTitle(awsClusterServiceArn);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service', awsClusterServiceName);
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '???');
                 }
 
-                let environmentTitle = str.toTitleCase(environment);
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '...', true);
+                let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, {
+                    cache: awsCache
+                });
+                print.clearLine();
 
-                cprint.magenta('-- AWS ' + environmentTitle + ' Clusters State --');
-
-                let autoScalingGroupName = cluster.auto_scaling_group.name;
-
-                let awsAutoScalingGroupName = autoScalingGroupName || '(Not Set)';
-                let awsClusterName = cluster.name || '(Not Set)';
-                let awsClusterServiceName = cluster.service_name || '(Not Set)';
-
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
-
-                if (autoScalingGroupName) {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
-                    let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (awsAutoScalingGroupInstanceCount !== undefined) {
-                        let serviceState = aws.getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', serviceState);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '???');
-                    }
+                if (awsTaskDefinitionArn) {
+                    let awsTaskDefinitionName = aws.arnToTitle(awsTaskDefinitionArn);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '???');
                 }
 
-                if (in_extra && cluster.name) {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '...', true);
-                    let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, awsClusterServiceName, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '...', true);
+                let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
+                    cache: awsCache
+                });
+                print.clearLine();
 
-                    if (awsClusterServiceArn) {
-                        let awsClusterServiceName = aws.arnToTitle(awsClusterServiceArn);
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service', awsClusterServiceName);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '???');
-                    }
-
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '...', true);
-                    let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (awsTaskDefinitionArn) {
-                        let awsTaskDefinitionName = aws.arnToTitle(awsTaskDefinitionArn);
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '???');
-                    }
-
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '...', true);
-                    let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (clusterServiceVersion) {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', clusterServiceVersion);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '???');
-                    }
-
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
-                    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, {
-                        cache: awsCache
-                    });
-                    let awsClusterTaskDetails = aws.getTaskDetails(cluster.name, awsClusterTaskArns, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '[]');
-                    }
+                if (clusterServiceVersion) {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', clusterServiceVersion);
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '???');
                 }
 
-                print.out('\n');
-            });
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
+                let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, {
+                    cache: awsCache
+                });
+                let awsClusterTaskDetails = aws.getTaskDetails(cluster.name, awsClusterTaskArns, {
+                    cache: awsCache
+                });
+                print.clearLine();
+
+                if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '[]');
+                }
+            }
+
+            print.out('\n');
         }
 
         if (in_extra) {
-
-            clusters.forEach(cluster => {
-                let environment = cluster.environment;
-                if (!environment) {
-                    return;
+            let instanceIds = aws.getInstanceIdsWithTags([
+                {
+                    key: "ServiceName",
+                    vals: [
+                        serviceName
+                    ]
+                },
+                {
+                    key: "Environment",
+                    vals: [
+                        environment
+                    ]
                 }
+            ], null);
 
-                let environmentTitle = str.toTitleCase(environment);
-
-                let instanceIds = aws.getInstanceIdsWithTags([
-                    {
-                        key: "ServiceName",
-                        vals: [
-                            serviceName
-                        ]
-                    },
-                    {
-                        key: "Environment",
-                        vals: [
-                            environment
-                        ]
-                    }
-                ], null);
-
-                instanceIds.forEach(i => {
-                    cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
-                    print.keyVal('Instance Id', i.InstanceId);
-                    print.keyVal('Instance Ip Address', i.IpAddress);
-                    print.keyVal('Instance Type', i.InstanceType);
-                    print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
-                    print.out('\n');
-                })
-
-            });
-
-            clusters.forEach(cluster => {
-                let environment = cluster.environment;
-                if (!environment) {
-                    return;
-                }
-
-                let environmentTitle = str.toTitleCase(environment);
-
-                cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
-
-                let awsVpcName = cluster.vpc_name;
-                print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
-
-                if (cluster.vpc_name) {
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
-                    let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (awsVpcId) {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Id', '???');
-                    }
-
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
-                    let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
-                        cache: awsCache
-                    });
-                    print.clearLine();
-
-                    if (awsDefaultVpcSecurityGroupId) {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
-                    } else {
-                        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '???');
-                    }
-                }
-
+            instanceIds.forEach(i => {
+                cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
+                print.keyVal('Instance Id', i.InstanceId);
+                print.keyVal('Instance Ip Address', i.IpAddress);
+                print.keyVal('Instance Type', i.InstanceType);
+                print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
                 print.out('\n');
             });
+
+            cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
+
+            let awsVpcName = cluster.vpc_name;
+            print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
+
+            if (cluster.vpc_name) {
+                print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
+                let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
+                    cache: awsCache
+                });
+                print.clearLine();
+
+                if (awsVpcId) {
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '???');
+                }
+
+                print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
+                let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
+                    cache: awsCache
+                });
+                print.clearLine();
+
+                if (awsDefaultVpcSecurityGroupId) {
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
+                } else {
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '???');
+                }
+            }
+
+            print.out('\n');
         }
     }
 
@@ -301,16 +275,14 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let dockerImageName = serviceConfig.docker.image.name;
     if (!dockerImageName) {
@@ -751,16 +723,14 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
@@ -954,16 +924,14 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
@@ -1179,16 +1147,14 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (!awsLoadBalancerName) {
@@ -1480,16 +1446,14 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsClusterName = cluster.name;
     if (!awsClusterName) {
@@ -1614,16 +1578,14 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let dockerContainerName = serviceName;
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsClusterName = cluster.name;
     if (!awsClusterName) {
@@ -1757,14 +1719,14 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
-        return;
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let instanceCount = cluster.instance.count || 2;
 
@@ -1820,14 +1782,14 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment
-        });
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
-        return;
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let autoScalingGroupName = cluster.auto_scaling_group.name;
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName);
@@ -1875,16 +1837,14 @@ function awsViewInstances (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -1917,16 +1877,14 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (!awsLoadBalancerName) {
@@ -1959,16 +1917,14 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsLaunchConfigurationName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationName) {
@@ -2001,16 +1957,14 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
     if (!awsAutoScalingGroupName) {
@@ -2041,16 +1995,14 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
     let awsRegion = awsDockerCredentials.region;
@@ -2077,16 +2029,14 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
         }
     });
 
-    let environment = _getEnvironment(in_serviceConfig, in_environment);
-    let environmentTitle = str.toTitleCase(environment);
-    let cluster = (serviceConfig.service.clusters || []).find(c => {
-            return c.environment === environment;
-        });
-
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        cprint.yellow('No cluster set for "' + environment + '" environment');
+        cprint.yellow('No cluster set for "' + in_environment + '" environment');
         return false;
     }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
 
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig);
     let awsRegion = awsDockerCredentials.region;
@@ -2103,31 +2053,29 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
 // Helper Functions:
 // ******************************
 
-function _getEnvironment (in_serviceConfig, in_environment) {
-    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
-        service: {
-            clusters: [
-                {
-                    default: 'BOOLEAN',
-                    environment: 'STRING'
-                }
-            ]
-        }
-    });
+function _getEnvironmentCluster (in_clusters, in_environment) {
+    let clusters = in_clusters || [];
 
-    let clusters = serviceConfig.service.clusters || [];
+    if (in_environment) {
+        let environmentCluster = clusters.find(c => {
+                return c.environment === in_environment;
+            });
+
+        return environmentCluster;
+    }
+
     if (clusters.length === 1 && clusters[0].environment) {
-        return clusters[0].environment;
+        return clusters[0];
     }
 
     let defaultCluster = clusters
         .find(c => c.default && c.environment);
 
     if (defaultCluster) {
-        return defaultCluster.environment;
+        return defaultCluster;
     }
 
-    return in_environment;
+    return false;
 }
 
 // ******************************
@@ -2136,7 +2084,7 @@ function _getEnvironment (in_serviceConfig, in_environment) {
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
-    let env = in_args['env'] || in_args['environment'] || 'default';
+    let env = in_args['env'] || in_args['environment'] || false;
     let extra = in_args['extra'];
     let stopTasks = in_args['stop-tasks'];
 
