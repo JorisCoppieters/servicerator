@@ -1221,7 +1221,7 @@ function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPasswor
                 return reject();
             }
 
-            _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
+            // _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
 
             if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
                 cprint.yellow('Invalid command: ' + in_cmd);
@@ -1533,6 +1533,7 @@ function getCommands () {
         { params: ['remove-container', 'remove', 'rm'], description: 'Remove the service docker container' },
         { params: ['verify-container', 'verify', 'test-container', 'test', 'tests'], description: 'Verify the service docker container' },
         { params: ['container', 'stats', 'state', 'running'], description: 'Print the current state of the service docker container' },
+        { params: ['login'], description: 'Log into docker' },
         { params: ['pull'], description: 'Pull the service docker image' },
         { params: ['build'], description: 'Build the service docker image', options: [{param:'no-cache', description:'Don\'t use cached images'}] },
         { params: ['push'], description: 'Push the service docker image' },

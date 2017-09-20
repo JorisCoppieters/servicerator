@@ -42,7 +42,8 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
         'ecs',
         'list-clusters'
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -74,14 +75,14 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
 
 // ******************************
 
-function createCluster (in_clusterName) {
+function createCluster (in_clusterName, in_options) {
     cprint.cyan('Creating AWS Cluster for AWS Cluster "' + in_clusterName + '"...');
 
     let cmdResult = awsCmd([
         'ecs',
         'create-cluster',
         '--cluster-name', in_clusterName
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -95,7 +96,7 @@ function createCluster (in_clusterName) {
 
 // ******************************
 
-function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDefinitionArn, in_instanceCount) {
+function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDefinitionArn, in_instanceCount, in_options) {
     cprint.cyan('Deploying AWS Task Definition "' + in_taskDefinitionArn + '" to AWS Cluster "' + in_clusterName + '"...');
 
     let instanceCount = in_instanceCount || 1;
@@ -111,7 +112,7 @@ function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDe
         in_taskDefinitionArn,
         '--desired-count',
         instanceCount
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -146,7 +147,8 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
         'list-services',
         '--cluster', in_clusterArn
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -178,7 +180,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
 
 // ******************************
 
-function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefinitionArn, in_loadBalancers, in_desiredCount) {
+function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefinitionArn, in_loadBalancers, in_desiredCount, in_options) {
     let loadBalancers = JSON.stringify(in_loadBalancers || []);
     let desiredCount = in_desiredCount || 0;
 
@@ -193,7 +195,7 @@ function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefi
         '--service-name', in_clusterServiceName,
         '--load-balancers', loadBalancers,
         '--desired-count', desiredCount
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -209,7 +211,7 @@ function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefi
 // Cluster Task Functions:
 // ******************************
 
-function stopClusterTask (in_clusterName, in_taskArn) {
+function stopClusterTask (in_clusterName, in_taskArn, in_options) {
     cprint.cyan('Stopping AWS Task "' + in_taskArn + '" in AWS Cluster "' + in_clusterName + '"...');
 
     let cmdResult = awsCmd([
@@ -219,7 +221,7 @@ function stopClusterTask (in_clusterName, in_taskArn) {
         in_taskArn,
         '--cluster',
         in_clusterName
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -264,7 +266,8 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
     });
 
     let cmdResult = awsCmd(args, {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -345,7 +348,8 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
         '--cluster',
         in_clusterName
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -393,7 +397,8 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
         '--task-definition',
         in_taskDefinitionArn
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -474,7 +479,8 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
         '--service',
         in_clusterServiceArn
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -527,7 +533,8 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
         '--family-prefix',
         in_taskDefinitionName
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -593,7 +600,8 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
         '--family-prefix',
         in_taskDefinitionName
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -639,7 +647,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
 
 // ******************************
 
-function deregisterTaskDefinition (in_taskDefinitionArn) {
+function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
     cprint.cyan('Deregistering AWS Task Definition "' + in_taskDefinitionArn + '"...');
 
     let cmdResult = awsCmd([
@@ -647,7 +655,7 @@ function deregisterTaskDefinition (in_taskDefinitionArn) {
         'deregister-task-definition',
         '--task-definition',
         in_taskDefinitionArn
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -685,7 +693,8 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
         '--container-instance',
         in_containerInstanceArn
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -717,7 +726,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
 // Repository Functions:
 // ******************************
 
-function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in_options) {
+function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) {
     let opt = in_options || {};
 
     if (opt.verbose) {
@@ -735,7 +744,8 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in
         'ecr',
         'describe-repositories'
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -768,14 +778,14 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_cache, in
 
 // ******************************
 
-function createDockerRepository (in_dockerImageName) {
+function createDockerRepository (in_dockerImageName, in_options) {
     cprint.cyan('Creating AWS Docker Repository for Docker Image "' + in_dockerImageName + '"...');
 
     let cmdResult = awsCmd([
         'ecr',
         'create-repository',
         '--repository-name', in_dockerImageName
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -832,7 +842,8 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
         'autoscaling',
         'describe-launch-configurations'
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -897,7 +908,7 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
         '--auto-scaling-group', in_autoScalingGroupName,
         '--desired-capacity', in_autoScalingGroupInstanceCount,
         '--min-size', 0
-    ]);
+    ], in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -931,7 +942,8 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
         'describe-auto-scaling-groups',
         '--auto-scaling-group', in_autoScalingGroupName
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -984,7 +996,8 @@ function getVpcIdForVpc (in_vpcName, in_options) {
         '--filter',
         `Name="tag-value",Values="${in_vpcName}"`
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -1038,7 +1051,8 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
         `Name=vpc-id,Values="${in_vpcId}"`,
         `Name=group-name,Values="default"`
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -1091,7 +1105,8 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
         '--filters',
         `Name=vpc-id,Values="${in_vpcId}"`
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -1144,7 +1159,8 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
         `Name=vpc-id,Values="${in_vpcId}"`,
         `Name=tag-value,Values="${in_vpcSubnetName}"`
     ], {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -1210,7 +1226,8 @@ function getInstanceIdsWithTags (in_tags, in_options) {
     });
 
     let cmdResult = awsCmd(args, {
-        hide: !opt.verbose
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (cmdResult.hasError) {
@@ -1263,10 +1280,12 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 // Config Functions:
 // ******************************
 
-function getAwsServiceConfig () {
-    let serviceConfig = {
-        aws: {}
-    };
+function getAwsServiceConfig (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        aws: {
+            profile: 'STRING'
+        }
+    });
 
     let homeFolder = env.getShellHome();
     if (!homeFolder || !fs.folderExists(homeFolder)) {
@@ -1274,17 +1293,19 @@ function getAwsServiceConfig () {
         return;
     }
 
+    let profile = serviceConfig.aws.profile || 'default';
+
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
-    if (awsConfig.default && awsConfig.default.region) {
-        serviceConfig.aws.region = awsConfig.default.region;
+    if (awsConfig[profile] && awsConfig[profile].region) {
+        serviceConfig.aws.region = awsConfig[profile].region;
     }
 
     let awsCredentialsFile = path.resolve(homeFolder, '.aws', 'credentials');
     let awsCredentials = ini.parseFile(awsCredentialsFile);
-    if (awsCredentials.default && awsCredentials.default.aws_access_key_id) {
-        serviceConfig.aws.access_key = awsCredentials.default.aws_access_key_id;
-        serviceConfig.aws.secret_key = awsCredentials.default.aws_secret_access_key;
+    if (awsCredentials[profile] && awsCredentials[profile].aws_access_key_id) {
+        serviceConfig.aws.access_key = awsCredentials[profile].aws_access_key_id;
+        serviceConfig.aws.secret_key = awsCredentials[profile].aws_secret_access_key;
     }
 
     service.checkConfigSchema(serviceConfig);
@@ -1299,6 +1320,7 @@ function getAwsRepositoryServiceConfig () {
             other_repositories: []
         },
         aws: {
+            profile: 'STRING'
         }
     };
 
@@ -1308,7 +1330,8 @@ function getAwsRepositoryServiceConfig () {
 
     if (awsInstalled()) {
         let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], {
-            hide: true
+            hide: true,
+            profile: serviceConfig.aws.profile
         });
 
         if (!awsCmdResult.hasError) {
@@ -1327,7 +1350,7 @@ function getAwsRepositoryServiceConfig () {
 
 function getMergedAwsServiceConfig (in_serviceConfig) {
     let serviceConfig = in_serviceConfig || {};
-    let awsServiceConfig = getAwsServiceConfig();
+    let awsServiceConfig = getAwsServiceConfig(in_serviceConfig);
     service.combineConfig(awsServiceConfig, serviceConfig);
     return serviceConfig;
 }
@@ -1352,14 +1375,16 @@ function getAwsDockerRepositoryUrl (in_serviceConfig) {
 
 // ******************************
 
-function getAwsDockerCredentials (in_serviceConfig) {
+function getAwsDockerCredentials (in_serviceConfig, in_options) {
+    let opt = in_options || {};
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], {
-        hide: true
+        hide: !opt.verbose,
+        profile: opt.profile
     });
 
     if (awsCmdResult.hasError) {
@@ -1501,11 +1526,21 @@ function awsCmd (in_args, in_options) {
         return false;
     }
 
-    if (!Array.isArray(in_args)) {
-        in_args = [in_args]
+    let args = in_args;
+
+    if (!Array.isArray(args)) {
+        args = [args]
     }
 
-    return exec.cmdSync('aws', in_args, {
+    args.push('--profile');
+
+    if (opt.profile) {
+        args.push(opt.profile);
+    } else {
+        args.push('default');
+    }
+
+    return exec.cmdSync('aws', args, {
         indent: '  ',
         hide: hide
     });

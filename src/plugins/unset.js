@@ -13,37 +13,7 @@ let service = require('../utils/service');
 // ******************************
 
 function unsetServiceValue (in_serviceConfig, in_keyPath) {
-    let serviceConfig = in_serviceConfig || {};
-
-    if (!in_keyPath) {
-        cprint.yellow('Specify a key path to unset, i.e service.name');
-        return;
-    }
-
-    let keyPath = in_keyPath;
-
-    let removeConfig = {};
-    let keyPathParts = keyPath
-        .split(/\./)
-        .filter(k => k.trim());
-
-    if (!keyPathParts.length) {
-        cprint.yellow('Specify a valid key path to unset, i.e service.name');
-        return;
-    }
-
-    let keyPathPart;
-    let configSubObject = removeConfig;
-    while (keyPathParts.length > 1) {
-        keyPathPart = keyPathParts.shift();
-        configSubObject[keyPathPart] = {};
-        configSubObject = configSubObject[keyPathPart];
-    }
-
-    keyPathPart = keyPathParts.shift();
-    configSubObject[keyPathPart] = false;
-
-    serviceConfig = service.removeConfig(serviceConfig, removeConfig);
+    service.unsetValue(in_serviceConfig, in_keyPath, in_keyValue);
 }
 
 // ******************************

@@ -17,6 +17,7 @@ let path = require('path');
 
 let bash = require('./bash');
 let docker = require('./docker');
+let print = require('./print');
 let env = require('./env');
 let fs = require('./filesystem');
 let schema = require('./service.schema').get();
@@ -25,7 +26,7 @@ let schema = require('./service.schema').get();
 // Functions:
 // ******************************
 
-function getServiceConfig (in_folderName) {
+function getServiceConfig (in_folderName, in_initialise) {
     let sourceFolder = false;
 
     let dockerFolder = docker.getFolder(in_folderName);
@@ -321,6 +322,14 @@ function getServiceConfig (in_folderName) {
             }
         }
     });
+
+    if (in_initialise) {
+        serviceConfig = _copyToServiceConfig(serviceConfig, {
+            service: {
+                name: path.basename(path.resolve(sourceFolder)),
+            }
+        });
+    }
 
     if (!serviceConfig.service || !serviceConfig.service.name) {
         return false;
@@ -703,7 +712,7 @@ function initFolder (in_folderName) {
             cprint.cyan('Initialising "' + in_folderName + '"...');
         }
 
-        serviceConfig = getServiceConfig(sourceFolder) || {};
+        serviceConfig = getServiceConfig(sourceFolder, true) || {};
         serviceConfig.cwd = sourceFolder;
 
         _saveServiceConfig(serviceConfig);
@@ -735,7 +744,8 @@ function hasServiceConfigFile (in_sourceFolder) {
 
 // ******************************
 
-function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
+function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options) {
+    let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -749,7 +759,7 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig) {
     let savedServiceConfig = _loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
         let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, savedServiceConfig);
-        _saveServiceConfig(updatedServiceConfig);
+        _saveServiceConfig(updatedServiceConfig, opt);
     }
 
     let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, in_serviceConfig);
@@ -765,7 +775,8 @@ function combineServiceConfig (in_serviceConfig1, in_serviceConfig2) {
 
 // ******************************
 
-function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
+function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_options) {
+    let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -779,11 +790,145 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig) {
     let savedServiceConfig = _loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
         let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, savedServiceConfig);
-        _saveServiceConfig(updatedServiceConfig);
+        _saveServiceConfig(updatedServiceConfig, opt);
     }
 
     let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, in_serviceConfig);
     return updatedServiceConfig;
+}
+
+// ******************************
+
+function unsetServiceConfigValue (in_serviceConfig, in_keyPath, in_options) {
+    let opt = in_options || {};
+    let serviceConfig = in_serviceConfig || {};
+
+    if (!in_keyPath) {
+        cprint.yellow('Specify a key path to unset, i.e service.name');
+        return;
+    }
+
+    let keyPath = in_keyPath;
+
+    let removeConfig = {};
+    let keyPathParts = keyPath
+        .split(/\./)
+        .filter(k => k.trim());
+
+    if (!keyPathParts.length) {
+        cprint.yellow('Specify a valid key path to unset, i.e service.name');
+        return;
+    }
+
+    let keyPathPart;
+    let configSubObject = removeConfig;
+    while (keyPathParts.length > 1) {
+        keyPathPart = keyPathParts.shift();
+        configSubObject[keyPathPart] = {};
+        configSubObject = configSubObject[keyPathPart];
+    }
+
+    keyPathPart = keyPathParts.shift();
+    configSubObject[keyPathPart] = false;
+
+    serviceConfig = removeServiceConfig(serviceConfig, removeConfig, opt);
+}
+
+// ******************************
+
+function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_options) {
+    let opt = in_options || {};
+    let serviceConfig = in_serviceConfig || {};
+
+    if (!in_keyPath) {
+        cprint.yellow('Specify a key path to set, i.e service.name');
+        return;
+    }
+
+    let keyPath = in_keyPath;
+    let keyPathMatch = keyPath.match(/(.*?)=(.*)/);
+    let keyValue = in_keyValue;
+    if (keyPathMatch) {
+        keyPath = keyPathMatch[1];
+        keyValue = keyPathMatch[2];
+    }
+
+    if (typeof(keyValue) === 'undefined') {
+        cprint.yellow('Specify a value to set');
+        return;
+    }
+
+    if (typeof(keyValue) === 'string') {
+        if (keyValue.trim().toLowerCase() === 'true') {
+            keyValue = true;
+        } else if (keyValue.trim().toLowerCase() === 'false') {
+            keyValue = false;
+        } else if (keyValue.trim().match(/^-?[0-9]+\.[0-9]+$/)) {
+            keyValue = parseFloat(keyValue);
+        } else if (keyValue.trim().match(/^-?[0-9]+$/)) {
+            keyValue = parseInt(keyValue);
+        }
+    }
+
+    let updateConfig = {};
+    let keyPathParts = keyPath
+        .split(/\./)
+        .filter(k => k.trim());
+
+    if (!keyPathParts.length) {
+        cprint.yellow('Specify a valid key path to set, i.e service.name');
+        return;
+    }
+
+    let keyPathPart;
+    let configSubObject = updateConfig;
+    while (keyPathParts.length > 1) {
+        keyPathPart = keyPathParts.shift();
+        configSubObject[keyPathPart] = {};
+        configSubObject = configSubObject[keyPathPart];
+    }
+
+    keyPathPart = keyPathParts.shift();
+    configSubObject[keyPathPart] = keyValue;
+
+    serviceConfig = updateServiceConfig(serviceConfig, updateConfig, opt);
+}
+
+// ******************************
+
+function getServiceConfigValue (in_serviceConfig, in_keyPath) {
+    let serviceConfig = in_serviceConfig || {};
+
+    if (!in_keyPath) {
+        cprint.yellow('Specify a key path to set, i.e service.name');
+        return;
+    }
+
+    let keyPath = in_keyPath;
+    let keyPathParts = keyPath
+        .split(/\./)
+        .filter(k => k.trim());
+
+    if (!keyPathParts.length) {
+        cprint.yellow('Specify a valid key path to set, i.e service.name');
+        return;
+    }
+
+    let keyPathPart;
+    let configSubObject = serviceConfig;
+    while (keyPathParts.length > 1) {
+        keyPathPart = keyPathParts.shift();
+        configSubObject = configSubObject[keyPathPart] || {};
+    }
+
+    keyPathPart = keyPathParts.shift();
+    let keyValue = configSubObject[keyPathPart];
+
+    if (typeof(keyValue) === 'object') {
+        keyValue = JSON.stringify(keyValue, null, 4);
+    }
+
+    print.keyVal(keyPath, keyValue);
 }
 
 // ******************************
@@ -807,7 +952,8 @@ function _loadServiceConfig (in_sourceFolder) {
 
 // ******************************
 
-function _saveServiceConfig (in_serviceConfig) {
+function _saveServiceConfig (in_serviceConfig, in_options) {
+    let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -818,7 +964,10 @@ function _saveServiceConfig (in_serviceConfig) {
         return false;
     }
 
-    cprint.cyan('Saving service config...');
+    if (!opt.suppressOutput) {
+        cprint.cyan('Saving service config...');
+    }
+
     let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
     let serviceConfigContents = JSON.stringify(in_serviceConfig, _serviceConfigReplacer, 4);
     fs.writeFile(serviceConfigFile, serviceConfigContents, true);
@@ -1027,22 +1176,24 @@ function _serviceConfigReplacer (in_key, in_val) {
 // Exports:
 // ******************************
 
-module.exports['initFolder'] = initFolder;
-module.exports['hasConfigFile'] = hasServiceConfigFile;
-module.exports['updateConfig'] = updateServiceConfig;
-module.exports['combineConfig'] = combineServiceConfig;
-module.exports['removeConfig'] = removeServiceConfig;
-
-module.exports['getConfig'] = getServiceConfig;
-module.exports['maskConfig'] = maskServiceConfig;
-module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['accessConfig'] = accessServiceConfig;
 module.exports['checkConfigSchema'] = checkServiceConfigSchema;
-module.exports['replaceConfigReferences'] = replaceServiceConfigReferences;
-module.exports['createFolder'] = createServiceFolder;
-module.exports['linkFolder'] = linkServiceFolder;
-module.exports['createFile'] = createServiceFile;
+module.exports['combineConfig'] = combineServiceConfig;
 module.exports['copyFile'] = copyServiceFile;
+module.exports['createFile'] = createServiceFile;
+module.exports['createFolder'] = createServiceFolder;
+module.exports['getConfig'] = getServiceConfig;
+module.exports['getConfigSchema'] = getServiceConfigSchema;
+module.exports['getValue'] = getServiceConfigValue;
+module.exports['hasConfigFile'] = hasServiceConfigFile;
+module.exports['initFolder'] = initFolder;
 module.exports['linkFile'] = linkServiceFile;
+module.exports['linkFolder'] = linkServiceFolder;
+module.exports['maskConfig'] = maskServiceConfig;
+module.exports['removeConfig'] = removeServiceConfig;
+module.exports['replaceConfigReferences'] = replaceServiceConfigReferences;
+module.exports['setValue'] = setServiceConfigValue;
+module.exports['unsetValue'] = unsetServiceConfigValue;
+module.exports['updateConfig'] = updateServiceConfig;
 
 // ******************************

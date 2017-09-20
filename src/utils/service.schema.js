@@ -23,6 +23,7 @@ function getServiceSchema () {
             "account_id": "NUMBER",
             "access_key": "STRING",
             "secret_key": "STRING",
+            "profile": "STRING",
             "region": "STRING"
         },
         "corpus": {

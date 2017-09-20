@@ -95,7 +95,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 // ******************************
 
 function getBaseCommands () {
-    return ['edit', 'configure', 'config'];
+    return ['edit'];
 }
 
 // ******************************

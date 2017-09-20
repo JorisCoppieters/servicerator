@@ -13,60 +13,7 @@ let service = require('../utils/service');
 // ******************************
 
 function setServiceValue (in_serviceConfig, in_keyPath, in_keyValue) {
-    let serviceConfig = in_serviceConfig || {};
-
-    if (!in_keyPath) {
-        cprint.yellow('Specify a key path to set, i.e service.name');
-        return;
-    }
-
-    let keyPath = in_keyPath;
-    let keyPathMatch = keyPath.match(/(.*?)=(.*)/);
-    let keyValue = in_keyValue;
-    if (keyPathMatch) {
-        keyPath = keyPathMatch[1];
-        keyValue = keyPathMatch[2];
-    }
-
-    if (typeof(keyValue) === 'undefined') {
-        cprint.yellow('Specify a value to set');
-        return;
-    }
-
-    if (typeof(keyValue) === 'string') {
-        if (keyValue.trim().toLowerCase() === 'true') {
-            keyValue = true;
-        } else if (keyValue.trim().toLowerCase() === 'false') {
-            keyValue = false;
-        } else if (keyValue.trim().match(/^-?[0-9]+\.[0-9]+$/)) {
-            keyValue = parseFloat(keyValue);
-        } else if (keyValue.trim().match(/^-?[0-9]+$/)) {
-            keyValue = parseInt(keyValue);
-        }
-    }
-
-    let updateConfig = {};
-    let keyPathParts = keyPath
-        .split(/\./)
-        .filter(k => k.trim());
-
-    if (!keyPathParts.length) {
-        cprint.yellow('Specify a valid key path to set, i.e service.name');
-        return;
-    }
-
-    let keyPathPart;
-    let configSubObject = updateConfig;
-    while (keyPathParts.length > 1) {
-        keyPathPart = keyPathParts.shift();
-        configSubObject[keyPathPart] = {};
-        configSubObject = configSubObject[keyPathPart];
-    }
-
-    keyPathPart = keyPathParts.shift();
-    configSubObject[keyPathPart] = keyValue;
-
-    serviceConfig = service.updateConfig(serviceConfig, updateConfig);
+    service.setValue(in_serviceConfig, in_keyPath, in_keyValue);
 }
 
 // ******************************

@@ -6,45 +6,14 @@
 
 let cprint = require('color-print');
 
-let print = require('../utils/print');
+let service = require('../utils/service');
 
 // ******************************
 // Functions:
 // ******************************
 
 function getServiceValue (in_serviceConfig, in_keyPath) {
-    let serviceConfig = in_serviceConfig || {};
-
-    if (!in_keyPath) {
-        cprint.yellow('Specify a key path to set, i.e service.name');
-        return;
-    }
-
-    let keyPath = in_keyPath;
-    let keyPathParts = keyPath
-        .split(/\./)
-        .filter(k => k.trim());
-
-    if (!keyPathParts.length) {
-        cprint.yellow('Specify a valid key path to set, i.e service.name');
-        return;
-    }
-
-    let keyPathPart;
-    let configSubObject = serviceConfig;
-    while (keyPathParts.length > 1) {
-        keyPathPart = keyPathParts.shift();
-        configSubObject = configSubObject[keyPathPart] || {};
-    }
-
-    keyPathPart = keyPathParts.shift();
-    let keyValue = configSubObject[keyPathPart];
-
-    if (typeof(keyValue) === 'object') {
-        keyValue = JSON.stringify(keyValue, null, 4);
-    }
-
-    print.keyVal(keyPath, keyValue);
+    service.getValue(in_serviceConfig, in_keyPath);
 }
 
 // ******************************

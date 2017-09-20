@@ -62,23 +62,6 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
                 language: 'STRING'
             }
         },
-        service: {
-            filesystem: [
-                {
-                    on_setup: 'BOOLEAN',
-                    path: 'PATH',
-                    source: 'PATH',
-                    destination: 'PATH',
-                    path: 'PATH',
-                    overwrite: 'BOOLEAN',
-                    type: 'STRING',
-                    contents: [
-                        'STRING'
-                    ]
-                }
-
-            ]
-        },
         version_control: {
             type: 'STRING'
         },
@@ -133,32 +116,7 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
         });
     }
 
-    serviceConfig.service.filesystem
-        .filter(f => f.on_setup)
-        .forEach(f => {
-            if (f.type === 'folder') {
-                service.createFolder(in_serviceConfig, f);
-
-            } else if (f.type === 'link_folder') {
-                service.linkFolder(in_serviceConfig, f);
-
-            } else if (f.type === 'file') {
-                service.createFile(in_serviceConfig, f, {
-                    overwrite: in_overwrite
-                });
-
-            } else if (f.type === 'link_file') {
-                service.linkFile(in_serviceConfig, f, {
-                    overwrite: in_overwrite
-                });
-
-            } else if (f.type === 'copy_file') {
-                service.copyFile(in_serviceConfig, f, {
-                    overwrite: in_overwrite
-                });
-
-            }
-        });
+    _createFilesystem(in_serviceConfig, 'on_setup', in_overwrite);
 
     // Shift to global setup file
     if (serviceConfig.docker.image.log) {
@@ -188,7 +146,90 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
 }
 
 // ******************************
+
+function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        service: {
+            filesystem: [
+                {
+                    on_open: 'BOOLEAN',
+                    on_close: 'BOOLEAN',
+                    on_setup: 'BOOLEAN',
+                    source: 'PATH',
+                    destination: 'PATH',
+                    path: 'PATH',
+                    overwrite: 'BOOLEAN',
+                    type: 'STRING',
+                    contents: [
+                        'STRING'
+                    ]
+                }
+
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    if (!sourceFolder) {
+        cprint.yellow("Source folder not set");
+        return;
+    }
+
+    let suppressOutput = ['on_open', 'on_close'].indexOf(in_fieldCheck) >= 0;
+
+    let filesystem = serviceConfig.service.filesystem;
+    filesystem.forEach(f => {
+        if (!f[in_fieldCheck]) {
+            return;
+        }
+
+        if (f.type === 'folder') {
+            service.createFolder(in_serviceConfig, f, {
+                suppressOutput: suppressOutput
+            });
+
+        } else if (f.type === 'link_folder') {
+            service.linkFolder(in_serviceConfig, f, {
+                suppressOutput: suppressOutput
+            });
+
+        } else if (f.type === 'file') {
+            service.createFile(in_serviceConfig, f, {
+                suppressOutput: suppressOutput,
+                overwrite: in_overwrite
+            });
+
+        } else if (f.type === 'link_file') {
+            service.linkFile(in_serviceConfig, f, {
+                suppressOutput: suppressOutput,
+                overwrite: in_overwrite
+            });
+
+        } else if (f.type === 'copy_file') {
+            service.copyFile(in_serviceConfig, f, {
+                suppressOutput: suppressOutput,
+                overwrite: in_overwrite
+            });
+
+        }
+    });
+}
+
+// ******************************
 // Plugin Functions:
+// ******************************
+
+function onOpen (in_serviceConfig) {
+    _createFilesystem(in_serviceConfig, 'on_open');
+}
+
+// ******************************
+
+function onClose (in_serviceConfig) {
+    _createFilesystem(in_serviceConfig, 'on_close');
+}
+
 // ******************************
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
@@ -254,6 +295,8 @@ function getTitle () {
 // Exports:
 // ******************************
 
+module.exports['onOpen'] = onOpen;
+module.exports['onClose'] = onClose;
 module.exports['handleCommand'] = handleCommand;
 module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
