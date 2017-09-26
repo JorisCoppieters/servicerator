@@ -163,28 +163,35 @@ function getPlugins () {
 
 // ******************************
 
+function getUserExplorerHome() {
+    let home = process.env['USERPROFILE'];
+    return home;
+}
+
+// ******************************
+
 function getUserHome() {
-  let home = process.env['HOME'];
-  if (!home && process.platform === 'win32') {
-    home = process.env['USERPROFILE'];
-  }
-  return home;
+    let home = process.env['HOME'];
+    if (!home && process.platform === 'win32') {
+        home = process.env['USERPROFILE'];
+    }
+    return home;
 }
 
 // ******************************
 
 function getShellHome() {
-  let home = process.env['HOME'];
-  if (!home && process.platform === 'win32') {
-    home = process.env['USERPROFILE'];
-  }
-  return home;
+    let home = process.env['HOME'];
+    if (!home && process.platform === 'win32') {
+        home = process.env['USERPROFILE'];
+    }
+    return home;
 }
 
 // ******************************
 
 function getTemp() {
-  return process.env['TEMP'];
+    return process.env['TEMP'];
 }
 
 // ******************************
@@ -200,6 +207,7 @@ module.exports['getStoredPassword'] = getStoredPassword;
 module.exports['getStoredSecretKey'] = getStoredSecretKey;
 module.exports['getStoredValue'] = getStoredValue;
 module.exports['getPlugins'] = getPlugins;
+module.exports['getUserExplorerHome'] = getUserExplorerHome;
 module.exports['getUserHome'] = getUserHome;
 module.exports['getShellHome'] = getShellHome;
 module.exports['getTemp'] = getTemp;

@@ -1958,7 +1958,6 @@ function awsStopCluster (in_serviceConfig, in_environment) {
 function awsViewConsoleLogin (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         aws: {
-            profile: 'STRING',
             account_id: 'NUMBER'
         }
     });

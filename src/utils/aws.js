@@ -1294,6 +1294,7 @@ function getAwsServiceConfig (in_serviceConfig) {
     }
 
     let profile = serviceConfig.aws.profile || 'default';
+    serviceConfig.aws.profile = profile;
 
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
@@ -1328,10 +1329,13 @@ function getAwsRepositoryServiceConfig () {
         'type': 'AWS'
     });
 
+    let profile = serviceConfig.aws.profile || 'default';
+    serviceConfig.aws.profile = profile;
+
     if (awsInstalled()) {
         let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], {
             hide: true,
-            profile: serviceConfig.aws.profile
+            profile: profile
         });
 
         if (!awsCmdResult.hasError) {

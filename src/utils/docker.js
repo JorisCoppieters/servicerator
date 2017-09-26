@@ -476,7 +476,7 @@ function getIgnoreDockerContents (in_serviceConfig) {
 // ******************************
 
 function getDefaultDockerRepositoryStore () {
-  return 'docker.io';
+    return 'index.docker.io';
 }
 
 // ******************************
@@ -591,6 +591,34 @@ function getDockerImageTags (in_serviceConfig) {
 
 // ******************************
 
+function getDockerLoggedInRepositoryStores () {
+    let userExplorerHome = env.getUserExplorerHome();
+    if (!userExplorerHome || !fs.folderExists(userExplorerHome)) {
+        cprint.yellow('User home folder doesn\'t exist');
+        return;
+    }
+
+    let dockerLoginConfigFile = path.resolve(userExplorerHome, '.docker', 'config.json');
+    let dockerLoginConfig = require(dockerLoginConfigFile);
+
+    let auths = dockerLoginConfig.auths || {};
+    let authKeys = Object.keys(auths)
+        .map(authKey => {
+            return authKey.replace(/(https?:\/\/)([^\/]*)(\/.*)/, '$2');
+        });
+
+    return authKeys;
+}
+
+// ******************************
+
+function isDockerLoggedIn (in_repositoryStore) {
+    let repositoryStores = getDockerLoggedInRepositoryStores() || [];
+    return repositoryStores.indexOf(in_repositoryStore) >= 0;
+}
+
+// ******************************
+
 function dockerLogin (in_username, in_password, in_repositoryStore) {
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
@@ -646,6 +674,7 @@ function dockerCmd (in_args, in_options) {
     let hide = options.hide;
     let async = options.async;
     let asyncCb = options.asyncCb;
+    let asyncErrorCb = options.asyncErrorCb;
 
     if (!dockerInstalled()) {
         cprint.yellow('Docker isn\'t installed');
@@ -671,7 +700,8 @@ function dockerCmd (in_args, in_options) {
             indent: '  ',
             hide: hide,
             knownErrors: knownCmdErrors,
-            doneCb: asyncCb
+            doneCb: asyncCb,
+            errorCb: asyncErrorCb
         });
     }
 
@@ -811,6 +841,7 @@ module.exports['k_STATE_EXITED'] = k_STATE_EXITED;
 module.exports['k_TEST_TYPE_URL'] = k_TEST_TYPE_URL;
 
 module.exports['login'] = dockerLogin;
+module.exports['isLoggedIn'] = isDockerLoggedIn;
 module.exports['installed'] = dockerInstalled;
 module.exports['running'] = dockerRunning;
 module.exports['version'] = dockerVersion;
@@ -823,6 +854,7 @@ module.exports['getDockerfile'] = getDockerfile;
 module.exports['getPassword'] = getDockerPassword;
 module.exports['getUsername'] = getDockerUsername;
 module.exports['getImageTags'] = getDockerImageTags;
+module.exports['getLoggedInRepositoryStores'] = getDockerLoggedInRepositoryStores;
 module.exports['getDefaultRepositoryStore'] = getDefaultDockerRepositoryStore;
 module.exports['getDockerfileContents'] = getDockerfileContents;
 module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;

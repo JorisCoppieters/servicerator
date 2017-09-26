@@ -1208,7 +1208,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
 
 // ******************************
 
-function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd) {
+function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
     return () => {
         return new Promise((resolve, reject) => {
             if (!in_dockerUsername) {
@@ -1221,7 +1221,7 @@ function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPasswor
                 return reject();
             }
 
-            // _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
+            _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin);
 
             if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
                 cprint.yellow('Invalid command: ' + in_cmd);
@@ -1233,7 +1233,26 @@ function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPasswor
             args = args.concat(in_dockerImagePath);
             docker.cmd(args, {
                 async: true,
-                asyncCb: resolve
+                asyncCb: (success) => {
+                    if (success) {
+                        resolve();
+                    }
+                },
+                asyncErrorCb: (error) => {
+                    if (in_forceLogin) {
+                        resolve();
+                        return;
+                    }
+
+                    if (error && error.match(/denied:.*/)) {
+                        cprint.yellow('Docker push denied, trying again with logging in first');
+                        _execCmdOnDockerImageForRepository(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true)()
+                            .then(resolve);
+                        return;
+                    }
+
+                    return resolve();
+                }
             });
         });
     }
@@ -1385,7 +1404,11 @@ function _getAwsDockerCredentials (in_serviceConfig) {
 
 // ******************************
 
-function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore) {
+function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin) {
+    if (docker.isLoggedIn(in_dockerRepositoryStore) && !in_forceLogin) {
+        return;
+    }
+
     if (g_CURRENT_DOCKER_USERNAME !== in_dockerUsername) {
         docker.login(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
         g_CURRENT_DOCKER_USERNAME = in_dockerUsername;

@@ -86,17 +86,27 @@ function execCmd (in_cmd, in_args, in_options) {
         _printLogLine(chunk, indent, opt.knownErrors);
     });
 
+    let seenError = false;
+
     child.stderr.on('data', chunk => {
         _printLogLine(chunk, indent, opt.knownErrors);
+        if (opt.errorCb) {
+            seenError = true;
+            opt.errorCb(chunk.toString());
+        }
     });
 
     child.on('error', error => {
         _printLogLine(error, indent, opt.knownErrors);
+        if (opt.errorCb) {
+            seenError = true;
+            opt.errorCb(error);
+        }
     });
 
     child.on('close', close => {
         if (opt.doneCb) {
-            opt.doneCb();
+            opt.doneCb(!seenError);
         }
     });
 }
@@ -167,6 +177,9 @@ function _printLogLine (in_line, in_indent, in_knownErrors) {
         print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/error:[0-9]/i)) {
         print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
+    } else if (line.match(/denied/i)) {
+        print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
+
     } else if (line.match(/unable to/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/no such/i)) {
@@ -188,11 +201,13 @@ function _printLogLine (in_line, in_indent, in_knownErrors) {
     } else if (line.match(/warning:[0-9]/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/success[:=-]? /i)) {
+
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/success:[0-9]/i)) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/ OK/i) || line.match(/OK /i)) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
+
     } else {
         print.out(cprint.toLightBlue(str.indentContents(line, indent) + '\n'));
     }

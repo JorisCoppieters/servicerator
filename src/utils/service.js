@@ -4,8 +4,7 @@
 // Constants:
 // ******************************
 
-// TODO - remove TM specific image
-const k_DEFAULT_PYTHON_IMAGE = 'trademe/base-python-anaconda:python-version-2.7.13_anaconda-4.3.1';
+const k_DEFAULT_PYTHON_IMAGE = 'continuumio/anaconda:4.3.1';
 const k_DEFAULT_IMAGE = 'ubuntu:trusty';
 
 // ******************************
@@ -13,6 +12,7 @@ const k_DEFAULT_IMAGE = 'ubuntu:trusty';
 // ******************************
 
 let cprint = require('color-print');
+let fsCore = require('fs');
 let path = require('path');
 
 let bash = require('./bash');
@@ -335,14 +335,14 @@ function getServiceConfig (in_folderName, in_initialise) {
         return false;
     }
 
-    checkServiceConfigSchema(serviceConfig);
+    _checkObjectAgainstSchema('ROOT', serviceConfig, schema);
     return serviceConfig;
 }
 
 // ******************************
 
 function checkServiceConfigSchema (in_serviceConfig) {
-    _checkObjectAgainstSchema('ROOT', in_serviceConfig, schema);
+    _checkObjectAgainstSchema('CHECK', in_serviceConfig, schema);
 }
 
 // ******************************
@@ -431,6 +431,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
     });
 
     let sourceFolder = serviceConfig.cwd || '.';
+    sourceFolder = fsCore.realpathSync(sourceFolder);
+
     sourceFolder = sourceFolder.replace(new RegExp('\\\\', 'g'), '/');
 
     let replacements = {
