@@ -21,6 +21,12 @@ let SERVICE_CONFIG_FILE_NAME = 'service.json';
 // Functions:
 // ******************************
 
+function isLinux () {
+    return os.platform() === 'linux';
+}
+
+// ******************************
+
 function isWindows () {
     return os.platform() === 'win32';
 }

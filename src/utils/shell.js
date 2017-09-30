@@ -83,6 +83,12 @@ function getShell () {
         ]);
     }
 
+    if (env.isLinux()) {
+        shellPaths = shellPaths.concat([
+            "/bin/bash"
+        ]);
+    }
+
     shell = shellPaths
         .map(p => path.resolve(p))
         .filter(p => fs.fileExists(p))

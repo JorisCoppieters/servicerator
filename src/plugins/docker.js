@@ -651,6 +651,10 @@ function enterDockerContainer (in_serviceConfig) {
 
     cprint.cyan('Entering Docker container "' + containerName + '"...');
     let cmdResult = shell.cmd(args);
+    if (!cmdResult) {
+        return;
+    }
+
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
     } else {
@@ -1189,6 +1193,10 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     if (runWithBash) {
         cprint.cyan('Starting Docker container "' + containerName + '"...');
         let cmdResult = shell.cmd(['docker'].concat(args).concat(['bash']));
+        if (!cmdResult) {
+            return;
+        }
+
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
         } else {
