@@ -49,6 +49,11 @@ function shellCmd (in_args, in_options) {
         ]
     }
 
+    if (shell.match(/^\/bin\/bash$/)) {
+        shell = args[0];
+        args = args.slice(1);
+    }
+
     return exec.cmdSync(shell, args, {
         indent: '  ',
         hide: hide

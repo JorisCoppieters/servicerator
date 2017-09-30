@@ -206,6 +206,7 @@ function getTemp() {
 
 module.exports['SERVICE_CONFIG_FILE_NAME'] = SERVICE_CONFIG_FILE_NAME;
 module.exports['isWindows'] = isWindows;
+module.exports['isLinux'] = isLinux;
 module.exports['getServiceFolder'] = getServiceFolder;
 module.exports['getServiceConfigFile'] = getServiceConfigFile;
 module.exports['getServiceConfig'] = getServiceConfig;
