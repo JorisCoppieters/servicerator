@@ -13,7 +13,7 @@ let service = require('../utils/service');
 // ******************************
 
 function unsetServiceValue (in_serviceConfig, in_keyPath) {
-    service.unsetValue(in_serviceConfig, in_keyPath, in_keyValue);
+    service.unsetValue(in_serviceConfig, in_keyPath);
 }
 
 // ******************************

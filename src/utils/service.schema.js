@@ -7,9 +7,6 @@
 function getServiceSchema () {
     return {
         "cwd": "STRING",
-        "ignore": [
-            "STRING"
-        ],
         "auth": {
             "certificate": "STRING",
             "key": "STRING",
@@ -51,6 +48,9 @@ function getServiceSchema () {
         ],
         "version_control": {
             "type": "STRING",
+            "ignore": [
+                "STRING"
+            ],
             "root_folder": "STRING"
         },
 
@@ -133,10 +133,12 @@ function getServiceSchema () {
                             "STRING"
                         ],
                         "update": "BOOLEAN",
+                        "append": "BOOLEAN",
                         "destination": "PATH",
                         "path": "PATH",
                         "source": "PATH",
-                        "permissions": "STRING"
+                        "permissions": "STRING",
+                        "workdir": "STRING"
                     },
                 ],
                 "nginx": {

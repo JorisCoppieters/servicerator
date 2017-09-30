@@ -19,29 +19,7 @@ let service = require('../utils/service');
 // Functions:
 // ******************************
 
-function gitSetupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
-    let sourceFolder = setupFolder(in_serviceConfig, in_overwrite, in_docker, in_nginx);
-    if (!sourceFolder) {
-        return;
-    }
-    let gitIgnoreFile = path.resolve(sourceFolder, '.gitignore');
-    fs.writeFile(gitIgnoreFile, git.getIgnoreFileContents(in_serviceConfig), in_overwrite);
-}
-
-// ******************************
-
-function hgSetupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
-    let sourceFolder = setupFolder(in_serviceConfig, in_overwrite, in_docker, in_nginx);
-    if (!sourceFolder) {
-        return;
-    }
-    let hgIgnoreFile = path.resolve(sourceFolder, '.hgignore');
-    fs.writeFile(hgIgnoreFile, hg.getIgnoreFileContents(in_serviceConfig), in_overwrite);
-}
-
-// ******************************
-
-function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
+function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: 'ANY',
         model: {
@@ -59,11 +37,16 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
                     daemon_off: 'BOOLEAN'
                 },
                 log: 'BOOLEAN',
-                language: 'STRING'
+                language: 'STRING',
+                base: 'STRING'
             }
         },
         version_control: {
-            type: 'STRING'
+            type: 'STRING',
+            root_folder: 'STRING',
+            ignore: [
+                'STRING'
+            ]
         },
         cwd: 'STRING'
     });
@@ -81,7 +64,7 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
         dockerFolder = sourceFolder;
     }
 
-    if (in_docker) {
+    if (serviceConfig.docker.image.base) {
         let dockerFileContents = docker.getDockerfileContents(in_serviceConfig);
         if (dockerFileContents) {
             fs.setupFile('Dockerfile', path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, {
@@ -97,7 +80,7 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
         }
     }
 
-    if (in_nginx) {
+    if (serviceConfig.docker.image.nginx) {
         let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
         if (serviceConfig.docker.image.nginx.servers.length) {
             let nginxFileContents = nginx.getFileContents(in_serviceConfig);
@@ -105,6 +88,22 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
                 overwrite: in_overwrite
             });
         }
+    }
+
+    let repositoryFolder = serviceConfig.version_control.root_folder;
+    repositoryFolder = service.replaceConfigReferences(in_serviceConfig, repositoryFolder);
+    repositoryFolder = path.resolve(repositoryFolder);
+
+    if (serviceConfig.version_control.type === 'hg' || serviceConfig.version_control.type === 'mercurial') {
+        fs.setupFile('.hgignore', path.resolve(repositoryFolder, '.hgignore'), hg.getIgnoreFileContents(in_serviceConfig), {
+            overwrite: in_overwrite
+        });
+    }
+
+    if (serviceConfig.version_control.type === 'git') {
+        fs.setupFile('.gitignore', path.resolve(repositoryFolder, '.gitignore'), git.getIgnoreFileContents(in_serviceConfig), {
+            overwrite: in_overwrite
+        });
     }
 
     if (serviceConfig.version_control.type === 'mercurial') {
@@ -118,22 +117,22 @@ function setupFolder (in_serviceConfig, in_overwrite, in_docker, in_nginx) {
 
     _createFilesystem(in_serviceConfig, 'on_setup', in_overwrite);
 
-    // Shift to global setup file
+    // TODO: Shift to global setup file
     if (serviceConfig.docker.image.log) {
         fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
     }
 
-    // Shift to global setup file
+    // TODO: Shift to global setup file
     if (serviceConfig.docker.image.language === 'python') {
         fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
     }
 
-    // Shift to global setup file
+    // TODO: Shift to global setup file
     if (serviceConfig.auth) {
         fs.setupFolder('docker auth', path.resolve(dockerFolder, 'auth'));
     }
 
-    // Shift to global setup file
+    // TODO: Shift to global setup file
     if (serviceConfig.model) {
         if (serviceConfig.model.type === 'bundled') {
             fs.setupFolder('docker bundled_model', path.resolve(dockerFolder, 'bundled_model'));
@@ -235,19 +234,11 @@ function onClose (in_serviceConfig) {
 function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let overwrite = in_args['overwrite'];
-    let docker = in_args['docker'];
-    let nginx = in_args['nginx'];
     switch(command)
     {
         case '':
-            setupFolder(in_serviceConfig, overwrite, docker, nginx);
-            break;
-        case 'git':
-            gitSetupFolder(in_serviceConfig, overwrite, docker, nginx);
-            break;
-        case 'hg':
-        case 'mercurial':
-            hgSetupFolder(in_serviceConfig, overwrite, docker, nginx);
+        case 'all':
+            setupFolder(in_serviceConfig, overwrite);
             break;
         default:
             return false;
@@ -265,23 +256,9 @@ function getBaseCommands () {
 
 function getCommands () {
     return [
-        { params: [''], description: 'Setup this folder', options: [
-            {param:'overwrite', description:'Overwrite any files that exist'},
-            {param:'docker', description:'Create the Dockerfile'},
-            {param:'nginx', description:'Create the nginx config'}
-        ] },
-
-        { params: ['git'], description: 'Setup this folder as a git repository', options: [
-            {param:'overwrite', description:'Overwrite any files that exist'},
-            {param:'docker', description:'Create the Dockerfile'},
-            {param:'nginx', description:'Create the nginx config'}
-        ] },
-
-        { params: ['hg'], description: 'Setup this folder as a mercurial repository', options: [
-            {param:'overwrite', description:'Overwrite any files that exist'},
-            {param:'docker', description:'Create the Dockerfile'},
-            {param:'nginx', description:'Create the nginx config'}
-        ] },
+        { params: ['', 'all'], description: 'Setup this folder', options: [
+            {param:'overwrite', description:'Overwrite any files that exist'}
+        ] }
     ];
 }
 

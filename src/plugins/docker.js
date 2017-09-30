@@ -1168,7 +1168,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         }
 
         if (volumeHost.match(/^[A-Z]:[\\\/]?$/)) {
-            volumeHost = '"' + volumeHost + '\."';
+            volumeHost = volumeHost + '\.';
         }
 
         if (!runWithBash) {

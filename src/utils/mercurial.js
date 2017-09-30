@@ -74,14 +74,17 @@ function getIgnoreFileContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         auth: 'ANY',
         model: 'ANY',
-        ignore: [
-            'STRING'
-        ],
         docker: {
             image: {
                 language: 'STRING',
                 log: 'BOOLEAN'
             }
+        },
+        version_control: {
+            type: 'STRING',
+            ignore: [
+                'STRING'
+            ]
         },
         cwd: 'STRING'
     });
@@ -117,7 +120,7 @@ function getIgnoreFileContents (in_serviceConfig) {
         ignoreFiles.push(dockerRelativePath + 'auth/service.key');
     }
 
-    ignoreFiles = ignoreFiles.concat(serviceConfig.ignore || []);
+    ignoreFiles = ignoreFiles.concat(serviceConfig.version_control.ignore || []);
 
     return ignoreFiles.join('\n');
 }

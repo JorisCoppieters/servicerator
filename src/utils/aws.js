@@ -1387,7 +1387,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
     }
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], {
-        hide: !opt.verbose,
+        hide: false,
         profile: opt.profile
     });
 
