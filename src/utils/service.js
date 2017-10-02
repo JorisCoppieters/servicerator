@@ -1162,9 +1162,9 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
 // ******************************
 
 function _serviceConfigReplacer (in_key, in_val) {
-    if (in_key === 'cwd') {
-        return undefined;
-    }
+    // if (in_key === 'cwd') {
+    //     return undefined;
+    // }
     if (in_key === 'secret_key') {
         return undefined;
     }

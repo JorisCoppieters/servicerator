@@ -57,7 +57,7 @@ function execCmdSync (in_cmd, in_args, in_options) {
         error: cmdErrorResult,
         result: cmdResult,
         resultObj: cmdResultObj,
-        printError: (in_indent) => cprint.red(str.indentContents(cmdErrorResult, _defaultIndent(in_indent, indent))),
+        printError: (in_indent) => _printLogLines(cmdErrorResult, _defaultIndent(in_indent, indent)),
         printResult: (in_indent) => _printLogLines(cmdResult, _defaultIndent(in_indent, indent), opt.knownErrors),
         rows: rows,
         hasError: !!cmdErrorResult.trim(),
@@ -195,6 +195,8 @@ function _printLogLine (in_line, in_indent, in_knownErrors) {
     } else if (line.match(/can't/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/can ?not/i)) {
+        print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
+    } else if (line.match(/warning!/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/warning[:=-]? /i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));

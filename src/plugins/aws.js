@@ -391,6 +391,35 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
 // ******************************
 
+function awsCreateInfrastructure (in_serviceConfig) {
+    awsCreateRepository(in_serviceConfig);
+    if (!awsCreateLaunchConfiguration(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsCreateLoadBalancer(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsCreateAutoScalingGroup(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsCreateCluster(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsCreateTaskDefinition(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsCreateClusterService(in_serviceConfig)) {
+        return;
+    }
+}
+
+// ******************************
+
 function awsCreateTaskDefinition (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         docker: {
@@ -643,6 +672,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -701,6 +731,7 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
     if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
     }
+    return true;
 }
 
 // ******************************
@@ -910,6 +941,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -1147,6 +1179,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -1427,6 +1460,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -1501,6 +1535,7 @@ function awsCreateRepository (in_serviceConfig) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -1582,6 +1617,7 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -1759,6 +1795,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -2335,6 +2372,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             awsDockerLogin(in_serviceConfig);
             break;
 
+        case 'create-infrastructure':
+            awsCreateInfrastructure(in_serviceConfig);
+            break;
+
         case 'create-task-definition':
             awsCreateTaskDefinition(in_serviceConfig);
             break;
@@ -2447,6 +2488,7 @@ function getCommands () {
             {param:'extra', description:'Include extra information'}
         ] },
         { params: ['docker-login'], description: 'Log into AWS docker repository' },
+        { params: ['create-infrastructure'], description: 'Create infrastructure for the service' },
         { params: ['create-task-definition'], description: 'Create task definition for the service' },
         { params: ['clean-task-definitions', 'clean'], description: 'Deregister old task definitions for the service' },
         { params: ['create-auto-scaling-group'], description: 'Create auto scaling group for the service', options: [{param:'environment', description:'Environment'}] },

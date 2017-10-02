@@ -171,6 +171,9 @@ function getPlugins () {
 
 function getUserExplorerHome() {
     let home = process.env['USERPROFILE'];
+    if (!home && process.platform === 'linux') {
+        home = process.env['HOME'];
+    }
     return home;
 }
 
