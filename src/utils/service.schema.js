@@ -176,6 +176,14 @@ function getServiceSchema () {
                     }
                 ]
             },
+            "args": [
+                {
+                    "key": "STRING",
+                    "val": "STRING",
+                    "type": "STRING"
+                }
+            ],
+            "build_folder": "STRING",
             "other_repositories": [
                 {
                     "type": "STRING"

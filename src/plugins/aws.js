@@ -391,21 +391,21 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
 // ******************************
 
-function awsCreateInfrastructure (in_serviceConfig) {
+function awsCreateInfrastructure (in_serviceConfig, in_environment) {
     awsCreateRepository(in_serviceConfig);
-    if (!awsCreateLaunchConfiguration(in_serviceConfig)) {
+    if (!awsCreateLaunchConfiguration(in_serviceConfig, in_environment)) {
         return;
     }
 
-    if (!awsCreateLoadBalancer(in_serviceConfig)) {
+    if (!awsCreateLoadBalancer(in_serviceConfig, in_environment)) {
         return;
     }
 
-    if (!awsCreateAutoScalingGroup(in_serviceConfig)) {
+    if (!awsCreateAutoScalingGroup(in_serviceConfig, in_environment)) {
         return;
     }
 
-    if (!awsCreateCluster(in_serviceConfig)) {
+    if (!awsCreateCluster(in_serviceConfig, in_environment)) {
         return;
     }
 
@@ -413,7 +413,7 @@ function awsCreateInfrastructure (in_serviceConfig) {
         return;
     }
 
-    if (!awsCreateClusterService(in_serviceConfig)) {
+    if (!awsCreateClusterService(in_serviceConfig, in_environment)) {
         return;
     }
 }
@@ -2373,7 +2373,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             break;
 
         case 'create-infrastructure':
-            awsCreateInfrastructure(in_serviceConfig);
+            awsCreateInfrastructure(in_serviceConfig, env);
             break;
 
         case 'create-task-definition':

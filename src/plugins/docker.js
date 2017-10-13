@@ -213,7 +213,15 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
         docker: {
             image: {
                 name: 'STRING'
-            }
+            },
+            args: [
+                {
+                    key: 'STRING',
+                    val: 'STRING',
+                    type: 'STRING'
+                }
+            ],
+            build_folder: 'STRING'
         },
         cwd: 'STRING'
     });
@@ -240,9 +248,23 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     }
 
     let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let dockerFolder = serviceConfig.docker.build_folder;
+    if (dockerFolder) {
+        dockerFolder = service.replaceConfigReferences(in_serviceConfig, dockerFolder);
+        dockerFolder = path.resolve(dockerFolder);
+    } else {
+        dockerFolder = docker.getFolder(sourceFolder);
+    }
+
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
         cprint.yellow('Docker folder doesn\'t exist');
+        return;
+    }
+
+    let serviceDockerfile = docker.getDockerfile(sourceFolder);
+    if (!serviceDockerfile) {
+        cprint.yellow("Service Dockerfile not set");
         return;
     }
 
@@ -266,12 +288,36 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     if (in_noCache) {
         args.push('--no-cache');
     }
+
+    if (serviceConfig.docker.args && serviceConfig.docker.args.length) {
+        serviceConfig.docker.args.forEach(arg => {
+            let argKey = arg.key;
+
+            let argVal = arg.val;
+            argVal = service.replaceConfigReferences(in_serviceConfig, argVal);
+
+            switch (arg.type) {
+                case 'path':
+                    argVal = argVal.replace(new RegExp('\\\\', 'g'), '/');
+                    break;
+            }
+
+            args.push('--build-arg');
+            args.push(`${argKey}=${argVal}`);
+        });
+    }
+
+    args.push('--file');
+    args.push(serviceDockerfile);
+
     args.push(dockerFolder);
 
     cprint.cyan('Building Docker image...');
     docker.cmd(args, {
         async: true
     });
+
+    return true;
 }
 
 // ******************************
@@ -336,6 +382,8 @@ function pushDockerImage (in_serviceConfig) {
     });
 
     sync.runTasks(tasks);
+
+    return true;
 }
 
 // ******************************
@@ -486,6 +534,22 @@ function purgeDockerImages (in_serviceConfig, in_force) {
     docker.cmd(args, {
         async: true
     });
+}
+
+// ******************************
+
+function incrementalPushDockerImage (in_serviceConfig) {
+    if (!setDockerImageVersion(in_serviceConfig, 0, 0, 1)) {
+        return;
+    }
+
+    if (!buildDockerImage(in_serviceConfig)) {
+        return;
+    }
+
+    if (!pushDockerImage(in_serviceConfig)) {
+        return;
+    }
 }
 
 // ******************************
@@ -1068,7 +1132,8 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                         val: 'STRING'
                     }
                 ]
-            }
+            },
+            build_folder: 'STRING'
         },
         service: {
             name: 'STRING'
@@ -1080,7 +1145,15 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     let memoryLimit = serviceConfig.docker.container.memory_limit || false;
 
     let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let dockerFolder = serviceConfig.docker.build_folder;
+    if (dockerFolder) {
+        dockerFolder = service.replaceConfigReferences(in_serviceConfig, dockerFolder);
+        dockerFolder = path.resolve(dockerFolder);
+    } else {
+        dockerFolder = docker.getFolder(sourceFolder);
+    }
+
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
         cprint.yellow('Docker folder doesn\'t exist');
         return;
@@ -1454,6 +1527,9 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         case 'purge':
             purgeDockerImages(in_serviceConfig, force);
             break;
+        case 'incremental-push':
+            incrementalPushDockerImage(in_serviceConfig);
+            break;
 
         case 'version':
         case 'get-version':
@@ -1565,6 +1641,7 @@ function getCommands () {
         { params: ['verify-container', 'verify', 'test-container', 'test', 'tests'], description: 'Verify the service docker container' },
         { params: ['container', 'stats', 'state', 'running'], description: 'Print the current state of the service docker container' },
         { params: ['login'], description: 'Log into docker' },
+        { params: ['incremental-push'], description: 'Increment docker image version, build image and push' },
         { params: ['pull'], description: 'Pull the service docker image' },
         { params: ['build'], description: 'Build the service docker image', options: [{param:'no-cache', description:'Don\'t use cached images'}] },
         { params: ['push'], description: 'Push the service docker image' },

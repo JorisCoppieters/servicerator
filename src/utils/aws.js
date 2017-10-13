@@ -312,6 +312,7 @@ function getTaskDetails (in_clusterName, in_taskArns, in_options) {
             return {
                 taskArn: awsArnToTitle(t.taskArn),
                 taskDefinitionArn: awsArnToTitle(t.taskDefinitionArn),
+                containerInstanceArn: awsArnToTitle(t.containerInstanceArn),
                 status: t.lastStatus,
                 desiredStatus: t.desiredStatus,
                 clusterServiceVersion: taskClusterVersion,
