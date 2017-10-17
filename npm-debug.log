@@ -53,9 +53,9 @@
 21 silly publish      rimraf: '^2.6.1' },
 21 silly publish   readme: '# servicerator\r\n\r\nservicerator is a Node utility for creating/deploying/managing services really quickly\r\n\r\n### Installation\r\n\r\nservicerator requires [Node.js](https://nodejs.org/) v4+ to run.\r\n\r\nThen:\r\n\r\n```sh\r\n$ npm install -g servicerator\r\n```\r\n\r\nTo run it, simply type ```svr``` in your service folder to get information on your service\r\n\r\nRun ```svr init``` to create service.json, which is your configuration file\r\n\r\nRun ```svr help``` to see more options',
 21 silly publish   readmeFilename: 'README.md',
-21 silly publish   gitHead: 'c8a76978a06ecc9d6f7ca6ac92c1f57270973cc2',
+21 silly publish   gitHead: '289558e44b5ed91c61529366a32787ae77949662',
 21 silly publish   _id: 'servicerator@0.8.0',
-21 silly publish   _shasum: '05ba0aff53c3d7aef84b9c52bdc9be74567ef317',
+21 silly publish   _shasum: 'de1bb2d5c3fcce7100f814dac977babb5534cb9e',
 21 silly publish   _from: '.' }
 22 verbose getPublishConfig undefined
 23 silly mapToRegistry name servicerator
