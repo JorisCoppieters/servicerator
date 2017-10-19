@@ -263,6 +263,7 @@ function getServiceSchema () {
                     },
                     "auto_scaling_group": {
                         "name": "STRING",
+                        "health_check_grace_period": "NUMBER",
                         "subnets": [
                             "STRING"
                         ]

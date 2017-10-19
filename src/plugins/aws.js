@@ -98,7 +98,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                 print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
                 let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
                     cache: awsCache,
-                    profile: serviceConfig.aws.profile
+                    profile: serviceConfig.aws.profile,
+                    showWarning: true
                 });
                 print.clearLine();
 
@@ -391,6 +392,22 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
 // ******************************
 
+function awsDeployNewLaunchConfiguration (in_serviceConfig, in_environment) {
+    if (!awsCreateLaunchConfiguration(in_serviceConfig, in_environment)) {
+        return;
+    }
+
+    if (!awsUpdateAutoScalingGroup(in_serviceConfig, in_environment)) {
+        return;
+    }
+
+    if (!awsCleanLaunchConfigurations(in_serviceConfig, in_environment)) {
+        return;
+    }
+}
+
+// ******************************
+
 function awsCreateInfrastructure (in_serviceConfig, in_environment) {
     awsCreateRepository(in_serviceConfig);
     if (!awsCreateLaunchConfiguration(in_serviceConfig, in_environment)) {
@@ -677,65 +694,6 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
 // ******************************
 
-function awsCleanTaskDefinitions (in_serviceConfig) {
-    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
-        service: {
-            task_definition_name: 'STRING',
-            name: 'STRING'
-        },
-        aws: {
-            profile: 'STRING',
-        },
-        cwd: 'STRING'
-    });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
-
-    let serviceName = serviceConfig.service.name;
-    if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
-    }
-
-    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
-    if (!awsTaskDefinitionName) {
-        cprint.yellow('Service task definition name not set');
-        return false;
-    }
-
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
-
-    let awsCache = cache.load(serviceConfig.cwd, 'aws');
-
-    let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
-        cache: awsCache,
-        profile: serviceConfig.aws.profile
-    });
-
-    if (!taskDefinitionArns || !taskDefinitionArns.length) {
-        cprint.green('Nothing to clean up!');
-        return;
-    }
-
-    taskDefinitionArns
-        .forEach(t => {
-            aws.deregisterTaskDefinition(t, {
-                profile: serviceConfig.aws.profile
-            });
-        });
-
-    if (service.hasConfigFile(serviceConfig.cwd)) {
-        cache.save(serviceConfig.cwd, 'aws', awsCache);
-    }
-    return true;
-}
-
-// ******************************
-
 function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
@@ -808,6 +766,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
+
+    let timestampTagTemplate = '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{10}';
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
@@ -933,7 +893,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created launch configuration');
-        aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName, awsCache);
+        aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
+        aws.clearCachedLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -967,6 +928,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                     },
                     auto_scaling_group: {
                         name: 'STRING',
+                        health_check_grace_period: 'NUMBER',
                         subnets: [
                             'STRING'
                         ]
@@ -1048,6 +1010,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
+    let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
+
     let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name || false; // TODO: Remove load_balancer_name
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -1061,8 +1025,10 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     print.keyVal('AWS ' + environmentTitle + ' Auto Scaling Group', awsAutoScalingGroupName);
 
+    let timestampTagTemplate = '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{10}';
+
     print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', '...', true);
-    let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(awsLaunchConfigurationTemplateName, {
+    let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
         cache: awsCache,
         showWarning: true,
         profile: serviceConfig.aws.profile
@@ -1148,7 +1114,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         awsVpcSubnetIds.join(','),
 
         '--health-check-grace-period',
-        300,
+        healthCheckGracePeriod,
 
         '--termination-policies',
         'OldestInstance',
@@ -1156,13 +1122,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         '--tags',
         JSON.stringify(tags)
     ];
-
-    if (awsLoadBalancerName) {
-        args = args.concat([
-            '--load-balancer-names',
-            awsLoadBalancerName
-        ]);
-    }
 
     let cmdResult = aws.cmd(args, {
         profile: serviceConfig.aws.profile
@@ -1172,6 +1131,29 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created auto scaling group');
+    }
+
+    if (awsLoadBalancerName) {
+        let args = [
+            'autoscaling',
+            'attach-load-balancers',
+
+            '--auto-scaling-group-name',
+            awsAutoScalingGroupName,
+
+            '--load-balancer-names',
+            awsLoadBalancerName
+        ];
+
+        let cmdResult = aws.cmd(args, {
+            profile: serviceConfig.aws.profile
+        });
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+        } else {
+            cmdResult.printResult('  ');
+            cprint.green('Added load balancer to auto scaling group');
+        }
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -1800,6 +1782,452 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
 // ******************************
 
+function awsCleanInfrastructure (in_serviceConfig, in_environment) {
+    if (!awsCleanLaunchConfigurations(in_serviceConfig, in_environment)) {
+        return;
+    }
+
+    if (!awsCleanTaskDefinitions(in_serviceConfig)) {
+        return;
+    }
+}
+
+// ******************************
+
+function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    name: 'STRING',
+                    vpc_name: 'STRING',
+                    load_balancer: {
+                        name: 'STRING'
+                    },
+                    launch_configuration: {
+                        name: 'STRING'
+                    },
+                    auto_scaling_group: {
+                        name: 'STRING',
+                        subnets: [
+                            'STRING'
+                        ]
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING',
+                    instance: {
+                        count: 'NUMBER',
+                        tags: [
+                            {
+                                key: 'STRING',
+                                val: 'STRING'
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        aws: {
+            profile: 'STRING',
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
+
+    let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
+    if (!awsLaunchConfigurationTemplateName) {
+        cprint.yellow('Launch configuration name not set');
+        return false;
+    }
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    let timestampTagTemplate = '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{10}';
+
+    let awsLaunchConfigurationNames = aws.getLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
+        cache: awsCache,
+        showWarning: true,
+        profile: serviceConfig.aws.profile
+    });
+
+    if (!awsLaunchConfigurationNames || !awsLaunchConfigurationNames.length) {
+        cprint.green('Nothing to clean up!');
+        return;
+    }
+
+    awsLaunchConfigurationNames
+        .filter(l => !aws.getAutoScalingGroupForLaunchConfiguration(l, {
+            cache: awsCache,
+            showWarning: true,
+            profile: serviceConfig.aws.profile,
+            verbose: true
+        }))
+        .forEach(l => {
+            aws.deleteLaunchConfiguration(l, {
+                profile: serviceConfig.aws.profile
+            });
+        });
+
+    aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
+    aws.clearCachedLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    return true;
+}
+
+// ******************************
+
+function awsCleanTaskDefinitions (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            task_definition_name: 'STRING',
+            name: 'STRING'
+        },
+        aws: {
+            profile: 'STRING',
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    if (!awsTaskDefinitionName) {
+        cprint.yellow('Service task definition name not set');
+        return false;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
+        cache: awsCache,
+        profile: serviceConfig.aws.profile
+    });
+
+    if (!taskDefinitionArns || !taskDefinitionArns.length) {
+        cprint.green('Nothing to clean up!');
+        return;
+    }
+
+    taskDefinitionArns
+        .forEach(t => {
+            aws.deregisterTaskDefinition(t, {
+                profile: serviceConfig.aws.profile
+            });
+        });
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+    return true;
+}
+
+// ******************************
+
+function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    name: 'STRING',
+                    vpc_name: 'STRING',
+                    load_balancer: {
+                        name: 'STRING'
+                    },
+                    launch_configuration: {
+                        name: 'STRING'
+                    },
+                    auto_scaling_group: {
+                        name: 'STRING',
+                        health_check_grace_period: 'NUMBER',
+                        subnets: [
+                            'STRING'
+                        ]
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING',
+                    instance: {
+                        count: 'NUMBER',
+                        tags: [
+                            {
+                                key: 'STRING',
+                                val: 'STRING'
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        aws: {
+            profile: 'STRING',
+        },
+        cwd: 'STRING'
+    });
+
+    let sourceFolder = serviceConfig.cwd || false;
+    let dockerFolder = docker.getFolder(sourceFolder);
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    let dockerImageName = serviceConfig.docker.image.name;
+    if (!dockerImageName) {
+        cprint.yellow('Docker image name not set');
+        return false;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    let environment = cluster.environment;
+    let environmentTitle = str.toTitleCase(environment);
+
+    let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
+    if (!awsLaunchConfigurationTemplateName) {
+        cprint.yellow('Launch configuration name not set');
+        return false;
+    }
+
+    let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
+    if (!awsAutoScalingGroupName) {
+        cprint.yellow('Auto scaling group name not set');
+        return false;
+    }
+
+    let awsVpcName = cluster.vpc_name;
+    if (!awsVpcName) {
+        cprint.yellow('VPC name not set');
+        return false;
+    }
+
+    let awsVpcSubnetNames = (cluster.auto_scaling_group.subnets || []);
+    if (!awsVpcSubnetNames.length) {
+        cprint.yellow('No VPC subnet names set');
+        return false;
+    }
+
+    let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
+
+    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name || false; // TODO: Remove load_balancer_name
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    let desiredCount = cluster.instance.count || 0;
+
+    let awsAutoScalingGroupMinSize = 0;
+    let awsAutoScalingGroupMaxSize = desiredCount + 2;
+
+    cprint.magenta('-- Auto Scaling Group --');
+
+    print.keyVal('AWS ' + environmentTitle + ' Auto Scaling Group', awsAutoScalingGroupName);
+
+    let timestampTagTemplate = '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{10}';
+
+    print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', '...', true);
+    let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
+        cache: awsCache,
+        showWarning: true,
+        profile: serviceConfig.aws.profile
+    });
+    if (!awsLaunchConfigurationName) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', awsLaunchConfigurationName);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
+
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
+    let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
+        cache: awsCache,
+        showWarning: true,
+        profile: serviceConfig.aws.profile
+    });
+    if (!awsVpcId) {
+        return;
+    }
+    print.clearLine();
+    print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
+
+    let awsVpcSubnetIds = awsVpcSubnetNames
+        .map(awsVpcSubnetName => {
+            print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
+            let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
+                cache: awsCache,
+                showWarning: true,
+                profile: serviceConfig.aws.profile
+            });
+            if (!awsVpcSubnetId) {
+                return;
+            }
+            print.clearLine();
+            print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', awsVpcSubnetId);
+            return awsVpcSubnetId;
+        });
+
+    cprint.cyan('Updating auto scaling group...');
+
+    let tagsDict = {
+        DockerImageName: dockerImageName,
+        Environment: environment,
+        ServiceName: serviceName,
+        Name: serviceName + '-group-instance'
+    }
+
+    let clusterTags = cluster.instance.tags || [];
+    clusterTags.forEach(t => {
+        tagsDict[t.key] = t.val;
+    });
+
+    let tags = Object.keys(tagsDict).map(key => {
+        let val = tagsDict[key];
+        return {
+            ResourceId: awsAutoScalingGroupName,
+            ResourceType: "auto-scaling-group",
+            Key: key,
+            Value: val,
+            PropagateAtLaunch: true
+        }
+    });
+
+    let args = [
+        'autoscaling',
+        'update-auto-scaling-group',
+
+        '--auto-scaling-group-name',
+        awsAutoScalingGroupName,
+
+        '--launch-configuration-name',
+        awsLaunchConfigurationName,
+
+        '--min-size',
+        awsAutoScalingGroupMinSize,
+
+        '--max-size',
+        awsAutoScalingGroupMaxSize,
+
+        '--vpc-zone-identifier',
+        awsVpcSubnetIds.join(','),
+
+        '--health-check-grace-period',
+        healthCheckGracePeriod,
+
+        '--termination-policies',
+        'OldestInstance'
+    ];
+
+    let cmdResult = aws.cmd(args, {
+        profile: serviceConfig.aws.profile
+    });
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+    } else {
+        cmdResult.printResult('  ');
+        cprint.green('Updated auto scaling group');
+    }
+
+    if (awsLoadBalancerName) {
+        let args = [
+            'autoscaling',
+            'attach-load-balancers',
+
+            '--auto-scaling-group-name',
+            awsAutoScalingGroupName,
+
+            '--load-balancer-names',
+            awsLoadBalancerName
+        ];
+
+        let cmdResult = aws.cmd(args, {
+            profile: serviceConfig.aws.profile
+        });
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+        } else {
+            cmdResult.printResult('  ');
+            cprint.green('Added load balancer to auto scaling group');
+        }
+    }
+
+    aws.clearCachedAutoScalingGroups(awsCache);
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    cprint.magenta('----');
+    return true;
+}
+
+// ******************************
+
 function awsDockerLogin (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         aws: {
@@ -1896,7 +2324,8 @@ function awsStartCluster (in_serviceConfig, in_environment) {
 
     let autoScalingGroupName = cluster.auto_scaling_group.name;
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
-        profile: serviceConfig.aws.profile
+        profile: serviceConfig.aws.profile,
+        showWarning: true
     });
     if (autoScalingGroupInstanceCount < 0) {
         cprint.yellow('AWS cluster doesn\'t exist');
@@ -1968,7 +2397,8 @@ function awsStopCluster (in_serviceConfig, in_environment) {
 
     let autoScalingGroupName = cluster.auto_scaling_group.name;
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
-        profile: serviceConfig.aws.profile
+        profile: serviceConfig.aws.profile,
+        showWarning: true
     });
     if (autoScalingGroupInstanceCount < 0) {
         cprint.yellow('AWS cluster doesn\'t exist');
@@ -2380,11 +2810,6 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             awsCreateTaskDefinition(in_serviceConfig);
             break;
 
-        case 'clean-task-definitions':
-        case 'clean':
-            awsCleanTaskDefinitions(in_serviceConfig);
-            break;
-
         case 'create-launch-configuration':
             awsCreateLaunchConfiguration(in_serviceConfig, env);
             break;
@@ -2407,6 +2832,23 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
         case 'create-cluster-service':
             awsCreateClusterService(in_serviceConfig, env);
+            break;
+
+        case 'clean':
+        case 'clean-infrastructure':
+            awsCleanInfrastructure(in_serviceConfig, env);
+            break;
+
+        case 'clean-launch-configurations':
+            awsCleanLaunchConfigurations(in_serviceConfig, env);
+            break;
+
+        case 'clean-task-definitions':
+            awsCleanTaskDefinitions(in_serviceConfig);
+            break;
+
+        case 'update-auto-scaling-group':
+            awsUpdateAutoScalingGroup(in_serviceConfig, env);
             break;
 
         case 'open-console':
@@ -2457,6 +2899,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
             awsDeploy(in_serviceConfig, stopTasks, env);
             break;
 
+        case 'deploy-new-launch-configuration':
+            awsDeployNewLaunchConfiguration(in_serviceConfig, env);
+            break;
+
         case 'start-cluster':
         case 'start':
             awsStartCluster(in_serviceConfig, env);
@@ -2488,15 +2934,19 @@ function getCommands () {
             {param:'extra', description:'Include extra information'}
         ] },
         { params: ['docker-login'], description: 'Log into AWS docker repository' },
-        { params: ['create-infrastructure'], description: 'Create infrastructure for the service' },
+        { params: ['create-infrastructure', 'create'], description: 'Create infrastructure for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-task-definition'], description: 'Create task definition for the service' },
-        { params: ['clean-task-definitions', 'clean'], description: 'Deregister old task definitions for the service' },
         { params: ['create-auto-scaling-group'], description: 'Create auto scaling group for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-launch-configuration'], description: 'Create launch configuration for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-load-balancer'], description: 'Create load balancer for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-repository'], description: 'Create repository for the service' },
         { params: ['create-cluster'], description: 'Create cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-cluster-service'], description: 'Create cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['clean-infrastructure', 'clean'], description: 'Clean infrastructure for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['clean-task-definitions'], description: 'Deregister old task definitions for the service' },
+        { params: ['clean-launch-configurations'], description: 'Remove old launch configurations for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['update-auto-scaling-group'], description: 'Update auto scaling group for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['deploy-new-launch-configuration'], description: 'Deploy new launch configuration and update the auto scaling groups', options: [{param:'environment', description:'Environment'}] },
         { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
         { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'environment', description:'Environment'}] },
         { params: ['stop-cluster', 'stop'], description: 'Stop AWS cluster', options: [{param:'environment', description:'Environment'}] },

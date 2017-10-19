@@ -433,7 +433,7 @@ function getClusterServiceVersionForTaskDefinition (in_taskDefinitionArn, in_opt
 
     let taskDefinition = getTaskDefinition(in_taskDefinitionArn, in_options);
     if (!taskDefinition) {
-        cprint.yellow('Couldn\'t find cluster service version for AWS Task Definition "' + in_taskDefinitionArn + '"');
+        cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
         return;
     }
 
@@ -802,6 +802,13 @@ function createDockerRepository (in_dockerImageName, in_options) {
 // Cache Clearing Functions:
 // ******************************
 
+function clearCachedAutoScalingGroups (in_cache) {
+    let cache = in_cache || {};
+    cache['AllAutoScalingGroups'] = undefined;
+}
+
+// ******************************
+
 function clearCachedAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache) {
     let cache = in_cache || {};
     cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName] = undefined;
@@ -822,6 +829,13 @@ function clearCachedLaunchConfigurationLike (in_launchConfigurationTemplate, in_
 }
 
 // ******************************
+
+function clearCachedLaunchConfigurationsLike (in_launchConfigurationTemplate, in_cache) {
+    let cache = in_cache || {};
+    cache['LaunchConfigurations_' + in_launchConfigurationTemplate] = undefined;
+}
+
+// ******************************
 // Launch Configuration Functions:
 // ******************************
 
@@ -834,6 +848,44 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
 
     let cache = opt.cache || {};
     let cacheItem = cache['LaunchConfiguration_' + in_launchConfigurationTemplate];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let launchConfigurations = getLaunchConfigurationsLike(in_launchConfigurationTemplate, in_options);
+    let latestLaunchConfiguration;
+
+    if (launchConfigurations && launchConfigurations.length) {
+        latestLaunchConfiguration = launchConfigurations.find(name => true);
+    }
+
+    if (latestLaunchConfiguration === undefined) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find latest Launch Configuration like "' + in_launchConfigurationTemplate + '"');
+        }
+        return;
+    }
+
+    cache['LaunchConfiguration_' + in_launchConfigurationTemplate] = {
+        val: latestLaunchConfiguration,
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+    };
+
+    return latestLaunchConfiguration;
+}
+
+// ******************************
+
+function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving Launch Configurations like "' + in_launchConfigurationTemplate + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['LaunchConfigurations_' + in_launchConfigurationTemplate];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -852,28 +904,52 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
         return;
     }
 
-    let latestLaunchConfiguration;
+    let launchConfigurations;
     let awsResult = parseAwsCmdResult(cmdResult);
     if (awsResult && awsResult.LaunchConfigurations) {
-        latestLaunchConfiguration = awsResult.LaunchConfigurations
+        launchConfigurations = awsResult.LaunchConfigurations
             .map(obj => obj.LaunchConfigurationName)
-            .filter(name => name.indexOf(in_launchConfigurationTemplate) >= 0)
-            .find(name => true);
+            .filter(name => name.match(in_launchConfigurationTemplate))
+            .sort()
+            .reverse()
     }
 
-    if (latestLaunchConfiguration === undefined) {
-        if (opt.showWarning) {
-            cprint.yellow('Couldn\'t find latest Launch Configuration like "' + in_launchConfigurationTemplate + '"');
-        }
-        return;
-    }
-
-    cache['LaunchConfiguration_' + in_launchConfigurationTemplate] = {
-        val: latestLaunchConfiguration,
+    cache['LaunchConfigurations_' + in_launchConfigurationTemplate] = {
+        val: launchConfigurations,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
 
-    return latestLaunchConfiguration;
+    return launchConfigurations;
+}
+
+// ******************************
+
+function deleteLaunchConfiguration (in_launchConfiguration, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Deleting AWS Launch Configuration "' + in_launchConfiguration + '"...');
+    }
+
+    let cmdResult = awsCmd([
+        'autoscaling',
+        'delete-launch-configuration',
+
+        '--launch-configuration-name',
+        in_launchConfiguration
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Deleted AWS Launch Configuration "' + in_launchConfiguration + '"');
+    return true;
 }
 
 // ******************************
@@ -924,6 +1000,56 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
 
 // ******************************
 
+function getAutoScalingGroups (in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving all AWS Auto Scaling Groups...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['AllAutoScalingGroups'];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'autoscaling',
+        'describe-auto-scaling-groups'
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let autoScalingGroups;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.AutoScalingGroups) {
+        autoScalingGroups = awsResult.AutoScalingGroups;
+    }
+
+    if (autoScalingGroups === undefined) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
+        }
+        return;
+    }
+
+    cache['AllAutoScalingGroups'] = {
+        val: autoScalingGroups,
+        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+    };
+
+    return autoScalingGroups;
+}
+
+// ******************************
+
 function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) {
     let opt = in_options || {};
 
@@ -961,7 +1087,9 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     }
 
     if (desiredCapacity === undefined) {
-        cprint.yellow('Couldn\'t find Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '"');
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '"');
+        }
         return;
     }
 
@@ -971,6 +1099,29 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     };
 
     return desiredCapacity;
+}
+
+// ******************************
+
+function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Auto Scaling Group for Launch Configuration "' + in_launchConfigurationName + '"...');
+    }
+
+    let autoScalingGroups = getAutoScalingGroups(in_options);
+    if (!autoScalingGroups || !autoScalingGroups.length) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
+        }
+        return;
+    }
+
+    let autoScalingGroupForLaunchConfiguration = autoScalingGroups
+        .find(g => g.LaunchConfigurationName === in_launchConfigurationName);
+
+    return autoScalingGroupForLaunchConfiguration;
 }
 
 // ******************************
@@ -1599,27 +1750,34 @@ function awsVersion () {
 // ******************************
 
 module.exports['arnToTitle'] = awsArnToTitle;
+module.exports['clearCachedAutoScalingGroups'] = clearCachedAutoScalingGroups;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;
-module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
+module.exports['clearCachedLaunchConfigurationsLike'] = clearCachedLaunchConfigurationsLike;
+module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
 module.exports['cmd'] = awsCmd;
 module.exports['createCluster'] = createCluster;
 module.exports['createClusterService'] = createClusterService;
 module.exports['createDockerRepository'] = createDockerRepository;
+module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
+module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
+module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
 module.exports['getClusterArnForClusterName'] = getClusterArnForClusterName;
 module.exports['getClusterServiceArnForClusterName'] = getClusterServiceArnForClusterName;
 module.exports['getClusterServiceVersionForTaskDefinition'] = getClusterServiceVersionForTaskDefinition;
 module.exports['getClusterTaskArnsForCluster'] = getClusterTaskArnsForCluster;
 module.exports['getContainerInstance'] = getContainerInstance;
+module.exports['getDefaultVpcSecurityGroupIdForVpc'] = getDefaultVpcSecurityGroupIdForVpc;
 module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepositoryForDockerImageName'] = getDockerRepositoryForDockerImageName;
 module.exports['getDockerRepositoryUrl'] = getAwsDockerRepositoryUrl;
 module.exports['getInstanceIdsWithTags'] = getInstanceIdsWithTags;
 module.exports['getLatestTaskDefinitionArnForTaskDefinition'] = getLatestTaskDefinitionArnForTaskDefinition;
 module.exports['getLaunchConfigurationLike'] = getLaunchConfigurationLike;
+module.exports['getLaunchConfigurationsLike'] = getLaunchConfigurationsLike;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
 module.exports['getRepositoryServiceConfig'] = getAwsRepositoryServiceConfig;
@@ -1631,7 +1789,6 @@ module.exports['getTaskDefinitionArnForClusterService'] = getTaskDefinitionArnFo
 module.exports['getTaskDetails'] = getTaskDetails;
 module.exports['getTasks'] = getTasks;
 module.exports['getVpcIdForVpc'] = getVpcIdForVpc;
-module.exports['getDefaultVpcSecurityGroupIdForVpc'] = getDefaultVpcSecurityGroupIdForVpc;
 module.exports['getVpcSecurityGroupIdFromGroupName'] = getVpcSecurityGroupIdFromGroupName;
 module.exports['getVpcSubnetIdForVpc'] = getVpcSubnetIdForVpc;
 module.exports['installed'] = awsInstalled;
