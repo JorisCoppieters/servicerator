@@ -27,7 +27,7 @@ function execCmdSync (in_cmd, in_args, in_options) {
 
     let cmdOptions = {};
     if (opt.cwd) {
-        cmdOptions.cwd = cwd;
+        cmdOptions.cwd = opt.cwd;
     }
 
     let execResult = child_process.spawnSync(in_cmd, in_args, cmdOptions);

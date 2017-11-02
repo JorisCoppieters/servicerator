@@ -22,7 +22,7 @@ function printSchema () {
 // Plugin Functions:
 // ******************************
 
-function handleCommand (in_args, in_params, in_serviceConfig) {
+function handleCommand (in_args, in_params) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     switch(command)
     {
@@ -63,5 +63,6 @@ module.exports['handleCommand'] = handleCommand;
 module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
 module.exports['getTitle'] = getTitle;
+module.exports['noConfigRequired'] = true;
 
 // ******************************

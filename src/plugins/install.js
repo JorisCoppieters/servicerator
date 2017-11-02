@@ -14,14 +14,14 @@ let env = require('../utils/env');
 // Functions:
 // ******************************
 
-function installAllFiles (in_serviceConfig, in_overwrite) {
-    installZshCompletionFile(in_serviceConfig, in_overwrite);
-    installBashCompletionFile(in_serviceConfig, in_overwrite);
+function installAllFiles (in_overwrite) {
+    installZshCompletionFile(in_overwrite);
+    installBashCompletionFile(in_overwrite);
 }
 
 // ******************************
 
-function installZshCompletionFile (in_serviceConfig, in_overwrite) {
+function installZshCompletionFile (in_overwrite) {
     let plugins = env.getPlugins();
 
     let shellHome = env.getShellHome();
@@ -214,7 +214,7 @@ function installZshCompletionFile (in_serviceConfig, in_overwrite) {
 
 // ******************************
 
-function installBashCompletionFile (in_serviceConfig, in_overwrite) {
+function installBashCompletionFile (in_overwrite) {
     let plugins = env.getPlugins();
 
     let shellHome = env.getShellHome();
@@ -386,20 +386,20 @@ function installBashCompletionFile (in_serviceConfig, in_overwrite) {
 // Plugin Functions:
 // ******************************
 
-function handleCommand (in_args, in_params, in_serviceConfig) {
+function handleCommand (in_args, in_params) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let overwrite = in_args['overwrite'];
     switch(command)
     {
         case '':
         case 'all':
-            installAllFiles(in_serviceConfig, overwrite);
+            installAllFiles(overwrite);
             break;
         case 'zsh-completion':
-            installZshCompletionFile(in_serviceConfig, overwrite);
+            installZshCompletionFile(overwrite);
             break;
         case 'bash-completion':
-            installBashCompletionFile(in_serviceConfig, overwrite);
+            installBashCompletionFile(overwrite);
             break;
         default:
             return false;
@@ -443,5 +443,6 @@ module.exports['handleCommand'] = handleCommand;
 module.exports['getBaseCommands'] = getBaseCommands;
 module.exports['getCommands'] = getCommands;
 module.exports['getTitle'] = getTitle;
+module.exports['noConfigRequired'] = true;
 
 // ******************************

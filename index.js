@@ -63,11 +63,10 @@ if (g_ARGV['help']) {
         serviceConfig = service.getConfig('.');
     }
 
-    if (!serviceConfig) {
-        return;
-    }
-
     plugins.forEach(p => {
+        if (!serviceConfig && !p.noConfigRequired) {
+            return;
+        }
         if (p.onOpen) {
             p.onOpen(serviceConfig);
         }
@@ -75,6 +74,9 @@ if (g_ARGV['help']) {
 
     let pluginHandled = false;
     plugins.forEach(p => {
+        if (!serviceConfig && !p.noConfigRequired) {
+            return;
+        }
         if (!p.getBaseCommands) {
             return;
         }
@@ -110,12 +112,19 @@ if (g_ARGV['help']) {
     });
 
     plugins.forEach(p => {
+        if (!serviceConfig && !p.noConfigRequired) {
+            return;
+        }
         if (p.onClose) {
             p.onClose(serviceConfig);
         }
     });
 
     if (pluginHandled) {
+        return;
+    }
+
+    if (!serviceConfig) {
         return;
     }
 
