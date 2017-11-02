@@ -12,14 +12,18 @@ const k_DEFAULT_IMAGE = 'ubuntu:trusty';
 // ******************************
 
 let cprint = require('color-print');
-let fsCore = require('fs');
 
 let bash = require('./bash');
 let docker = require('./docker');
 let print = require('./print');
 let env = require('./env');
 let fs = require('./filesystem');
-let schema = require('./service.schema').get();
+
+// ******************************
+// Globals:
+// ******************************
+
+let _schema = null;
 
 // ******************************
 // Functions:
@@ -336,27 +340,30 @@ function getServiceConfig (in_folderName, in_initialise) {
         return false;
     }
 
-    _checkObjectAgainstSchema('ROOT', serviceConfig, schema);
+    _checkObjectAgainstSchema('ROOT', serviceConfig, getServiceConfigSchema());
     return serviceConfig;
 }
 
 // ******************************
 
 function checkServiceConfigSchema (in_serviceConfig) {
-    _checkObjectAgainstSchema('CHECK', in_serviceConfig, schema);
+    _checkObjectAgainstSchema('CHECK', in_serviceConfig, getServiceConfigSchema());
 }
 
 // ******************************
 
 function accessServiceConfig (in_serviceConfig, in_accessConfig) {
-    _checkObjectAgainstSchema('ACCESS', in_accessConfig, schema, true);
+    _checkObjectAgainstSchema('ACCESS', in_accessConfig, getServiceConfigSchema(), true);
     return maskServiceConfig(in_serviceConfig, in_accessConfig);
 }
 
 // ******************************
 
 function getServiceConfigSchema () {
-    return schema;
+    if (!_schema) {
+        _schema = require('./service.schema').get();
+    }
+    return _schema;
 }
 
 // ******************************
@@ -430,6 +437,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         },
         cwd: 'STRING'
     });
+
+    let fsCore = require('fs');
 
     let sourceFolder = serviceConfig.cwd || '.';
     sourceFolder = fsCore.realpathSync(sourceFolder);
