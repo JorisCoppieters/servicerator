@@ -16,10 +16,8 @@
 // Requires:
 // ******************************
 
-let clone = require('clone');
 let cprint = require('color-print');
 let minimist = require('minimist');
-let path = require('path');
 
 let help = require('./src/help');
 let tests = require('./src/tests');

@@ -5,7 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let open = require('open');
 
 let aws = require('../utils/aws');
 let cache = require('../utils/cache');
@@ -677,6 +676,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
+        return false;
     } else {
         cmdResult.printResult('  ');
         let taskDefinitionArn = (cmdResult.resultObj.taskDefinition || {}).taskDefinitionArn;
@@ -890,6 +890,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
+        return false;
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created launch configuration');
@@ -1128,6 +1129,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     });
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
+        return false;
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created auto scaling group');
@@ -1150,6 +1152,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
+            return false;
         } else {
             cmdResult.printResult('  ');
             cprint.green('Added load balancer to auto scaling group');
@@ -1402,6 +1405,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     });
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
+        return false;
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created load balancer');
@@ -1431,6 +1435,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
+            return false;
         } else {
             cmdResult.printResult('  ');
             cprint.green('Added health check to load balancer');
@@ -2188,6 +2193,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     });
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
+        return false;
     } else {
         cmdResult.printResult('  ');
         cprint.green('Updated auto scaling group');
@@ -2210,6 +2216,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
         });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
+            return false;
         } else {
             cmdResult.printResult('  ');
             cprint.green('Added load balancer to auto scaling group');
@@ -2434,7 +2441,7 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
     let url = `${awsAccountId}.signin.aws.amazon.com/console`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
@@ -2493,7 +2500,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environmentTitle};tag:ServiceName=${serviceName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
@@ -2543,7 +2550,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#LoadBalancers:search=${awsLoadBalancerName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
@@ -2593,7 +2600,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#LaunchConfigurations:id=${awsLaunchConfigurationName};filter=${awsLaunchConfigurationName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
@@ -2643,7 +2650,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#AutoScalingGroups:id=${awsAutoScalingGroupName};filter=${awsAutoScalingGroupName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
@@ -2686,7 +2693,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/tasks`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
@@ -2731,11 +2738,18 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/services/${awsClusterServiceName}/tasks`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    open(url);
+    _open(url);
 }
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _open (in_url) {
+    let open = require('open');
+    open(in_url);
+}
+
 // ******************************
 
 function _getEnvironmentCluster (in_clusters, in_environment) {

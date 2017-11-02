@@ -5,7 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
 
 let env = require('./env');
 let exec = require('./exec');
@@ -47,6 +46,8 @@ function editFiles (in_paths) {
 // ******************************
 
 function getEditor () {
+    let path = require('path');
+
     let editor;
 
     editor = g_EDITOR;

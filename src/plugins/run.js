@@ -5,7 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
 
 let service = require('../utils/service');
 let exec = require('../utils/exec');
@@ -27,6 +26,8 @@ function runService (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let cmd = serviceConfig.service.run.cmd;
     if (!cmd) {

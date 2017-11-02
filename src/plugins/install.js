@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
 let cprint = require('color-print');
 
 let fs = require('../utils/filesystem');
@@ -22,6 +21,8 @@ function installAllFiles (in_overwrite) {
 // ******************************
 
 function installZshCompletionFile (in_overwrite) {
+    let path = require('path');
+
     let plugins = env.getPlugins();
 
     let shellHome = env.getShellHome();
@@ -215,6 +216,8 @@ function installZshCompletionFile (in_overwrite) {
 // ******************************
 
 function installBashCompletionFile (in_overwrite) {
+    let path = require('path');
+
     let plugins = env.getPlugins();
 
     let shellHome = env.getShellHome();

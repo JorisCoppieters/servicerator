@@ -13,7 +13,6 @@ const k_DEFAULT_IMAGE = 'ubuntu:trusty';
 
 let cprint = require('color-print');
 let fsCore = require('fs');
-let path = require('path');
 
 let bash = require('./bash');
 let docker = require('./docker');
@@ -28,6 +27,8 @@ let schema = require('./service.schema').get();
 
 function getServiceConfig (in_folderName, in_initialise) {
     let sourceFolder = false;
+
+    let path = require('path');
 
     let dockerFolder = docker.getFolder(in_folderName);
     if (dockerFolder) {
@@ -468,6 +469,8 @@ function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
         cwd: 'STRING'
     });
 
+    let path = require('path');
+
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
         if (!opt.suppressOutput) {
@@ -497,6 +500,8 @@ function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
@@ -535,6 +540,8 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
@@ -591,6 +598,7 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         cwd: 'STRING'
     });
 
+    let path = require('path');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
@@ -646,6 +654,7 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         cwd: 'STRING'
     });
 
+    let path = require('path');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
@@ -731,6 +740,8 @@ function initFolder (in_folderName) {
 // ******************************
 
 function hasServiceConfigFile (in_sourceFolder) {
+    let path = require('path');
+
     let serviceConfig = false;
     let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
 
@@ -938,6 +949,8 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
 // ******************************
 
 function _loadServiceConfig (in_sourceFolder) {
+    let path = require('path');
+
     let serviceConfig = false;
     let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
 
@@ -955,6 +968,8 @@ function _loadServiceConfig (in_sourceFolder) {
 // ******************************
 
 function _saveServiceConfig (in_serviceConfig, in_options) {
+    let path = require('path');
+
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'

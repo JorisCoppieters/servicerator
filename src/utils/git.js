@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
-
 let service = require('./service');
 let docker = require('./docker');
 
@@ -31,6 +29,8 @@ function getIgnoreFileContents (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let dockerFolder = docker.getFolder(serviceConfig.cwd) || 'docker';
     let dockerRelativePath = path.relative(serviceConfig.cwd, dockerFolder);

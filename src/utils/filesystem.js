@@ -4,12 +4,13 @@
 // Requires:
 // ******************************
 
-let Promise = require('bluebird');
-let fs = require('fs');
-let path = require('path');
-let process = require('process');
 let cprint = require('color-print');
-let rimraf = require('rimraf');
+
+// ******************************
+// Globals:
+// ******************************
+
+let _cwd = null;
 
 // ******************************
 // Functions:
@@ -118,7 +119,10 @@ function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
 // ******************************
 
 function createFolder (in_folderName) {
-    let folder = path.resolve(process.cwd(), in_folderName);
+    let fs = require('fs');
+    let path = require('path');
+
+    let folder = path.resolve(cwd(), in_folderName);
     if (!fs.existsSync(folder)) {
         let parentFolder = path.dirname(folder);
         createFolder(parentFolder);
@@ -130,20 +134,26 @@ function createFolder (in_folderName) {
 // ******************************
 
 function linkFolder (in_source, in_destination) {
+    let fs = require('fs');
     fs.symlinkSync(in_source, in_destination, 'junction');
 }
 
 // ******************************
 
 function linkFile (in_source, in_destination) {
+    let fs = require('fs');
     fs.symlinkSync(in_source, in_destination, 'file');
 }
 
 // ******************************
 
 function deleteFolder (in_folderName) {
-    let folder = path.resolve(process.cwd(), in_folderName);
+    let fs = require('fs');
+    let path = require('path');
+
+    let folder = path.resolve(cwd(), in_folderName);
     if (fs.existsSync(folder)) {
+        let rimraf = require('rimraf');
         rimraf(folder, () => {});
     }
 }
@@ -151,7 +161,10 @@ function deleteFolder (in_folderName) {
 // ******************************
 
 function writeFile (in_fileName, in_fileContents, in_overwrite) {
-    let file = path.resolve(process.cwd(), in_fileName);
+    let fs = require('fs');
+    let path = require('path');
+
+    let file = path.resolve(cwd(), in_fileName);
     if (!fs.existsSync(file) || in_overwrite) {
         fs.writeFileSync(file, in_fileContents);
     }
@@ -161,7 +174,10 @@ function writeFile (in_fileName, in_fileContents, in_overwrite) {
 // ******************************
 
 function readFile (in_fileName) {
-    let file = path.resolve(process.cwd(), in_fileName);
+    let fs = require('fs');
+    let path = require('path');
+
+    let file = path.resolve(cwd(), in_fileName);
     if (!fs.existsSync(file)) {
         return '';
     }
@@ -170,26 +186,36 @@ function readFile (in_fileName) {
 
 // ******************************
 
-function copyFile (in_source, in_destination) {
-    return new Promise((resolve, reject) => {
-        let source = path.resolve(process.cwd(), in_source);
-        let destination = path.resolve(process.cwd(), in_destination);
-        if (!fs.existsSync(source)) {
-            return resolve();
+function copyFile (in_source, in_destination, in_onSuccess, in_onError) {
+    let fs = require('fs');
+    let path = require('path');
+
+    let source = path.resolve(cwd(), in_source);
+    let destination = path.resolve(cwd(), in_destination);
+    if (!fs.existsSync(source)) {
+        if (in_onSuccess) {
+            in_onSuccess();
         }
+        return;
+    }
 
-        let readStream = fs.createReadStream(source);
-        readStream.once('error', (err) => {
-            cprint.red(err);
-            return reject();
-        });
-
-        readStream.on('close', () => {
-            return resolve();
-        });
-
-        readStream.pipe(fs.createWriteStream(destination));
+    let readStream = fs.createReadStream(source);
+    readStream.once('error', (err) => {
+        cprint.red(err);
+        if (in_onError) {
+            in_onError();
+        }
+        return;
     });
+
+    readStream.on('close', () => {
+        if (in_onSuccess) {
+            in_onSuccess();
+        }
+        return;
+    });
+
+    readStream.pipe(fs.createWriteStream(destination));
 }
 
 // ******************************
@@ -198,27 +224,41 @@ function fileExists (in_fileName) {
     if (!in_fileName) {
         return false;
     }
-    let file = path.resolve(process.cwd(), in_fileName);
+
+    let fs = require('fs');
+    let path = require('path');
+
+    let file = path.resolve(cwd(), in_fileName);
     return fs.existsSync(file);
 }
 
 // ******************************
 
 function isFolder (in_folderName) {
-    let folder = path.resolve(process.cwd(), in_folderName);
+    let fs = require('fs');
+    let path = require('path');
+
+    let folder = path.resolve(cwd(), in_folderName);
     return fs.lstatSync(folder).isDirectory();
 }
 
 // ******************************
 
-function cwd (in_fileName) {
-    return process.cwd();
+function cwd () {
+    if (!_cwd) {
+        let process = require('process');
+        _cwd = process.cwd();
+    }
+    return _cwd;
 }
 
 // ******************************
 
 function files (in_folderName) {
-    let folder = path.resolve(process.cwd(), in_folderName);
+    let fs = require('fs');
+    let path = require('path');
+
+    let folder = path.resolve(cwd(), in_folderName);
     if (!fs.existsSync(folder)) {
         return [];
     }

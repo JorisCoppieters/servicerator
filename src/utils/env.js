@@ -5,8 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
-let os = require('os');
 
 let fs = require('./filesystem');
 let service = require('./service');
@@ -22,18 +20,22 @@ let SERVICE_CONFIG_FILE_NAME = 'service.json';
 // ******************************
 
 function isLinux () {
+    let os = require('os');
     return os.platform() === 'linux';
 }
 
 // ******************************
 
 function isWindows () {
+    let os = require('os');
     return os.platform() === 'win32';
 }
 
 // ******************************
 
 function getServiceFolder () {
+    let path = require('path');
+
     let serviceConfigFile = getServiceConfigFile();
     if (!serviceConfigFile) {
         return false;
@@ -46,6 +48,8 @@ function getServiceFolder () {
 // ******************************
 
 function getServiceConfig () {
+    let path = require('path');
+
     let serviceConfigFile = getServiceConfigFile();
     if (!serviceConfigFile) {
         return false;
@@ -72,6 +76,8 @@ function getServiceConfig () {
 // ******************************
 
 function getServiceConfigFile () {
+    let path = require('path');
+
     let currentDirectory = './';
 
     let directory = path.resolve(process.cwd(), currentDirectory);
@@ -145,6 +151,8 @@ function getStoredSecretKey (in_application, in_access_key) {
 // ******************************
 
 function getPlugins () {
+    let path = require('path');
+
     let plugins = [];
     let pluginsFolder = path.resolve(__dirname + '/../plugins');
     let files = fs.files(pluginsFolder);

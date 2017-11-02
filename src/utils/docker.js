@@ -5,7 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
 
 let date = require('./date');
 let env = require('./env');
@@ -373,6 +372,8 @@ function getDockerfileContents (in_serviceConfig) {
 // ******************************
 
 function getDockerFolder (in_sourceFolder) {
+    let path = require('path');
+
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
@@ -404,6 +405,8 @@ function getDockerFolder (in_sourceFolder) {
 // ******************************
 
 function getDockerfile (in_sourceFolder) {
+    let path = require('path');
+
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
@@ -602,6 +605,8 @@ function getDockerImageTags (in_serviceConfig) {
 // ******************************
 
 function getDockerLoggedInRepositoryStores () {
+    let path = require('path');
+
     let userExplorerHome = env.getUserExplorerHome();
     if (!userExplorerHome || !fs.folderExists(userExplorerHome)) {
         cprint.yellow('User home folder doesn\'t exist');

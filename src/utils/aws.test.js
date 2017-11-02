@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
 let cprint = require('color-print');
 
 let date = require('./date');

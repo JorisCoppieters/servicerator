@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
 let cprint = require('color-print');
 
 let bash = require('../utils/bash');
@@ -50,6 +49,8 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         },
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {

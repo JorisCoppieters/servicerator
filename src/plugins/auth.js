@@ -5,7 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
 
 let docker = require('../utils/docker');
 let exec = require('../utils/exec');
@@ -26,6 +25,8 @@ function printAuthInfo (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let sourceFolder = serviceConfig.cwd || false;
 
@@ -97,6 +98,8 @@ function generateAuthFiles (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     let serviceName = serviceConfig.service.name || false;
 
@@ -173,11 +176,7 @@ function generateAuthFiles (in_serviceConfig) {
     let firstUrl = urls[0] || false;
     let otherUrls = urls.slice(1);
 
-    fs.copyFile(serviceConfig.auth.rootCAKey, rootCAKey)
-    .then(() => {
-        return fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate);
-    })
-    .then(() => {
+    let afterCopy = () => {
         print.keyVal('Service key', serviceKey);
         print.keyVal('Service certificate', serviceCertificate);
         print.keyVal('Root CA certificate', rootCACertificate);
@@ -348,6 +347,10 @@ function generateAuthFiles (in_serviceConfig) {
 
         cprint.cyan('Cleaning up...');
         fs.deleteFolder(tmpAuthFolder);
+    };
+
+    fs.copyFile(serviceConfig.auth.rootCAKey, rootCAKey, () => {
+        fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate, afterCopy);
     });
 }
 

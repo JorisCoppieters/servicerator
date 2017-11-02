@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let child_process = require('child_process');
 let cprint = require('color-print');
 
 let str = require('./string');
@@ -30,6 +29,7 @@ function execCmdSync (in_cmd, in_args, in_options) {
         cmdOptions.cwd = opt.cwd;
     }
 
+    let child_process = require('child_process');
     let execResult = child_process.spawnSync(in_cmd, in_args, cmdOptions);
 
     let errorResult = '';
@@ -78,6 +78,7 @@ function execCmd (in_cmd, in_args, in_options) {
         cprint.white(indent + 'EXEC: ' + in_cmd + ' ' + _flatArgs(in_args));
     }
 
+    let child_process = require('child_process');
     let child = child_process.spawn(in_cmd, in_args, {
         cwd: opt.cwd || '/'
     });

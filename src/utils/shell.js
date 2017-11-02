@@ -5,7 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
 
 let env = require('./env');
 let exec = require('./exec');
@@ -78,6 +77,8 @@ function getShell () {
     if (shell) {
         return shell;
     }
+
+    let path = require('path');
 
     let shellPaths = [];
 

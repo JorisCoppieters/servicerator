@@ -5,8 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let path = require('path');
-let Promise = require('bluebird');
 
 let aws = require('../utils/aws');
 let docker = require('../utils/docker');
@@ -196,7 +194,7 @@ function pullDockerImage (in_serviceConfig) {
             tags.push('latest');
         }
         tags.forEach(tag => {
-            tasks.push(_execCmdOnDockerImageForRepository(details.username, details.password, details.imagePath + ':' + tag, details.repositoryStore, {
+            tasks.push(_getExecTaskOnDockerImageForRepository(details.username, details.password, details.imagePath + ':' + tag, details.repositoryStore, {
                 value: 'pull',
                 displayName: 'Pulling'
             }));
@@ -225,6 +223,8 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
         },
         cwd: 'STRING'
     });
+
+    let path = require('path');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -375,7 +375,7 @@ function pushDockerImage (in_serviceConfig) {
         if (!details) {
             return;
         }
-        tasks.push(_execCmdOnDockerImageForRepository(details.username, details.password, details.imagePath, details.repositoryStore, {
+        tasks.push(_getExecTaskOnDockerImageForRepository(details.username, details.password, details.imagePath, details.repositoryStore, {
             value: 'push',
             displayName: 'Pushing'
         }));
@@ -909,8 +909,8 @@ function verifyDockerContainer (in_serviceConfig) {
 
                 let httpFunc = t.method === 'POST' ? http.post : http.get;
 
-                httpFunc(t.url, t.request_data)
-                    .then((receivedData) => {
+                httpFunc(t.url, t.request_data,
+                    (receivedData) => { // On Success
                         let receivedString = JSON.stringify(receivedData);
                         let regExp = new RegExp(t.expected);
                         if (receivedString.match(regExp)) {
@@ -920,13 +920,11 @@ function verifyDockerContainer (in_serviceConfig) {
                             cprint.yellow('    Expected: ' + t.expected);
                             cprint.yellow('    Received: ' + receivedString);
                         }
-                    })
-                    .catch((e) => {
+                    }, (e) => { // On Error
                         cprint.red('  ✘ ' + t.name);
                         cprint.yellow('    Expected: ' + t.expected);
                         cprint.yellow('    Received: ' + e);
                     });
-
                 break;
         }
     });
@@ -1141,6 +1139,8 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         cwd: 'STRING'
     });
 
+    let path = require('path');
+
     let serviceName = serviceConfig.service.name || 'service';
     let memoryLimit = serviceConfig.docker.container.memory_limit || false;
 
@@ -1289,52 +1289,67 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
 
 // ******************************
 
-function _execCmdOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
-    return () => {
-        return new Promise((resolve, reject) => {
-            if (!in_dockerUsername) {
-                cprint.yellow('Docker repository username not set');
-                return reject();
+function _getExecTaskOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
+    return (in_onSuccess, in_onError) => {
+        if (!in_dockerUsername) {
+            cprint.yellow('Docker repository username not set');
+            if (in_onError) {
+                in_onError();
             }
+            return
+        }
 
-            if (!in_dockerPassword) {
-                cprint.yellow('Docker repository password not set');
-                return reject();
+        if (!in_dockerPassword) {
+            cprint.yellow('Docker repository password not set');
+            if (in_onError) {
+                in_onError();
             }
+            return
+        }
 
-            _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin);
+        _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin);
 
-            if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
-                cprint.yellow('Invalid command: ' + in_cmd);
-                return reject();
+        if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
+            cprint.yellow('Invalid command: ' + in_cmd);
+            if (in_onError) {
+                in_onError();
             }
+            return
+        }
 
-            cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
-            let args = [in_cmd.value];
-            args = args.concat(in_dockerImagePath);
-            docker.cmd(args, {
-                async: true,
-                asyncCb: (success) => {
-                    if (success) {
-                        resolve();
+        cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
+        let args = [in_cmd.value];
+        args = args.concat(in_dockerImagePath);
+        docker.cmd(args, {
+            async: true,
+            asyncCb: (success) => {
+                if (success) {
+                    if (in_onSuccess) {
+                        in_onSuccess();
                     }
-                },
-                asyncErrorCb: (error) => {
-                    if (in_forceLogin) {
-                        resolve();
-                        return;
-                    }
-
-                    if (error && error.match(/denied:.*/)) {
-                        cprint.yellow('Docker push denied, trying again with logging in first');
-                        _execCmdOnDockerImageForRepository(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true)()
-                            .then(resolve);
-                        return;
-                    }
-
-                    return resolve();
+                    return;
                 }
-            });
+            },
+            asyncErrorCb: (error) => {
+                if (in_forceLogin) {
+                    if (in_onSuccess) {
+                        in_onSuccess();
+                    }
+                    return;
+                }
+
+                if (error && error.match(/denied:.*/)) {
+                    cprint.yellow('Docker push denied, trying again with logging in first');
+                    let task = _getExecTaskOnDockerImageForRepository(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true);
+                    task();
+                    return;
+                }
+
+                if (in_onSuccess) {
+                    in_onSuccess();
+                }
+                return;
+            }
         });
     }
 }

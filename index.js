@@ -12,10 +12,8 @@
 // Requires:
 // ******************************
 
-let clone = require('clone');
 let cprint = require('color-print');
 let minimist = require('minimist');
-let path = require('path');
 
 let help = require('./src/help');
 
@@ -89,6 +87,7 @@ if (g_ARGV['help']) {
             }
 
             try {
+                let clone = require('clone');
                 if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
                     pluginHandled = true;
                     return;

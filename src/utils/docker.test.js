@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
 let cprint = require('color-print');
 
 let date = require('./date');
@@ -18,6 +17,8 @@ let test = require('./test');
 // ******************************
 
 function runTests () {
+    let path = require('path');
+
     let tempFolder = env.getTemp();
     if (!tempFolder || !fs.folderExists(tempFolder)) {
         cprint.red('Failed to access temp folder, cannot run tests');

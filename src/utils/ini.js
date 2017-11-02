@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
 let cprint = require('color-print');
 
 let fs = require('./filesystem');
@@ -17,6 +16,8 @@ function parseIniFile (in_iniFile) {
     if (!in_iniFile || !fs.fileExists(in_iniFile)) {
         return false;
     }
+
+    let path = require('path');
 
     let iniFile = path.resolve(in_iniFile).replace(new RegExp('\\\\', 'g'), '/');
 

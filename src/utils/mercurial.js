@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
-
 let docker = require('./docker');
 let exec = require('./exec');
 let service = require('./service');
@@ -89,6 +87,8 @@ function getIgnoreFileContents (in_serviceConfig) {
         cwd: 'STRING'
     });
 
+    let path = require('path');
+
     let dockerFolder = docker.getFolder(serviceConfig.cwd) || 'docker';
     let dockerRelativePath = path.relative(serviceConfig.cwd, dockerFolder);
     dockerRelativePath = (dockerRelativePath ? dockerRelativePath + '/' : '');
@@ -140,6 +140,8 @@ function getRootFolder (in_serviceConfig) {
         cprint.yellow("Mercurial root folder not set");
         return;
     }
+
+    let path = require('path');
 
     mercurialRootFolder = service.replaceConfigReferences(in_serviceConfig, mercurialRootFolder);
     mercurialRootFolder = path.resolve(mercurialRootFolder);

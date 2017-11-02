@@ -5,8 +5,6 @@
 // ******************************
 
 let cprint = require('color-print');
-let Promise = require('bluebird');
-let path = require('path');
 
 let print = require('../utils/print');
 let service = require('../utils/service');
@@ -35,13 +33,11 @@ function showAllWizard (in_serviceConfig) {
         {
             prompt: `What is your docker base image`,
             currentValue: serviceConfig.docker.image.base,
-            // defaultValue: 'ubuntu:xenial',
             path: 'docker.image.base'
         },
         {
             prompt: `What is your docker image name`,
             currentValue: serviceConfig.docker.image.name,
-            // defaultValue: path.basename(path.resolve('.')),
             path: 'docker.image.name'
         },
         {
@@ -141,15 +137,15 @@ function _handleQuestions (in_questions, in_doneCb) {
 
 // ******************************
 
-function _askQuestion (in_prompt, in_handler) {
-    return () => {
-        return new Promise((resolve, reject) => {
-            rl.question(cprint.toMagenta(in_prompt + '? '), (answer) => {
-                in_handler(answer);
-            });
-        });
-    }
-}
+// function _askQuestion (in_prompt, in_handler) {
+//     return () => {
+//         return new Promise((resolve, reject) => {
+//             rl.question(cprint.toMagenta(in_prompt + '? '), (answer) => {
+//                 in_handler(answer);
+//             });
+//         });
+//     }
+// }
 
 // ******************************
 // Plugin Functions:

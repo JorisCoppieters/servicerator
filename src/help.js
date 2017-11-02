@@ -8,7 +8,6 @@ let cprint = require('color-print');
 
 let c = require('./constants');
 let env = require('./utils/env');
-let plugins = env.getPlugins();
 
 // ******************************
 // Constants:
@@ -39,6 +38,7 @@ function printHelp (in_message) {
     console.log(cprint.toLightGreen('init') + ' ' + cprint.toLightGrey('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
     console.log();
 
+    let plugins = env.getPlugins();
     plugins.forEach(p => {
         if (!p.getBaseCommands) {
             return;
@@ -50,6 +50,7 @@ function printHelp (in_message) {
 // ******************************
 
 function printPluginHelp (in_command) {
+    let plugins = env.getPlugins();
     plugins.forEach(p => {
         if (!p.getBaseCommands) {
             return;

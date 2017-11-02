@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
-
 let fs = require('./filesystem');
 let date = require('./date');
 
@@ -14,6 +12,8 @@ let date = require('./date');
 // ******************************
 
 function loadCache (in_sourceFolder, in_cacheName) {
+    let path = require('path');
+
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
@@ -50,6 +50,8 @@ function loadCache (in_sourceFolder, in_cacheName) {
 // ******************************
 
 function saveCache (in_sourceFolder, in_cacheName, in_cacheItems) {
+    let path = require('path');
+
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');

@@ -4,7 +4,6 @@
 // Requires:
 // ******************************
 
-let path = require('path');
 let cprint = require('color-print');
 
 let date = require('./date');
@@ -1439,6 +1438,8 @@ function getAwsServiceConfig (in_serviceConfig) {
         }
     });
 
+    let path = require('path');
+
     let homeFolder = env.getShellHome();
     if (!homeFolder || !fs.folderExists(homeFolder)) {
         cprint.yellow('Home folder doesn\'t exist');
@@ -1609,6 +1610,8 @@ function awsLogin (in_serviceConfig) {
             secret_key: 'STRING'
         }
     });
+
+    let path = require('path');
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
