@@ -59,7 +59,7 @@ function getServiceSchema () {
                 "commands": [
                     {
                         "test": "BOOLEAN",
-                        "val": "STRING"
+                        "val": "STRING" // TODO: Rename to "value"
                     }
                 ],
                 "cpu_core_count": "NUMBER",
@@ -95,10 +95,10 @@ function getServiceSchema () {
                 ],
                 "version": "STRING",
                 "working_directory": "PATH",
-                "env_variables": [
+                "env_variables": [ // TODO: Rename to "environment_variables"
                     {
                         "key": "STRING",
-                        "val": "STRING"
+                        "val": "STRING" // TODO: Rename to "value"
                     }
                 ],
                 "ignore": [
@@ -176,10 +176,10 @@ function getServiceSchema () {
                     }
                 ]
             },
-            "args": [
+            "args": [ // TODO: Rename to "arguments"
                 {
                     "key": "STRING",
-                    "val": "STRING",
+                    "val": "STRING", // TODO: Rename to "value"
                     "type": "STRING"
                 }
             ],
@@ -201,7 +201,15 @@ function getServiceSchema () {
                     "STRING"
                 ]
             },
-            "task_definition_name": "STRING",
+            "task_definition": {
+                "name": "STRING",
+                "environment_variables": [
+                    {
+                        "key": "STRING",
+                        "value": "STRING"
+                    }
+                ]
+            },
             "filesystem": [
                 {
                     "contents": [
@@ -241,7 +249,7 @@ function getServiceSchema () {
                         "tags": [
                             {
                                 "key": "STRING",
-                                "val": "STRING"
+                                "val": "STRING" // TODO: Rename to "value"
                             }
                         ],
                         "ports": [
@@ -277,7 +285,7 @@ function getServiceSchema () {
                         "tags": [
                             {
                                 "key": "STRING",
-                                "val": "STRING"
+                                "val": "STRING" // TODO: Rename to "value"
                             }
                         ],
                         "volumes": [
@@ -306,9 +314,18 @@ function getServiceSchema () {
 }
 
 // ******************************
+
+function getDeprecatedSchemaKeys () {
+    return {
+        "service.task_definition_name": "service.task_definition.name"
+    }
+}
+
+// ******************************
 // Exports:
 // ******************************
 
 module.exports['get'] = getServiceSchema;
+module.exports['getDeprecatedSchemaKeys'] = getDeprecatedSchemaKeys;
 
 // ******************************

@@ -257,6 +257,9 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         service: {
             name: 'STRING',
             task_definition_name: 'STRING',
+            task_definition: {
+                name: 'STRING'
+            },
             clusters: [
                 {
                     name: 'STRING',
@@ -287,7 +290,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         return false;
     }
 
-    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    let awsTaskDefinitionName = serviceConfig.service.task_definition.name || serviceConfig.service.task_definition_name; // TODO: Deprecate task_definition_name
     if (!awsTaskDefinitionName) {
         cprint.yellow('Service task definition name not set');
         return false;
@@ -470,7 +473,16 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         },
         service: {
             name: 'STRING',
-            task_definition_name: 'STRING'
+            task_definition_name: 'STRING',
+            task_definition: {
+                name: 'STRING',
+                environment_variables: [
+                    {
+                        key: "STRING",
+                        value: 'STRING'
+                    }
+                ]
+            }
         },
         aws: {
             profile: 'STRING',
@@ -484,22 +496,24 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
     let loggingSupport = !!serviceConfig.docker.container.logging_support;
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('Service name not set');
         return false;
     }
 
-    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    let awsTaskDefinitionName = serviceConfig.service.task_definition.name || serviceConfig.service.task_definition_name; // TODO: Deprecate task_definition_name
     if (!awsTaskDefinitionName) {
         cprint.yellow('Service task definition name not set');
         return false;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    let awsTaskDefinitionEnvironmentVariables = serviceConfig.service.task_definition.environment_variables || [];
 
     let dockerImageName = serviceConfig.docker.image.name;
     if (!dockerImageName) {
@@ -543,9 +557,17 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         }
     ];
 
+    let serviceContainerEnvironmentVariables = [];
+    awsTaskDefinitionEnvironmentVariables.forEach(awsTaskDefinitionEnvironmentVariable => {
+        serviceContainerEnvironmentVariables.push({
+            name: awsTaskDefinitionEnvironmentVariable.key,
+            value: awsTaskDefinitionEnvironmentVariable.value
+        });
+    });
+
     let serviceContainerDefinition = {
         'cpu': 0,
-        'environment': [],
+        'environment': serviceContainerEnvironmentVariables,
         'essential': true,
         'image': awsTaskDefinitionImagePath,
         'memoryReservation': awsTaskDefinitionMemoryLimit,
@@ -1628,6 +1650,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         service: {
             name: 'STRING',
             task_definition_name: 'STRING',
+            task_definition: {
+                name: 'STRING'
+            },
             clusters: [
                 {
                     name: 'STRING',
@@ -1689,7 +1714,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    let awsTaskDefinitionName = serviceConfig.service.task_definition.name || serviceConfig.service.task_definition_name; // TODO: Deprecate task_definition_name
     if (!awsTaskDefinitionName) {
         cprint.yellow('Service task definition name not set');
         return false;
@@ -1920,6 +1945,9 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             task_definition_name: 'STRING',
+            task_definition: {
+                name: 'STRING'
+            },
             name: 'STRING'
         },
         aws: {
@@ -1937,7 +1965,7 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
         return false;
     }
 
-    let awsTaskDefinitionName = serviceConfig.service.task_definition_name;
+    let awsTaskDefinitionName = serviceConfig.service.task_definition.name || serviceConfig.service.task_definition_name; // TODO: Deprecate task_definition_name
     if (!awsTaskDefinitionName) {
         cprint.yellow('Service task definition name not set');
         return false;

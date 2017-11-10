@@ -540,7 +540,7 @@ function getDockerUsername (in_serviceConfig) {
 
 // ******************************
 
-function getDockerImageTags (in_serviceConfig) {
+function getDockerImageTags (in_serviceConfig, in_options) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         model: {
             version: 'STRING'
@@ -558,6 +558,8 @@ function getDockerImageTags (in_serviceConfig) {
             }
         }
     });
+
+    let opts = in_options || {};
 
     let dockerImageTags = [];
 
@@ -597,7 +599,9 @@ function getDockerImageTags (in_serviceConfig) {
     }
 
     dockerImageTags = dockerImageTags.concat(serviceConfig.docker.image.tags || []);
-    dockerImageTags = dockerImageTags.concat(_getDockerImageVersionControlTags(in_serviceConfig) || []);
+    if (opts.includeVersionControlTags) {
+        dockerImageTags = dockerImageTags.concat(_getDockerImageVersionControlTags(in_serviceConfig) || []);
+    }
 
     return dockerImageTags;
 }

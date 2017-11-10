@@ -76,7 +76,9 @@ function printDockerInfo (in_serviceConfig) {
         print.out('\n');
 
         if (dockerImageName && dockerUsername && docker.installed()) {
-            let dockerImageTags = docker.getImageTags(in_serviceConfig);
+            let dockerImageTags = docker.getImageTags(in_serviceConfig, {
+                includeVersionControlTags: true
+            });
             let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
 
             let dockerImageTaggedPaths = [];
@@ -172,7 +174,9 @@ function pullDockerImage (in_serviceConfig) {
         return;
     }
 
-    let dockerImageTags = docker.getImageTags(in_serviceConfig);
+    let dockerImageTags = docker.getImageTags(in_serviceConfig, {
+        includeVersionControlTags: true
+    });
 
     let repos = [
         {
@@ -268,7 +272,9 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
         return;
     }
 
-    let dockerImageTags = docker.getImageTags(in_serviceConfig);
+    let dockerImageTags = docker.getImageTags(in_serviceConfig, {
+        includeVersionControlTags: true
+    });
     let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
 
     let dockerImageTaggedPaths = [];
@@ -418,7 +424,9 @@ function cleanDockerImages (in_serviceConfig, in_force) {
         return;
     }
 
-    let dockerImageTags = docker.getImageTags(in_serviceConfig);
+    let dockerImageTags = docker.getImageTags(in_serviceConfig, {
+        includeVersionControlTags: true
+    });
     let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
 
     let dockerImageTaggedPaths = [];

@@ -24,6 +24,7 @@ let fs = require('./filesystem');
 // ******************************
 
 let _schema = null;
+let _deprecated_schema_keys = null;
 
 // ******************************
 // Functions:
@@ -340,14 +341,14 @@ function getServiceConfig (in_folderName, in_initialise) {
         return false;
     }
 
-    _checkObjectAgainstSchema('ROOT', serviceConfig, getServiceConfigSchema());
+    _checkObjectAgainstSchema('ROOT', serviceConfig, getServiceConfigSchema(), false);
     return serviceConfig;
 }
 
 // ******************************
 
 function checkServiceConfigSchema (in_serviceConfig) {
-    _checkObjectAgainstSchema('CHECK', in_serviceConfig, getServiceConfigSchema());
+    _checkObjectAgainstSchema('CHECK', in_serviceConfig, getServiceConfigSchema(), false);
 }
 
 // ******************************
@@ -364,6 +365,15 @@ function getServiceConfigSchema () {
         _schema = require('./service.schema').get();
     }
     return _schema;
+}
+
+// ******************************
+
+function getDeprecatedSchemaKeys () {
+    if (!_deprecated_schema_keys) {
+        _deprecated_schema_keys = require('./service.schema').getDeprecatedSchemaKeys();
+    }
+    return _deprecated_schema_keys;
 }
 
 // ******************************
@@ -1062,7 +1072,9 @@ function _copyToServiceConfig (in_source, in_destination) {
 
 // ******************************
 
-function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsType) {
+function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsType, in_fullPath) {
+    let fullPath = in_fullPath || '';
+
     if (!in_obj) {
         cprint.yellow('Object isn\'t set for path "' + in_path + '"');
         return;
@@ -1076,11 +1088,19 @@ function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsT
     let objKeys = Object.keys(in_obj);
     let schemaKeys = Object.keys(in_schema);
 
+    let deprecatedSchemaKeys = getDeprecatedSchemaKeys();
+
     let nonSchemaKeys = objKeys.filter(k => schemaKeys.indexOf(k) < 0);
     if (nonSchemaKeys.length) {
         cprint.yellow('Found non-schema keys in path "' + in_path + '":');
         nonSchemaKeys.forEach(k => {
-            cprint.yellow('  - ' + k);
+            let fullKeyPath = fullPath + '.' + k;
+            let newKeyPath = deprecatedSchemaKeys[fullKeyPath];
+            if (newKeyPath) {
+                cprint.yellow('  - ' + fullKeyPath + ' -- this should be replaced by: ' + newKeyPath);
+            } else {
+                cprint.yellow('  - ' + fullKeyPath);
+            }
         });
         return;
     }
@@ -1088,13 +1108,13 @@ function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsT
     objKeys.forEach(k => {
         let objVal = in_obj[k];
         let schemaVal = in_schema[k];
-        return _checkArrayElementAgainstSchema(in_path + ' > ' + k, objVal, schemaVal, in_checkValueAsType);
+        return _checkArrayElementAgainstSchema(in_path + ' > ' + k, objVal, schemaVal, in_checkValueAsType, fullPath ? fullPath + '.' + k : k);
     });
 }
 
 // ******************************
 
-function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_checkValueAsType) {
+function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_checkValueAsType, in_fullPath) {
     if (in_objVal === undefined) {
         cprint.yellow('Object value isn\'t set for path "' + in_path + '"');
         return;
@@ -1173,13 +1193,13 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
 
     if (Array.isArray(objVal)) {
         objVal.forEach(elem => {
-            _checkArrayElementAgainstSchema(in_path + '[]', elem, schemaVal[0], in_checkValueAsType);
+            _checkArrayElementAgainstSchema(in_path + '[]', elem, schemaVal[0], in_checkValueAsType, in_fullPath);
         })
         return;
     }
 
     if (objValType === 'object') {
-        return _checkObjectAgainstSchema(in_path, objVal, schemaVal, in_checkValueAsType);
+        return _checkObjectAgainstSchema(in_path, objVal, schemaVal, in_checkValueAsType, in_fullPath);
     }
 }
 

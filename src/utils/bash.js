@@ -230,7 +230,8 @@ function parseBashEnvContents (in_bashEnvContents) {
             object.setIfNotSet(c.auto_scaling_group, 'name', serviceName + '-' + environment + '-auto-scaling-group');
         });
 
-        object.setIfNotSet(serviceConfig.service, 'task_definition_name', serviceName + '-task-definition');
+        serviceConfig.service.task_definition = serviceConfig.service.task_definition || {};
+        object.setIfNotSet(serviceConfig.service.task_definition, 'name', serviceName + '-task-definition');
     }
 
     service.checkConfigSchema(serviceConfig);
