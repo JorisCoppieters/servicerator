@@ -6,6 +6,7 @@
 
 const k_DEFAULT_PYTHON_IMAGE = 'continuumio/anaconda:4.3.1';
 const k_DEFAULT_IMAGE = 'ubuntu:trusty';
+const k_SERVICE_CONFIG_SCHEMA_VERSION = 1;
 
 // ******************************
 // Requires:
@@ -24,13 +25,12 @@ let fs = require('./filesystem');
 // ******************************
 
 let _schema = null;
-let _deprecated_schema_keys = null;
 
 // ******************************
 // Functions:
 // ******************************
 
-function getServiceConfig (in_folderName, in_initialise) {
+function createServiceConfig (in_folderName, in_initialise) {
     let sourceFolder = false;
 
     let path = require('path');
@@ -52,6 +52,10 @@ function getServiceConfig (in_folderName, in_initialise) {
 
     if (fs.folderExists(sourceFolder)) {
         serviceConfig.cwd = sourceFolder;
+    }
+
+    if (!serviceConfig.schema_version) {
+        serviceConfig.schema_version = k_SERVICE_CONFIG_SCHEMA_VERSION;
     }
 
     let bashEnvFile = path.resolve(sourceFolder, '_env.sh');
@@ -360,20 +364,39 @@ function accessServiceConfig (in_serviceConfig, in_accessConfig) {
 
 // ******************************
 
+function loadServiceConfig (in_sourceFolder) {
+    let path = require('path');
+
+    let serviceConfig = false;
+    let serviceConfigFile = env.getServiceConfigFile(in_sourceFolder);
+    if (!serviceConfigFile) {
+        return false;
+    }
+
+    try {
+        let serviceConfigContents = fs.readFile(serviceConfigFile);
+        if (!serviceConfigContents.trim()) {
+            return false;
+        }
+        serviceConfig = JSON.parse(serviceConfigContents);
+    } catch (e) {
+        cprint.red('Failed to parse "' + serviceConfigFile + '":\n  ' + e.stack);
+        return false;
+    }
+
+    serviceConfig.cwd = path.dirname(serviceConfigFile);
+    _updateServiceConfig(serviceConfig);
+
+    return serviceConfig;
+}
+
+// ******************************
+
 function getServiceConfigSchema () {
     if (!_schema) {
         _schema = require('./service.schema').get();
     }
     return _schema;
-}
-
-// ******************************
-
-function getDeprecatedSchemaKeys () {
-    if (!_deprecated_schema_keys) {
-        _deprecated_schema_keys = require('./service.schema').getDeprecatedSchemaKeys();
-    }
-    return _deprecated_schema_keys;
 }
 
 // ******************************
@@ -734,7 +757,7 @@ function initFolder (in_folderName) {
         sourceFolder = fs.createFolder(in_folderName);
     }
 
-    let serviceConfig = _loadServiceConfig(sourceFolder);
+    let serviceConfig = loadServiceConfig(sourceFolder);
     if (!serviceConfig) {
         if (in_folderName === '.') {
             cprint.cyan('Initialising folder...');
@@ -742,7 +765,7 @@ function initFolder (in_folderName) {
             cprint.cyan('Initialising "' + in_folderName + '"...');
         }
 
-        serviceConfig = getServiceConfig(sourceFolder, true) || {};
+        serviceConfig = createServiceConfig(sourceFolder, true) || {};
         serviceConfig.cwd = sourceFolder;
 
         _saveServiceConfig(serviceConfig);
@@ -788,7 +811,7 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options)
         return false;
     }
 
-    let savedServiceConfig = _loadServiceConfig(sourceFolder);
+    let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
         let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, savedServiceConfig);
         _saveServiceConfig(updatedServiceConfig, opt);
@@ -819,7 +842,7 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
         return false;
     }
 
-    let savedServiceConfig = _loadServiceConfig(sourceFolder);
+    let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
         let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, savedServiceConfig);
         _saveServiceConfig(updatedServiceConfig, opt);
@@ -967,21 +990,57 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
 // Helper Functions:
 // ******************************
 
-function _loadServiceConfig (in_sourceFolder) {
-    let path = require('path');
+function _updateServiceConfig (in_serviceConfig) {
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        schema_version: 'NUMBER'
+    });
 
-    let serviceConfig = false;
-    let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
+    let updatedServiceConfig;
+    let hasBeenUpdated = false;
 
-    if (fs.fileExists(serviceConfigFile)) {
-        let serviceConfigContents = fs.readFile(serviceConfigFile);
-        if (serviceConfigContents.trim()) {
-            serviceConfig = JSON.parse(serviceConfigContents);
-            serviceConfig.cwd = in_sourceFolder;
+    let schemaVersion = serviceConfig.schema_version || 0;
+    if (schemaVersion < 1) {
+        updatedServiceConfig = _updateServiceConfigFrom0To1(in_serviceConfig);
+        if (updatedServiceConfig) {
+            in_serviceConfig = updatedServiceConfig;
+            hasBeenUpdated = true;
         }
     }
 
-    return serviceConfig;
+    if (hasBeenUpdated) {
+        cprint.green('Updated service config');
+        in_serviceConfig.schema_version = k_SERVICE_CONFIG_SCHEMA_VERSION;
+        _saveServiceConfig(in_serviceConfig);
+    }
+
+    return in_serviceConfig;
+}
+
+// ******************************
+
+function _updateServiceConfigFrom0To1 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.task_definition_name) {
+            in_serviceConfig.service.task_definition = {
+                name: in_serviceConfig.service.task_definition_name
+            };
+
+            delete in_serviceConfig.service.task_definition_name;
+            hasBeenUpdated = true;
+        }
+
+        if (in_serviceConfig.service.run) {
+            if (in_serviceConfig.service.run.cwd) {
+                in_serviceConfig.service.run.working_directory = in_serviceConfig.service.run.cwd;
+                delete in_serviceConfig.service.run.cwd;
+                hasBeenUpdated = true;
+            }
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
 }
 
 // ******************************
@@ -1088,19 +1147,12 @@ function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsT
     let objKeys = Object.keys(in_obj);
     let schemaKeys = Object.keys(in_schema);
 
-    let deprecatedSchemaKeys = getDeprecatedSchemaKeys();
-
     let nonSchemaKeys = objKeys.filter(k => schemaKeys.indexOf(k) < 0);
     if (nonSchemaKeys.length) {
         cprint.yellow('Found non-schema keys in path "' + in_path + '":');
         nonSchemaKeys.forEach(k => {
             let fullKeyPath = fullPath + '.' + k;
-            let newKeyPath = deprecatedSchemaKeys[fullKeyPath];
-            if (newKeyPath) {
-                cprint.yellow('  - ' + fullKeyPath + ' -- this should be replaced by: ' + newKeyPath);
-            } else {
-                cprint.yellow('  - ' + fullKeyPath);
-            }
+            cprint.yellow('  - ' + fullKeyPath);
         });
         return;
     }
@@ -1206,9 +1258,9 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
 // ******************************
 
 function _serviceConfigReplacer (in_key, in_val) {
-    // if (in_key === 'cwd') {
-    //     return undefined;
-    // }
+    if (in_key === 'cwd') {
+        return undefined;
+    }
     if (in_key === 'secret_key') {
         return undefined;
     }
@@ -1228,13 +1280,14 @@ module.exports['combineConfig'] = combineServiceConfig;
 module.exports['copyFile'] = copyServiceFile;
 module.exports['createFile'] = createServiceFile;
 module.exports['createFolder'] = createServiceFolder;
-module.exports['getConfig'] = getServiceConfig;
+module.exports['createConfig'] = createServiceConfig;
 module.exports['getConfigSchema'] = getServiceConfigSchema;
 module.exports['getValue'] = getServiceConfigValue;
 module.exports['hasConfigFile'] = hasServiceConfigFile;
 module.exports['initFolder'] = initFolder;
 module.exports['linkFile'] = linkServiceFile;
 module.exports['linkFolder'] = linkServiceFolder;
+module.exports['loadConfig'] = loadServiceConfig;
 module.exports['maskConfig'] = maskServiceConfig;
 module.exports['removeConfig'] = removeServiceConfig;
 module.exports['replaceConfigReferences'] = replaceServiceConfigReferences;

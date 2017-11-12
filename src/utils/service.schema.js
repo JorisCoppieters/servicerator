@@ -6,6 +6,7 @@
 
 function getServiceSchema () {
     return {
+        "schema_version": "NUMBER",
         "cwd": "STRING",
         "auth": {
             "certificate": "STRING",
@@ -196,7 +197,7 @@ function getServiceSchema () {
         "service": {
             "run": {
                 "cmd": "STRING",
-                "cwd": "STRING",
+                "working_directory": "STRING",
                 "args": [
                     "STRING"
                 ]
@@ -314,18 +315,9 @@ function getServiceSchema () {
 }
 
 // ******************************
-
-function getDeprecatedSchemaKeys () {
-    return {
-        "service.task_definition_name": "service.task_definition.name"
-    }
-}
-
-// ******************************
 // Exports:
 // ******************************
 
 module.exports['get'] = getServiceSchema;
-module.exports['getDeprecatedSchemaKeys'] = getDeprecatedSchemaKeys;
 
 // ******************************

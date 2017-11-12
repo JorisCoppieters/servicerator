@@ -56,9 +56,11 @@ if (g_ARGV['help']) {
         return;
     }
 
-    let serviceConfig = env.getServiceConfig();
-    if (!serviceConfig) {
-        serviceConfig = service.getConfig('.');
+    let serviceConfig = service.loadConfig();
+    if (serviceConfig) {
+        service.checkConfigSchema(serviceConfig);
+    } else {
+        serviceConfig = service.createConfig('.');
     }
 
     plugins.forEach(p => {
@@ -105,7 +107,7 @@ if (g_ARGV['help']) {
                 print.out(cprint.toYellow('Script Command: [' + process.argv.slice(2).join(', ') + ']') + '\n');
                 print.out(cprint.toYellow('Error Stack Trace: '));
                 print.out(cprint.toRed(stack) + '\n');
-                return;
+                process.exit(1);
             }
         }
     });

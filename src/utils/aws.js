@@ -778,6 +778,88 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
 
 // ******************************
 
+function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['DockerRepositoryImages_' + in_dockerRepositoryName];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'ecr',
+        'describe-images',
+        '--repository-name', in_dockerRepositoryName
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let awsRepositoryImages;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.imageDetails) {
+        awsRepositoryImages = awsResult.imageDetails;
+    }
+
+    if (awsRepositoryImages === undefined) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"');
+        }
+        return;
+    }
+
+    cache['DockerRepositoryImages_' + in_dockerRepositoryName] = {
+        val: awsRepositoryImages,
+        expires: date.getTimestamp() + 3600 * 1000 // 1 hour
+    };
+
+    return awsRepositoryImages;
+}
+
+// ******************************
+
+function deleteDockerRepositoryImages (in_dockerRepositoryName, in_dockerRepositoryImages, in_options) {
+    cprint.cyan('Deleting AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"...');
+
+    let imageIds = in_dockerRepositoryImages
+        .map(i => 'imageDigest=' + i)
+        .join(',');
+
+    let cmdResult = awsCmd([
+        'ecr',
+        'batch-delete-image',
+        '--repository-name', in_dockerRepositoryName,
+        '--image-ids', imageIds
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    if (cmdResult.resultObj && cmdResult.resultObj.failures) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Deleted AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"');
+    return true;
+}
+
+// ******************************
+
 function createDockerRepository (in_dockerImageName, in_options) {
     cprint.cyan('Creating AWS Docker Repository for Docker Image "' + in_dockerImageName + '"...');
 
@@ -818,6 +900,13 @@ function clearCachedAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_c
 function clearCachedTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache) {
     let cache = in_cache || {};
     cache['TaskDefinitionArn_' + in_taskDefinitionName] = undefined;
+}
+
+// ******************************
+
+function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_cache) {
+    let cache = in_cache || {};
+    cache['DockerRepositoryImages_' + in_dockerRepositoryName] = undefined;
 }
 
 // ******************************
@@ -1716,7 +1805,7 @@ function parseAwsCmdResult (in_cmdResult) {
     try {
         jsonObject = JSON.parse(in_cmdResult.result)
     } catch (e) {
-        cprint.red('Failed to parse "' + jsonObject.result + '":\n  ' + e);
+        cprint.red('Failed to parse "' + jsonObject.result + '":\n  ' + e.stack);
         return false;
     }
 
@@ -1753,15 +1842,17 @@ function awsVersion () {
 // ******************************
 
 module.exports['arnToTitle'] = awsArnToTitle;
-module.exports['clearCachedAutoScalingGroups'] = clearCachedAutoScalingGroups;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;
+module.exports['clearCachedAutoScalingGroups'] = clearCachedAutoScalingGroups;
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
 module.exports['clearCachedLaunchConfigurationsLike'] = clearCachedLaunchConfigurationsLike;
 module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
+module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCachedDockerRepositoryImagesForRepositoryName;
 module.exports['cmd'] = awsCmd;
 module.exports['createCluster'] = createCluster;
 module.exports['createClusterService'] = createClusterService;
 module.exports['createDockerRepository'] = createDockerRepository;
+module.exports['deleteDockerRepositoryImages'] = deleteDockerRepositoryImages;
 module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
@@ -1776,6 +1867,7 @@ module.exports['getContainerInstance'] = getContainerInstance;
 module.exports['getDefaultVpcSecurityGroupIdForVpc'] = getDefaultVpcSecurityGroupIdForVpc;
 module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepositoryForDockerImageName'] = getDockerRepositoryForDockerImageName;
+module.exports['getDockerRepositoryImagesForRepositoryName'] = getDockerRepositoryImagesForRepositoryName;
 module.exports['getDockerRepositoryUrl'] = getAwsDockerRepositoryUrl;
 module.exports['getInstanceIdsWithTags'] = getInstanceIdsWithTags;
 module.exports['getLatestTaskDefinitionArnForTaskDefinition'] = getLatestTaskDefinitionArnForTaskDefinition;

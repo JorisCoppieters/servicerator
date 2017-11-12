@@ -47,42 +47,26 @@ function getServiceFolder () {
 
 // ******************************
 
-function getServiceConfig () {
+function getServiceConfigFile (in_sourceFolder) {
     let path = require('path');
 
-    let serviceConfigFile = getServiceConfigFile();
-    if (!serviceConfigFile) {
-        return false;
-    }
+    let serviceConfigFile;
 
-    let serviceConfig;
-    try {
-        let serviceConfigContents = fs.readFile(serviceConfigFile);
-        if (!serviceConfigContents.trim()) {
+    if (in_sourceFolder) {
+        serviceConfigFile = path.resolve(in_sourceFolder, SERVICE_CONFIG_FILE_NAME);
+        if (!fs.fileExists(serviceConfigFile)) {
             return false;
         }
-        serviceConfig = JSON.parse(serviceConfigContents);
-    } catch (e) {
-        cprint.red('Failed to parse "' + serviceConfigFile + '":\n  ' + e);
-        return false;
+
+        return serviceConfigFile;
     }
-    serviceConfig.cwd = path.dirname(serviceConfigFile);
-
-    service.checkConfigSchema(serviceConfig);
-
-    return serviceConfig;
-}
-
-// ******************************
-
-function getServiceConfigFile () {
-    let path = require('path');
 
     let currentDirectory = './';
 
     let directory = path.resolve(process.cwd(), currentDirectory);
     let oldDirectory = directory;
-    let serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
+
+    serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
 
     let maxUpwardsIteration = 100;
     let loopCount = 0;
@@ -106,7 +90,7 @@ function getServiceConfigFile () {
         serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
     }
 
-    if (! fs.fileExists(serviceConfigFile)) {
+    if (!fs.fileExists(serviceConfigFile)) {
         return false;
     }
 
@@ -220,7 +204,6 @@ module.exports['isWindows'] = isWindows;
 module.exports['isLinux'] = isLinux;
 module.exports['getServiceFolder'] = getServiceFolder;
 module.exports['getServiceConfigFile'] = getServiceConfigFile;
-module.exports['getServiceConfig'] = getServiceConfig;
 module.exports['getStoredPassword'] = getStoredPassword;
 module.exports['getStoredSecretKey'] = getStoredSecretKey;
 module.exports['getStoredValue'] = getStoredValue;
