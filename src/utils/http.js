@@ -65,6 +65,8 @@ function postRequest (in_url, in_requestData, in_onSuccess, in_onError) {
         agent: false
     };
 
+    let request = require('request');
+
     request(requestOptions, (error, response, body) => {
         if (error) {
             if (in_onError) {

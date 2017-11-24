@@ -77,10 +77,17 @@ function getServiceSchema () {
                 ],
                 "volumes": [
                     {
+                        "test": "BOOLEAN",
                         "container": "STRING",
                         "host": "STRING",
                         "name": "STRING",
                         "read_only": "BOOLEAN"
+                    }
+                ],
+                "environment_variables": [
+                    {
+                        "key": "STRING",
+                        "value": "STRING"
                     }
                 ]
             },
@@ -203,13 +210,7 @@ function getServiceSchema () {
                 ]
             },
             "task_definition": {
-                "name": "STRING",
-                "environment_variables": [
-                    {
-                        "key": "STRING",
-                        "value": "STRING"
-                    }
-                ]
+                "name": "STRING"
             },
             "filesystem": [
                 {

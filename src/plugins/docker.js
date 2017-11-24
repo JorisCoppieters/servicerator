@@ -1129,13 +1129,20 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
                 volumes: [
                     {
                         host: 'STRING',
-                        container: 'STRING'
+                        container: 'STRING',
+                        test: 'BOOLEAN'
                     }
                 ],
                 commands: [
                     {
                         test: 'BOOLEAN',
                         val: 'STRING'
+                    }
+                ],
+                environment_variables: [
+                    {
+                        key: "STRING",
+                        value: 'STRING'
                     }
                 ]
             },
@@ -1240,16 +1247,29 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         args.push(hostPort + ':' + containerPort);
     });
 
+    let testVolumeArgs = {};
+    let volumeArgs = {};
+
     serviceConfig.docker.container.volumes.forEach(volume => {
         if (!volume.host || !volume.container) {
             return;
         }
 
-        let volumeContainer = volume.container;
+        if (volume.test) {
+            testVolumeArgs[volume.container] = volume.host;
+        } else {
+            volumeArgs[volume.container] = volume.host;
+        }
+    });
 
-        let volumeHost = path.resolve(volume.host);
+    Object.assign(volumeArgs, testVolumeArgs);
+
+    Object.keys(volumeArgs).forEach(volumeContainer => {
+        let volumeHost = volumeArgs[volumeContainer];
+        volumeHost = path.resolve(volumeHost);
+
         if (!fs.folderExists(volumeHost)) {
-            volumeHost = path.resolve(dockerFolder, volume.host);
+            volumeHost = path.resolve(dockerFolder, volumeHost);
         }
 
         if (volumeHost.match(/^[A-Z]:[\\\/]?$/)) {
@@ -1267,6 +1287,16 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
 
         args.push('--volume');
         args.push(volumeHost + ':' + volumeContainer);
+    });
+
+
+    serviceConfig.docker.container.environment_variables.forEach(environment_variable => {
+        if (!environment_variable.key || !environment_variable.value) {
+            return;
+        }
+
+        args.push('--env');
+        args.push(environment_variable.key + '=' + environment_variable.value);
     });
 
     args.push(dockerImagePath);

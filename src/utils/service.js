@@ -6,7 +6,7 @@
 
 const k_DEFAULT_PYTHON_IMAGE = 'continuumio/anaconda:4.3.1';
 const k_DEFAULT_IMAGE = 'ubuntu:trusty';
-const k_SERVICE_CONFIG_SCHEMA_VERSION = 1;
+const k_SERVICE_CONFIG_SCHEMA_VERSION = 2;
 
 // ******************************
 // Requires:
@@ -1007,6 +1007,14 @@ function _updateServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 2) {
+        updatedServiceConfig = _updateServiceConfigFrom1To2(in_serviceConfig);
+        if (updatedServiceConfig) {
+            in_serviceConfig = updatedServiceConfig;
+            hasBeenUpdated = true;
+        }
+    }
+
     if (hasBeenUpdated) {
         cprint.green('Updated service config');
         in_serviceConfig.schema_version = k_SERVICE_CONFIG_SCHEMA_VERSION;
@@ -1035,6 +1043,26 @@ function _updateServiceConfigFrom0To1 (in_serviceConfig) {
             if (in_serviceConfig.service.run.cwd) {
                 in_serviceConfig.service.run.working_directory = in_serviceConfig.service.run.cwd;
                 delete in_serviceConfig.service.run.cwd;
+                hasBeenUpdated = true;
+            }
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _updateServiceConfigFrom1To2 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.task_definition) {
+            if (in_serviceConfig.service.task_definition.environment_variables) {
+                in_serviceConfig.docker = in_serviceConfig.docker || {};
+                in_serviceConfig.docker.container = in_serviceConfig.docker.container || {};
+                in_serviceConfig.docker.container.environment_variables = in_serviceConfig.service.task_definition.environment_variables;
+                delete in_serviceConfig.service.task_definition.environment_variables;
                 hasBeenUpdated = true;
             }
         }

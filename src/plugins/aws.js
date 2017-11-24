@@ -1301,7 +1301,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                     {
                         container: 'STRING',
                         host: 'STRING',
-                        name: 'STRING'
+                        name: 'STRING',
+                        test: 'BOOLEAN'
                     }
                 ],
                 commands: [
@@ -1309,19 +1310,19 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                         test: "BOOLEAN",
                         val: 'STRING'
                     }
-                ]
-            }
-        },
-        service: {
-            name: 'STRING',
-            task_definition: {
-                name: 'STRING',
+                ],
                 environment_variables: [
                     {
                         key: "STRING",
                         value: 'STRING'
                     }
                 ]
+            }
+        },
+        service: {
+            name: 'STRING',
+            task_definition: {
+                name: 'STRING'
             }
         },
         aws: {
@@ -1353,7 +1354,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         return false;
     }
 
-    let awsTaskDefinitionEnvironmentVariables = serviceConfig.service.task_definition.environment_variables || [];
+    let awsTaskDefinitionEnvironmentVariables = serviceConfig.docker.container.environment_variables || [];
 
     let dockerImageName = serviceConfig.docker.image.name;
     if (!dockerImageName) {
@@ -1384,14 +1385,17 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     let awsTaskDefinitionFilebeatVolumes = [
         {
             'container': '/var/lib/filebeat',
+            'host': '/var/lib/filebeat',
             'name': 'filebeat-tm-services-state'
         },
         {
             'container': '/var/log/tm-services/$SERVICE_NAME',
+            'host': '/volume/logs',
             'name': serviceName + '-logs'
         },
         {
             'container': '/etc/tm-services',
+            'host': '/etc/tm-services',
             'readOnly': true,
             'name': 'tm-services-scripts'
         }
@@ -1444,6 +1448,10 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
     serviceConfig.docker.container.volumes.forEach(volume => {
         if (!volume.container) {
+            return;
+        }
+
+        if (volume.test) {
             return;
         }
 
@@ -1506,6 +1514,9 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     let uniqueHosts = {};
     containerVolumes
         .forEach(volume => {
+            if (volume.test) {
+                return;
+            }
             let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
             uniqueHosts[volumeName] = volume;
         });
@@ -1513,13 +1524,14 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     Object.keys(uniqueHosts)
         .forEach(host => {
             let volume = uniqueHosts[host];
-            let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
+            // let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
+            let sourcePath = service.replaceConfigReferences(in_serviceConfig, volume.host);
             let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
 
             awsTaskDefinitionStructure.volumes = awsTaskDefinitionStructure.volumes || [];
             awsTaskDefinitionStructure.volumes.push({
                 'host': {
-                    'sourcePath': volumeContainer
+                    'sourcePath': sourcePath
                 },
                 'name': volumeName
             });

@@ -4,6 +4,8 @@
 // Requires:
 // ******************************
 
+let cprint = require('color-print');
+
 let docker = require('./docker');
 let exec = require('./exec');
 let service = require('./service');

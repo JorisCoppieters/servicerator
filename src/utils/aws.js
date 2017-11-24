@@ -159,7 +159,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     let awsResult = parseAwsCmdResult(cmdResult);
     if (awsResult && awsResult.serviceArns) {
         awsClusterServiceArn = awsResult.serviceArns
-            .find(a => a.match(in_clusterServiceName));
+            .find(a => a.includes(in_clusterServiceName));
     }
 
     if (awsClusterServiceArn === undefined) {

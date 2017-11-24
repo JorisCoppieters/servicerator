@@ -818,6 +818,10 @@ function _getDockerImageVersionControlTags (in_serviceConfig) {
             }
 
             let hgChangeSet = cmdResult.result;
+            if (!hgChangeSet) {
+                return;
+            }
+
             hgChangeSet = hgChangeSet.trim().replace(/\+$/,'');
             dockerImageTags.push(hgChangeSet);
         }
