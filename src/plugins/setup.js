@@ -150,7 +150,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         service: {
-            filesystem: [
+            fileSystem: [
                 {
                     on_open: 'BOOLEAN',
                     on_close: 'BOOLEAN',
@@ -178,8 +178,8 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
 
     let suppressOutput = ['on_open', 'on_close'].indexOf(in_fieldCheck) >= 0;
 
-    let filesystem = serviceConfig.service.filesystem;
-    filesystem.forEach(f => {
+    let fileSystem = serviceConfig.service.fileSystem;
+    fileSystem.forEach(f => {
         if (!f[in_fieldCheck]) {
             return;
         }

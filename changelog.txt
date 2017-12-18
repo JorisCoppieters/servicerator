@@ -1,3 +1,6 @@
+0.11.0
+- Using JsonSchema for json config, using version servicerator-schema-v3.json
+
 0.10.0
 - Speed improvements
 - Added support for deprecated keys in schema

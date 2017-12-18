@@ -1523,6 +1523,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 function getAwsServiceConfig (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         aws: {
+            account_id: 'NUMBER',
             profile: 'STRING'
         }
     });
@@ -1563,6 +1564,7 @@ function getAwsRepositoryServiceConfig () {
             other_repositories: []
         },
         aws: {
+            account_id: 'NUMBER',
             profile: 'STRING'
         }
     };

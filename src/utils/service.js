@@ -6,7 +6,6 @@
 
 const k_DEFAULT_PYTHON_IMAGE = 'continuumio/anaconda:4.3.1';
 const k_DEFAULT_IMAGE = 'ubuntu:trusty';
-const k_SERVICE_CONFIG_SCHEMA_VERSION = 2;
 
 // ******************************
 // Requires:
@@ -25,6 +24,7 @@ let fs = require('./filesystem');
 // ******************************
 
 let _schema = null;
+let _schema_version = null;
 
 // ******************************
 // Functions:
@@ -55,7 +55,7 @@ function createServiceConfig (in_folderName, in_initialise) {
     }
 
     if (!serviceConfig.schema_version) {
-        serviceConfig.schema_version = k_SERVICE_CONFIG_SCHEMA_VERSION;
+        serviceConfig.schema_version = getServiceConfigSchemaVersion();
     }
 
     let bashEnvFile = path.resolve(sourceFolder, '_env.sh');
@@ -194,7 +194,7 @@ function createServiceConfig (in_folderName, in_initialise) {
                 docker: {
                     image: {
                         log: true,
-                        filesystem: []
+                        fileSystem: []
                     },
                     other_repositories: [],
                     container: {
@@ -345,20 +345,24 @@ function createServiceConfig (in_folderName, in_initialise) {
         return false;
     }
 
-    _checkObjectAgainstSchema('ROOT', serviceConfig, getServiceConfigSchema(), false);
+    if (!_checkObjectAgainstJSONSchema('ROOT', serviceConfig, getServiceConfigSchema())) {
+        return false;
+    }
     return serviceConfig;
 }
 
 // ******************************
 
 function checkServiceConfigSchema (in_serviceConfig) {
-    _checkObjectAgainstSchema('CHECK', in_serviceConfig, getServiceConfigSchema(), false);
+    return _checkObjectAgainstJSONSchema('CHECK', in_serviceConfig, getServiceConfigSchema());
 }
 
 // ******************************
 
 function accessServiceConfig (in_serviceConfig, in_accessConfig) {
-    _checkObjectAgainstSchema('ACCESS', in_accessConfig, getServiceConfigSchema(), true);
+    let accessConfig = _convertToJSONSchema(in_accessConfig);
+    _checkObjectAgainstJSONSchema('ACCESS', in_serviceConfig, accessConfig);
+
     return maskServiceConfig(in_serviceConfig, in_accessConfig);
 }
 
@@ -397,6 +401,15 @@ function getServiceConfigSchema () {
         _schema = require('./service.schema').get();
     }
     return _schema;
+}
+
+// ******************************
+
+function getServiceConfigSchemaVersion () {
+    if (!_schema_version) {
+        _schema_version = require('./service.schema').k_SCHEMA_VERSION;
+    }
+    return _schema_version;
 }
 
 // ******************************
@@ -1015,9 +1028,25 @@ function _updateServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 3) {
+        updatedServiceConfig = _updateServiceConfigFrom2To3(in_serviceConfig);
+        if (updatedServiceConfig) {
+            in_serviceConfig = updatedServiceConfig;
+            hasBeenUpdated = true;
+        }
+    }
+
+    // if (schemaVersion < 4) {
+    //     updatedServiceConfig = _updateServiceConfigFrom3To4(in_serviceConfig);
+    //     if (updatedServiceConfig) {
+    //         in_serviceConfig = updatedServiceConfig;
+    //         hasBeenUpdated = true;
+    //     }
+    // }
+
     if (hasBeenUpdated) {
         cprint.green('Updated service config');
-        in_serviceConfig.schema_version = k_SERVICE_CONFIG_SCHEMA_VERSION;
+        in_serviceConfig.schema_version = getServiceConfigSchemaVersion();
         _saveServiceConfig(in_serviceConfig);
     }
 
@@ -1069,6 +1098,40 @@ function _updateServiceConfigFrom1To2 (in_serviceConfig) {
     }
 
     return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _updateServiceConfigFrom2To3 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.filesystem) {
+            in_serviceConfig.service.fileSystem = in_serviceConfig.service.filesystem;
+            delete in_serviceConfig.service.filesystem;
+            hasBeenUpdated = true;
+        }
+
+        if (in_serviceConfig.filesystem) {
+            in_serviceConfig.fileSystem = in_serviceConfig.filesystem;
+            delete in_serviceConfig.filesystem;
+            hasBeenUpdated = true;
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _updateServiceConfigFrom3To4 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service) {
+    }
+
+    return false;
+    //return hasBeenUpdated ? in_serviceConfig : false;
 }
 
 // ******************************
@@ -1194,6 +1257,24 @@ function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsT
 
 // ******************************
 
+function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema) {
+    let validate = require('jsonschema').validate;
+    let validationResult = validate(in_obj, in_schema);
+
+    let errors = validationResult.errors;
+    if (errors && errors.length) {
+        errors.forEach((error) => {
+            cprint.red(in_path + ' > ' + error);
+        });
+        // process.exit(-1);
+        return false;
+    }
+
+    return true;
+}
+
+// ******************************
+
 function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_checkValueAsType, in_fullPath) {
     if (in_objVal === undefined) {
         cprint.yellow('Object value isn\'t set for path "' + in_path + '"');
@@ -1281,6 +1362,48 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
     if (objValType === 'object') {
         return _checkObjectAgainstSchema(in_path, objVal, schemaVal, in_checkValueAsType, in_fullPath);
     }
+}
+
+// ******************************
+
+function _convertToJSONSchema (in_schema) {
+    let properties = {};
+    for (let k in in_schema) {
+        let v = in_schema[k];
+
+        if (typeof(v) === "string") {
+            if (v === "NUMBER") {
+                v = {
+                    "type": "number"
+                };
+            } else if (v === "STRING" || v === "PATH" || v === "URL") {
+                v = {
+                    "type": "string"
+                };
+            } else if (v === "BOOLEAN") {
+                v = {
+                    "type": "boolean"
+                };
+            }
+
+        } else if (Array.isArray(v)) {
+            let list = v;
+            let firstItem = list[0];
+            v = {
+                "type": "array",
+                "items": _convertToJSONSchema(firstItem)
+            };
+        } else {
+            v = _convertToJSONSchema(v);
+        }
+
+        properties[k] = v;
+    }
+
+    return {
+        "type": "object",
+        "properties": properties
+    };
 }
 
 // ******************************
