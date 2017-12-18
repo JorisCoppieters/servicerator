@@ -1119,6 +1119,11 @@ function _updateServiceConfigFrom2To3 (in_serviceConfig) {
         }
     }
 
+    if (!in_serviceConfig.$schema) {
+        in_serviceConfig.$schema = "https://raw.githubusercontent.com/JorisCoppieters/servicerator/master/schemas/servicerator-schema-v3.json";
+        hasBeenUpdated = true;
+    }
+
     return hasBeenUpdated ? in_serviceConfig : false;
 }
 
