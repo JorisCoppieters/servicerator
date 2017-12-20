@@ -29,6 +29,10 @@ function execCmdSync (in_cmd, in_args, in_options) {
         cmdOptions.cwd = opt.cwd;
     }
 
+    if (opt.detached) {
+        cmdOptions.detached = true;
+    }
+
     let child_process = require('child_process');
     let execResult = child_process.spawnSync(in_cmd, in_args, cmdOptions);
 
@@ -80,7 +84,8 @@ function execCmd (in_cmd, in_args, in_options) {
 
     let child_process = require('child_process');
     let child = child_process.spawn(in_cmd, in_args, {
-        cwd: opt.cwd || '/'
+        cwd: opt.cwd || '/',
+        detached: opt.detached
     });
 
     child.stdout.on('data', chunk => {

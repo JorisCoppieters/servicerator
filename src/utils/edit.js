@@ -36,11 +36,15 @@ function editFiles (in_paths) {
 
     if (isSublime) {
         args = ['-a'].concat(args);
+        exec.cmdSync(editor, args, {
+            indent: ''
+        });
+    } else {
+        exec.cmd(editor, args, {
+            indent: '',
+            detached: true
+        });
     }
-
-    exec.cmdSync(editor, args, {
-        indent: ''
-    });
 }
 
 // ******************************
@@ -65,6 +69,7 @@ function getEditor () {
 
     if (env.isWindows()) {
         editorPaths = editorPaths.concat([
+            "C:/Program Files/Microsoft VS Code/Code.exe",
             "C:/Program Files/Sublime Text/sublime_text.exe",
             "C:/Program Files/Sublime Text 2/sublime_text.exe",
             "C:/Program Files/Sublime Text 3/sublime_text.exe",
