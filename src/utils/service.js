@@ -1371,44 +1371,45 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
 
 // ******************************
 
-function _convertToJSONSchema (in_schema) {
-    let properties = {};
-    for (let k in in_schema) {
-        let v = in_schema[k];
-
-        if (typeof(v) === "string") {
-            if (v === "NUMBER") {
-                v = {
-                    "type": "number"
-                };
-            } else if (v === "STRING" || v === "PATH" || v === "URL") {
-                v = {
-                    "type": "string"
-                };
-            } else if (v === "BOOLEAN") {
-                v = {
-                    "type": "boolean"
-                };
-            }
-
-        } else if (Array.isArray(v)) {
-            let list = v;
-            let firstItem = list[0];
-            v = {
-                "type": "array",
-                "items": _convertToJSONSchema(firstItem)
+function _convertToJSONSchema (in_value) {
+    if (typeof(in_value) === "string") {
+        if (in_value === "NUMBER") {
+            return {
+                "type": "number"
             };
-        } else {
-            v = _convertToJSONSchema(v);
+        } else if (in_value === "STRING" || in_value === "PATH" || in_value === "URL") {
+            return {
+                "type": "string"
+            };
+        } else if (in_value === "BOOLEAN") {
+            return {
+                "type": "boolean"
+            };
         }
 
-        properties[k] = v;
-    }
+    } else if (Array.isArray(in_value)) {
+        let list = in_value;
+        let firstItem = list[0];
+        return {
+            "type": "array",
+            "items": _convertToJSONSchema(firstItem)
+        };
 
-    return {
-        "type": "object",
-        "properties": properties
-    };
+    } else if (typeof(in_value) === "object") {
+        let properties = {};
+        for (let k in in_value) {
+            let v = in_value[k];
+
+            properties[k] = _convertToJSONSchema(v);
+        }
+
+        return {
+            "type": "object",
+            "properties": properties
+        };
+    } else {
+        cprint.red('Unknown value type:' + in_value);
+    }
 }
 
 // ******************************

@@ -19,6 +19,12 @@ let SERVICE_CONFIG_FILE_NAME = 'service.json';
 // Functions:
 // ******************************
 
+function isDevelopment () {
+    return process.env['SERVICERATOR_DEVELOPMENT'];
+}
+
+// ******************************
+
 function isLinux () {
     let os = require('os');
     return os.platform() === 'linux';
@@ -200,6 +206,7 @@ function getTemp() {
 // ******************************
 
 module.exports['SERVICE_CONFIG_FILE_NAME'] = SERVICE_CONFIG_FILE_NAME;
+module.exports['isDevelopment'] = isDevelopment;
 module.exports['isWindows'] = isWindows;
 module.exports['isLinux'] = isLinux;
 module.exports['getServiceFolder'] = getServiceFolder;

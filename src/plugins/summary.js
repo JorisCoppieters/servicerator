@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 
+let env = require('../utils/env');
 let docker = require('../utils/docker');
 let print = require('../utils/print');
 let service = require('../utils/service');
@@ -27,6 +28,11 @@ function printServiceSummary (in_serviceConfig) {
     });
 
     let output = '';
+    if (env.isDevelopment()) {
+        output = cprint.toMagenta('##');
+    } else {
+        output = cprint.toMagenta('>>');
+    }
 
     if (serviceConfig.service.name) {
         if (output) { output += ' '; }
@@ -41,8 +47,6 @@ function printServiceSummary (in_serviceConfig) {
 
         output += cprint.toLightBlue('[image - ' + serviceConfig.docker.image.name + ':' + tag + ']');
     }
-
-    output = cprint.toMagenta('>> ') + output;
 
     print.out(output);
 }
