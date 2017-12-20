@@ -13,8 +13,8 @@ let docker = require('./docker');
 
 function getIgnoreFileContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        auth: 'ANY',
-        model: 'ANY',
+        auth: {},
+        model: {},
         docker: {
             image: {
                 language: 'STRING',

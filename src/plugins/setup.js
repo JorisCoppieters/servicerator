@@ -20,18 +20,18 @@ let service = require('../utils/service');
 
 function setupFolder (in_serviceConfig, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        auth: 'ANY',
+        auth: {},
         model: {
             source: 'STRING',
             type: 'STRING',
             version: 'STRING'
         },
-        corpus: 'ANY',
+        corpus: {},
         docker: {
             image: {
                 nginx: {
                     servers: [
-                        'ANY'
+                        {}
                     ],
                     daemon_off: 'BOOLEAN'
                 },
