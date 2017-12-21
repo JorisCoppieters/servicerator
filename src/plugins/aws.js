@@ -2404,6 +2404,11 @@ function awsDockerLogin (in_serviceConfig) {
         profile: serviceConfig.aws.profile
     });
 
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig);
     if (!awsDockerRepositoryUrl) {
         cprint.yellow('Couldn\'t get aws docker repository');
@@ -2647,6 +2652,12 @@ function awsViewInstances (in_serviceConfig, in_environment) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environmentTitle};tag:ServiceName=${serviceName}`;
@@ -2697,6 +2708,12 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#LoadBalancers:search=${awsLoadBalancerName}`;
@@ -2747,6 +2764,12 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#LaunchConfigurations:id=${awsLaunchConfigurationName};filter=${awsLaunchConfigurationName}`;
@@ -2797,6 +2820,12 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#AutoScalingGroups:id=${awsAutoScalingGroupName};filter=${awsAutoScalingGroupName}`;
@@ -2842,6 +2871,12 @@ function awsViewRepository (in_serviceConfig) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/repositories/${dockerImageName}#images;tagStatus=ALL`;
@@ -2878,6 +2913,12 @@ function awsViewTaskDefinition (in_serviceConfig) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/taskDefinitions/${awsTaskDefinitionName}/latest`;
@@ -2920,6 +2961,12 @@ function awsViewCluster (in_serviceConfig, in_environment) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
     let awsClusterName = cluster.name;
 
@@ -2964,6 +3011,12 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let awsRegion = awsDockerCredentials.region;
     let awsClusterName = cluster.name;
     let awsClusterServiceName = cluster.service_name;

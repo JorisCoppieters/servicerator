@@ -1385,6 +1385,10 @@ function _convertToJSONSchema (in_value) {
             return {
                 "type": "boolean"
             };
+        } else if (in_value === "ANY") {
+            return {
+                "type": "object"
+            };
         }
 
     } else if (Array.isArray(in_value)) {

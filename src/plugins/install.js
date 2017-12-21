@@ -30,12 +30,17 @@ function installZshCompletionFile (in_overwrite) {
     let zshCompletionFolder = path.resolve(shellHome, '.oh-my-zsh/completions');
     fs.setupFolder('zsh completions folder', zshCompletionFolder);
 
-    let zshCompletionFile = path.resolve(zshCompletionFolder, '_servicerator');
+    let appName = 'svr';
+    if (env.isDevelopment()) {
+        appName = 'dsvr';
+    }
+
+    let zshCompletionFile = path.resolve(zshCompletionFolder, '_servicerator_' + appName);
     let zshCompletionFileLines = [];
 
     zshCompletionFileLines = zshCompletionFileLines.concat([
-        `#compdef svr`,
-        `_svr() {`,
+        `#compdef ${appName}`,
+        `_${appName}() {`,
         `    local curcontext="$curcontext" state line`,
         `    typeset -A opt_args`,
 
@@ -204,7 +209,7 @@ function installZshCompletionFile (in_overwrite) {
         `        esac`,
         `    esac`,
         `}`,
-        `_svr "$@"`
+        `_${appName} "$@"`
     ]);
 
     let zshCompletionFileContents = zshCompletionFileLines.join('\n');
@@ -225,7 +230,12 @@ function installBashCompletionFile (in_overwrite) {
     let bashCompletionFolder = path.resolve(shellHome, '.bash-completions');
     fs.setupFolder('bash completions folder', bashCompletionFolder);
 
-    let bashCompletionFile = path.resolve(bashCompletionFolder, 'servicerator');
+    let appName = 'svr';
+    if (env.isDevelopment()) {
+        appName = 'dsvr';
+    }
+
+    let bashCompletionFile = path.resolve(bashCompletionFolder, 'servicerator-' + appName);
     let bashCompletionFileLines = [];
 
     bashCompletionFileLines = bashCompletionFileLines.concat([
@@ -376,7 +386,7 @@ function installBashCompletionFile (in_overwrite) {
         ``,
         `####################################################################################################`,
         ``,
-        `complete -F __app svr`
+        `complete -F __app ${appName}`
     ]);
 
     let bashCompletionFileContents = bashCompletionFileLines.join('\n');

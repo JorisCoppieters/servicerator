@@ -1637,6 +1637,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
 
     if (awsCmdResult.hasError) {
         awsCmdResult.printError();
+        cprint.red('Check your ~/.aws/credentials file...');
         return false;
     }
 
