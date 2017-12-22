@@ -942,7 +942,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                                 load_balancer_port: "NUMBER",
                                 instance_protocol: "STRING",
                                 instance_port: "NUMBER",
-                                ssl_certificate_id: "arn:aws:iam::123456789012:server-certificate/my-server-cert"
+                                ssl_certificate_id: "STRING"
                             }
                         ],
                         healthcheck: {

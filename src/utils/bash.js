@@ -35,6 +35,7 @@ function parseBashEnvContents (in_bashEnvContents) {
         if (key === '_MODEL_VERSION') {
             serviceConfig.model = serviceConfig.model || {};
             serviceConfig.model.version = val;
+            serviceConfig.model.type = "bundled";
         } else if (key === 'DOCKER_IMAGE_USERNAME') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.username = val;
@@ -57,18 +58,13 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.container.ports.push({
                 'host': parseInt(val),
                 'container': parseInt(val),
-                'env': 'test'
+                'test': true
             });
 
             serviceConfig.docker.container.ports.push({
                 'host': 80,
-                'container': parseInt(val),
-                'env': 'prod'
+                'container': parseInt(val)
             });
-
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.ports = serviceConfig.docker.image.ports || [];
-            serviceConfig.docker.image.ports.push(parseInt(val));
 
         } else if (key === 'DOCKER_CONTAINER_SECURE_PORT') {
             serviceConfig.docker = serviceConfig.docker || {};
@@ -77,57 +73,28 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.docker.container.ports.push({
                 'host': parseInt(val),
                 'container': parseInt(val),
-                'env': 'test'
+                'test': true
             });
 
             serviceConfig.docker.container.ports.push({
                 'host': 443,
-                'container': parseInt(val),
-                'env': 'prod'
+                'container': parseInt(val)
             });
-
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.ports = serviceConfig.docker.image.ports || [];
-            serviceConfig.docker.image.ports.push(parseInt(val));
 
         } else if (key === 'DOCKER_CONTAINER_TEST_START_COMMAND') {
             serviceConfig.docker = serviceConfig.docker || {};
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.scripts = serviceConfig.docker.image.scripts || [];
-            serviceConfig.docker.image.scripts.push({
-                'name': 'start-test',
-                'language': 'bash',
-                'commands': [
-                    'nginx &',
-                    'cd python; python api-test.py'
-                ],
-                'cmd': true
-            });
-
             serviceConfig.docker.container = serviceConfig.docker.container || {};
             serviceConfig.docker.container.commands = serviceConfig.docker.container.commands || [];
             serviceConfig.docker.container.commands.push({
-                'env': 'test',
+                'test': true,
                 'val': './scripts/start-test.sh'
             });
 
         } else if (key === 'DOCKER_CONTAINER_START_COMMAND') {
             serviceConfig.docker = serviceConfig.docker || {};
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.scripts = serviceConfig.docker.image.scripts || [];
-            serviceConfig.docker.image.scripts.push({
-                'name': 'start-prod',
-                'language': 'bash',
-                'commands': [
-                    'nginx &',
-                    'cd python; python api-prod.py'
-                ]
-            });
-
             serviceConfig.docker.container = serviceConfig.docker.container || {};
             serviceConfig.docker.container.commands = serviceConfig.docker.container.commands || [];
             serviceConfig.docker.container.commands.push({
-                'env': 'prod',
                 'val': './scripts/start-prod.sh'
             });
 
@@ -176,7 +143,6 @@ function parseBashEnvContents (in_bashEnvContents) {
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.name = val;
         } else if (key === 'AWS_SERVICE_INSTANCE_TYPE') {
-            serviceConfig.aws = serviceConfig.aws || {};
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.clusters = serviceConfig.service.clusters || [];
             if (!serviceConfig.service.clusters[0]) {
@@ -186,7 +152,6 @@ function parseBashEnvContents (in_bashEnvContents) {
             cluster.instance = cluster.instance || {};
             cluster.instance.type = val;
         } else if (key === 'AWS_SERVICE_INSTANCE_VOLUME_SIZE') {
-            serviceConfig.aws = serviceConfig.aws || {};
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.clusters = serviceConfig.service.clusters || [];
             if (!serviceConfig.service.clusters[0]) {
@@ -222,11 +187,15 @@ function parseBashEnvContents (in_bashEnvContents) {
             object.setIfNotSet(c, 'name', serviceName + '-' + environment + '-cluster');
             object.setIfNotSet(c, 'service_name', serviceName + '-' + environment + '-service');
             object.setIfNotSet(c, 'instance', serviceConfig.service.clusters[0].instance);
+            object.setIfNotSet(c.instance, 'ami', '');
+            object.setIfNotSet(c.instance, 'iam_role', '');
 
             c.launch_configuration = c.launch_configuration || {};
+            object.setIfNotSet(c.launch_configuration, 'security_groups', []);
             object.setIfNotSet(c.launch_configuration, 'name', serviceName + '-' + environment + '-launch-configuration');
 
             c.auto_scaling_group = c.auto_scaling_group || {};
+            object.setIfNotSet(c.auto_scaling_group, 'subnets', []);
             object.setIfNotSet(c.auto_scaling_group, 'name', serviceName + '-' + environment + '-auto-scaling-group');
         });
 
