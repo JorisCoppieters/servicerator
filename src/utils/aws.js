@@ -188,7 +188,7 @@ function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefi
     let cmdResult = awsCmd([
         'ecs',
         'create-service',
-        '--role', 'ecsServiceRole',
+        '--role', 'ecsServiceRole', // TODO: This should be specified in the config and should be ecs-service-role
         '--cluster', in_clusterArn,
         '--task-definition', in_taskDefinitionArn,
         '--service-name', in_clusterServiceName,

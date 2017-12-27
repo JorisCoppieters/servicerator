@@ -58,9 +58,7 @@ if (g_ARGV['help']) {
 
     let serviceConfig = service.loadConfig();
     if (serviceConfig) {
-        if (!service.checkConfigSchema(serviceConfig)) {
-            return;
-        }
+        service.checkConfigSchema(serviceConfig);
     } else {
         serviceConfig = service.createConfig('.');
     }

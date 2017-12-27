@@ -24,6 +24,7 @@ let fs = require('./filesystem');
 // ******************************
 
 let _schema = null;
+let _schema_url = null;
 let _schema_version = null;
 
 // ******************************
@@ -354,7 +355,8 @@ function createServiceConfig (in_folderName, in_initialise) {
 // ******************************
 
 function checkServiceConfigSchema (in_serviceConfig) {
-    return _checkObjectAgainstJSONSchema('CHECK', in_serviceConfig, getServiceConfigSchema());
+    let warning = true;
+    return _checkObjectAgainstJSONSchema('CHECK', in_serviceConfig, getServiceConfigSchema(), warning);
 }
 
 // ******************************
@@ -401,6 +403,15 @@ function getServiceConfigSchema () {
         _schema = require('./service.schema').get();
     }
     return _schema;
+}
+
+// ******************************
+
+function getServiceConfigSchemaUrl () {
+    if (!_schema_url) {
+        _schema_url = require('./service.schema').getUrl();
+    }
+    return _schema_url;
 }
 
 // ******************************
@@ -1012,6 +1023,9 @@ function _updateServiceConfig (in_serviceConfig) {
     let hasBeenUpdated = false;
 
     let schemaVersion = serviceConfig.schema_version || 0;
+
+    _checkSchemaVersion(schemaVersion);
+
     if (schemaVersion < 1) {
         updatedServiceConfig = _updateServiceConfigFrom0To1(in_serviceConfig);
         if (updatedServiceConfig) {
@@ -1036,13 +1050,11 @@ function _updateServiceConfig (in_serviceConfig) {
         }
     }
 
-    // if (schemaVersion < 4) {
-    //     updatedServiceConfig = _updateServiceConfigFrom3To4(in_serviceConfig);
-    //     if (updatedServiceConfig) {
-    //         in_serviceConfig = updatedServiceConfig;
-    //         hasBeenUpdated = true;
-    //     }
-    // }
+    let schema = getServiceConfigSchemaUrl();
+    if (in_serviceConfig.$schema !== schema) {
+        in_serviceConfig.$schema = schema;
+        hasBeenUpdated = true;
+    }
 
     if (hasBeenUpdated) {
         cprint.green('Updated service config');
@@ -1054,6 +1066,18 @@ function _updateServiceConfig (in_serviceConfig) {
 }
 
 // ******************************
+
+function _checkSchemaVersion (in_configSchemaVersion) {
+    let currentSchemaVersion = getServiceConfigSchemaVersion();
+    if (parseInt(in_configSchemaVersion) > parseInt(currentSchemaVersion)) {
+        cprint.red('You are running a majorly out of date servicerator, please update it with: npm install -g servicerator');
+        process.exit(-1);
+    }
+
+    if (in_configSchemaVersion > currentSchemaVersion) {
+        cprint.yellow('You are running a minorly out of date servicerator, please update it with: npm install -g servicerator');
+    }   
+}
 
 function _updateServiceConfigFrom0To1 (in_serviceConfig) {
     let hasBeenUpdated = false;
@@ -1119,24 +1143,7 @@ function _updateServiceConfigFrom2To3 (in_serviceConfig) {
         }
     }
 
-    if (!in_serviceConfig.$schema) {
-        in_serviceConfig.$schema = "https://raw.githubusercontent.com/JorisCoppieters/servicerator/master/schemas/servicerator-schema-v3.json";
-        hasBeenUpdated = true;
-    }
-
     return hasBeenUpdated ? in_serviceConfig : false;
-}
-
-// ******************************
-
-function _updateServiceConfigFrom3To4 (in_serviceConfig) {
-    let hasBeenUpdated = false;
-
-    if (in_serviceConfig.service) {
-    }
-
-    return false;
-    //return hasBeenUpdated ? in_serviceConfig : false;
 }
 
 // ******************************
@@ -1262,17 +1269,25 @@ function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsT
 
 // ******************************
 
-function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema) {
+function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema, in_warning) {
     let validate = require('jsonschema').validate;
     let validationResult = validate(in_obj, in_schema);
 
     let errors = validationResult.errors;
     if (errors && errors.length) {
         errors.forEach((error) => {
-            cprint.red(in_path + ' > ' + error);
+            if (in_warning) {
+                cprint.yellow(in_path + ' > ' + error);                
+            } else {
+                cprint.red(in_path + ' > ' + error);
+            }
         });
-        // process.exit(-1);
-        return false;
+        if (in_warning) {
+            return false;
+        } else {
+            // process.exit(-1);
+            return false;
+        }
     }
 
     return true;
