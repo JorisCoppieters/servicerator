@@ -130,6 +130,13 @@ function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDe
 function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceName, in_options) {
     let opt = in_options || {};
 
+    if (!in_clusterServiceName) {
+        if (opt.showWarning) {
+            cprint.yellow('AWS Cluster Service name not set');
+        }
+        return false;
+    }
+
     if (opt.verbose) {
         cprint.cyan('Retrieving AWS Cluster Service ARN in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"...');
     }
@@ -185,16 +192,21 @@ function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefi
 
     cprint.cyan('Creating AWS Cluster Service in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"...');
 
-    let cmdResult = awsCmd([
+    let args = [
         'ecs',
         'create-service',
-        '--role', 'ecsServiceRole', // TODO: This should be specified in the config and should be ecs-service-role
         '--cluster', in_clusterArn,
         '--task-definition', in_taskDefinitionArn,
         '--service-name', in_clusterServiceName,
-        '--load-balancers', loadBalancers,
         '--desired-count', desiredCount
-    ], in_options);
+    ];
+
+    if (loadBalancers && loadBalancers.length) {
+        args['--load-balancers'] = loadBalancers;
+        args['--role'] = 'ecsServiceRole'; // TODO: This should be specified in the config and should be ecs-service-role
+    }
+
+    let cmdResult = awsCmd(args, in_options);
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');

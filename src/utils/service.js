@@ -1,13 +1,6 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Constants:
-// ******************************
-
-const k_DEFAULT_PYTHON_IMAGE = 'continuumio/anaconda:4.3.1';
-const k_DEFAULT_IMAGE = 'ubuntu:trusty';
-
-// ******************************
 // Requires:
 // ******************************
 
@@ -69,26 +62,16 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     let dockerfile = docker.getDockerfile(in_folderName);
     if (dockerfile && fs.fileExists(dockerfile)) {
-        let dockerServiceConfig = docker.parseDockerfile(dockerfile);
-        if (dockerServiceConfig) {
-            serviceConfig = _copyToServiceConfig(serviceConfig, dockerServiceConfig);
-            serviceConfig = _copyToServiceConfig(serviceConfig, {
-                service: {
-                    name: path.basename(path.resolve(sourceFolder))
-                }
-            });
-        }
+        serviceConfig = _copyToServiceConfig(serviceConfig, {
+            service: {
+                name: path.basename(path.resolve(sourceFolder))
+            }
+        });
     }
 
     let pythonFolder = path.resolve(sourceFolder, 'python');
     if (pythonFolder && fs.folderExists(pythonFolder)) {
         serviceConfig = _copyToServiceConfig(serviceConfig, {
-            docker: {
-                image: {
-                    language: 'python',
-                    base: k_DEFAULT_PYTHON_IMAGE
-                }
-            },
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -98,11 +81,6 @@ function createServiceConfig (in_folderName, in_initialise) {
     let nodeFolder = path.resolve(sourceFolder, 'node');
     if (nodeFolder && fs.folderExists(nodeFolder)) {
         serviceConfig = _copyToServiceConfig(serviceConfig, {
-            docker: {
-                image: {
-                    language: 'node'
-                }
-            },
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -110,92 +88,11 @@ function createServiceConfig (in_folderName, in_initialise) {
     }
 
     if (serviceConfig.docker) {
-        serviceConfig = _copyToServiceConfig(serviceConfig, {
-            docker: {
-                image: {
-                    env_variables: [],
-                    scripts: [],
-                    operations: [],
-                    working_directory: '/root'
-                }
-            }
-        });
-
-        if (serviceConfig.service.name) {
-            serviceConfig.docker.image.env_variables.push({
-                key: 'SERVICE_NAME',
-                val: serviceConfig.service.name
-            });
-        }
-
-        serviceConfig.docker.image.env_variables.push({
-            key: 'BASE_DIR',
-            val: serviceConfig.docker.image.working_directory
-        });
-
-        if (serviceConfig.docker.image.scripts) {
-            let dockerScriptsDir = '$BASE_DIR/scripts';
-
-            serviceConfig.docker.image.env_variables.push({
-                key: 'SCRIPTS_DIR',
-                val: dockerScriptsDir
-            });
-
-            serviceConfig.docker.image.scripts.forEach(s => {
-                let scriptKey = s.name.toUpperCase().replace(/[-]/,'_') + '_FILE';
-                let scriptPath = '$SCRIPTS_DIR/' + s.name + fs.getExtensionForType(s.language);
-                serviceConfig.docker.image.env_variables.push({
-                    key: scriptKey,
-                    val: scriptPath
-                });
-                s.key = scriptKey
-            });
-
-            serviceConfig.docker.image.operations.push(
-                {
-                    'path': '$SCRIPTS_DIR',
-                    'type': 'folder'
-                }
-            );
-        }
-
-        if (serviceConfig.auth) {
-            serviceConfig.docker.image.env_variables.push({
-                key: 'AUTH_DIR',
-                val: '$BASE_DIR/auth'
-            });
-
-            serviceConfig.docker.image.operations.push(
-                {
-                    'path': '$AUTH_DIR',
-                    'type': 'folder'
-                }
-            );
-
-            if (serviceConfig.auth.certificate && serviceConfig.auth.key) {
-                serviceConfig.docker.image.operations.push(
-                    {
-                        'source': `${serviceConfig.auth.certificate}`,
-                        'destination': '$AUTH_DIR',
-                        'type': 'copy_file'
-                    }
-                );
-                serviceConfig.docker.image.operations.push(
-                    {
-                        'source': `${serviceConfig.auth.key}`,
-                        'destination': '$AUTH_DIR',
-                        'type': 'copy_file'
-                    }
-                );
-            }
-        }
-
         if (serviceConfig.aws) {
             serviceConfig = _copyToServiceConfig(serviceConfig, {
                 docker: {
                     image: {
-                        log: true,
-                        fileSystem: []
+                        log: true
                     },
                     other_repositories: [],
                     container: {
@@ -211,59 +108,9 @@ function createServiceConfig (in_folderName, in_initialise) {
                 name: '$SERVICE_NAME-logs'
             });
 
-            serviceConfig.docker.image.operations.push({
-                path: '/var/log/tm-services/$SERVICE_NAME',
-                type: 'folder'
-            });
-
-            serviceConfig.docker.image.operations.push({
-                path: '/var/log/tm-services/$SERVICE_NAME/api.log',
-                type: 'file'
-            });
-
             serviceConfig.docker.other_repositories.push({
                 type: 'AWS'
             })
-        }
-
-        if (serviceConfig.docker.image.language === 'python') {
-            serviceConfig.docker.image.env_variables.push({
-                key: 'PYTHON_DIR',
-                val: '$BASE_DIR/python'
-            });
-
-            serviceConfig.docker.image.operations.push(
-                {
-                    'path': '$PYTHON_DIR',
-                    'type': 'folder'
-                }
-            );
-            serviceConfig.docker.image.operations.push(
-                {
-                    'source': 'python',
-                    'destination': '$PYTHON_DIR',
-                    'type': 'copy_folder'
-                }
-            );
-        } else if (serviceConfig.docker.image.language === 'node') {
-            serviceConfig.docker.image.env_variables.push({
-                key: 'NODE_DIR',
-                val: '$BASE_DIR/node'
-            });
-
-            serviceConfig.docker.image.operations.push(
-                {
-                    'path': '$NODE_DIR',
-                    'type': 'folder'
-                }
-            );
-            serviceConfig.docker.image.operations.push(
-                {
-                    'source': 'node',
-                    'destination': '$NODE_DIR',
-                    'type': 'copy_folder'
-                }
-            );
         }
     }
 
@@ -286,37 +133,11 @@ function createServiceConfig (in_folderName, in_initialise) {
             docker: {
                 container: {
                     volumes: []
-                },
-                image: {
-                    env_variables: [],
-                    operations: []
                 }
             }
         });
 
-        serviceConfig.docker.image.env_variables.push({
-            key: 'MODEL_DIR',
-            val: '$BASE_DIR/model'
-        });
-
-        if (bundledModel) {
-            serviceConfig.docker.image.operations.push({
-                'path': '$MODEL_DIR',
-                'type': 'folder'
-            });
-
-            serviceConfig.docker.image.operations.push({
-                'source': `${serviceConfig.model.source}`,
-                'destination': '$MODEL_DIR',
-                'type': 'copy_folder'
-            });
-        } else {
-            serviceConfig.docker.image.operations.push({
-                'source': '/model',
-                'destination': '$MODEL_DIR',
-                'type': 'link'
-            });
-
+        if (!bundledModel) {
             serviceConfig.docker.container.volumes.push({
                 container: '/model',
                 host: 'model',
@@ -324,15 +145,6 @@ function createServiceConfig (in_folderName, in_initialise) {
             });
         }
     }
-
-    serviceConfig = _copyToServiceConfig(serviceConfig, {
-        docker: {
-            image: {
-                name: path.basename(path.resolve(sourceFolder)),
-                base: k_DEFAULT_IMAGE
-            }
-        }
-    });
 
     if (in_initialise) {
         serviceConfig = _copyToServiceConfig(serviceConfig, {
@@ -1076,7 +888,7 @@ function _checkSchemaVersion (in_configSchemaVersion) {
 
     if (in_configSchemaVersion > currentSchemaVersion) {
         cprint.yellow('You are running a minorly out of date servicerator, please update it with: npm install -g servicerator');
-    }   
+    }
 }
 
 function _updateServiceConfigFrom0To1 (in_serviceConfig) {
@@ -1277,7 +1089,7 @@ function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema, in_warning) 
     if (errors && errors.length) {
         errors.forEach((error) => {
             if (in_warning) {
-                cprint.yellow(in_path + ' > ' + error);                
+                cprint.yellow(in_path + ' > ' + error);
             } else {
                 cprint.red(in_path + ' > ' + error);
             }

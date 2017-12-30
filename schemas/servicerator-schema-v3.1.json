@@ -612,8 +612,7 @@
                                     }
                                 },
                                 "required": [
-                                    "name",
-                                    "subnets"
+                                    "name"
                                 ],
                                 "type": "object"
                             },

@@ -424,31 +424,6 @@ function getDockerfile (in_sourceFolder) {
 
 // ******************************
 
-function parseDockerfile (in_dockerFile) {
-    let dockerfileContents = fs.readFile(in_dockerFile);
-    return parseDockerfileContents(dockerfileContents);
-}
-
-// ******************************
-
-function parseDockerfileContents (in_dockerFileContents) {
-    let serviceConfig = {};
-    let dockerFileContentsLines = in_dockerFileContents.split(/(?:\n)|(?:\r\n?)/);
-
-    dockerFileContentsLines.forEach(l => {
-        let fromMatch = l.match(/^ *FROM (.*)$/);
-        if (fromMatch) {
-            serviceConfig.docker = serviceConfig.docker || {};
-            serviceConfig.docker.image = serviceConfig.docker.image || {};
-            serviceConfig.docker.image.base = fromMatch[1];
-        }
-    });
-
-    return serviceConfig;
-}
-
-// ******************************
-
 function getIgnoreDockerContents (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         model: 'ANY',
@@ -871,8 +846,6 @@ module.exports['running'] = dockerRunning;
 module.exports['version'] = dockerVersion;
 module.exports['info'] = dockerInfo;
 module.exports['cmd'] = dockerCmd;
-module.exports['parseDockerfile'] = parseDockerfile;
-module.exports['parseDockerfileContents'] = parseDockerfileContents;
 module.exports['getFolder'] = getDockerFolder;
 module.exports['getDockerfile'] = getDockerfile;
 module.exports['getPassword'] = getDockerPassword;

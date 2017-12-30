@@ -85,18 +85,12 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
         if (serviceName) {
             cprint.magenta('-- AWS ' + environmentTitle + ' Clusters State --');
 
-            let autoScalingGroupName = cluster.auto_scaling_group.name;
+            // print.keyVal('AWS ' + environmentTitle + ' Auto Scaling Group', cluster.auto_scaling_group.name || '(Not Set)');
+            print.keyVal('AWS ' + environmentTitle + ' Cluster Name', cluster.name || '(Not Set)');
 
-            let awsAutoScalingGroupName = autoScalingGroupName || '(Not Set)';
-            let awsClusterName = cluster.name || '(Not Set)';
-            let awsClusterServiceName = cluster.service_name || '(Not Set)';
-
-            print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
-            print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
-
-            if (autoScalingGroupName) {
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '...', true);
-                let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
+            if (cluster.auto_scaling_group.name) {
+                print.keyVal('AWS ' + environmentTitle + ' Cluster State', '...', true);
+                let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(cluster.auto_scaling_group.name, {
                     cache: awsCache,
                     profile: serviceConfig.aws.profile,
                     showWarning: true
@@ -105,136 +99,145 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
                 if (awsAutoScalingGroupInstanceCount !== undefined) {
                     let serviceState = aws.getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', serviceState);
+                    if (serviceState === 'Down') {
+                        serviceState = cprint.toYellow('Down');
+                    }
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster State', serviceState);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Instances', awsAutoScalingGroupInstanceCount);
                 } else {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service State', '???');
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster State', '???');
                 }
             }
 
-            if (in_extra && cluster.name) {
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '...', true);
-                let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, awsClusterServiceName, {
+            print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', cluster.service_name || '(Not Set)');
+
+            if (in_extra && cluster.name && cluster.service_name) {
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Running', '...', true);
+                let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, cluster.service_name, {
                     cache: awsCache,
                     profile: serviceConfig.aws.profile
                 });
                 print.clearLine();
 
                 if (awsClusterServiceArn) {
-                    let awsClusterServiceName = aws.arnToTitle(awsClusterServiceArn);
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service', awsClusterServiceName);
+
+                    // let awsClusterServiceName = aws.arnToTitle(awsClusterServiceArn);
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Running', 'Yes');
+
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '...', true);
+                    let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, {
+                        cache: awsCache,
+                        profile: serviceConfig.aws.profile
+                    });
+                    print.clearLine();
+
+                    if (awsTaskDefinitionArn) {
+                        let awsTaskDefinitionName = aws.arnToTitle(awsTaskDefinitionArn);
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '???');
+                    }
+
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '...', true);
+                    let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
+                        cache: awsCache,
+                        profile: serviceConfig.aws.profile
+                    });
+                    print.clearLine();
+
+                    if (clusterServiceVersion) {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', clusterServiceVersion);
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '???');
+                    }
+
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
+                    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, {
+                        cache: awsCache,
+                        profile: serviceConfig.aws.profile
+                    });
+                    let awsClusterTaskDetails = aws.getTaskDetails(cluster.name, awsClusterTaskArns, {
+                        cache: awsCache,
+                        profile: serviceConfig.aws.profile
+                    });
+                    print.clearLine();
+
+                    if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
+                    } else {
+                        print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '[]');
+                    }
                 } else {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service', '???');
-                }
-
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '...', true);
-                let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, {
-                    cache: awsCache,
-                    profile: serviceConfig.aws.profile
-                });
-                print.clearLine();
-
-                if (awsTaskDefinitionArn) {
-                    let awsTaskDefinitionName = aws.arnToTitle(awsTaskDefinitionArn);
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
-                } else {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Task Definition', '???');
-                }
-
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '...', true);
-                let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
-                    cache: awsCache,
-                    profile: serviceConfig.aws.profile
-                });
-                print.clearLine();
-
-                if (clusterServiceVersion) {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', clusterServiceVersion);
-                } else {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Version', '???');
-                }
-
-                print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
-                let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, {
-                    cache: awsCache,
-                    profile: serviceConfig.aws.profile
-                });
-                let awsClusterTaskDetails = aws.getTaskDetails(cluster.name, awsClusterTaskArns, {
-                    cache: awsCache,
-                    profile: serviceConfig.aws.profile
-                });
-                print.clearLine();
-
-                if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
-                } else {
-                    print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '[]');
+                    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Running', cprint.toYellow('No'));
                 }
             }
 
             print.out('\n');
-        }
 
-        if (in_extra) {
-            let instanceIds = aws.getInstanceIdsWithTags([
-                {
-                    key: "ServiceName",
-                    vals: [
-                        serviceName
-                    ]
-                },
-                {
-                    key: "Environment",
-                    vals: [
-                        environment
-                    ]
-                }
-            ], {
-                profile: serviceConfig.aws.profile
-            });
-
-            instanceIds.forEach(i => {
-                cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
-                print.keyVal('Instance Id', i.InstanceId);
-                print.keyVal('Instance Ip Address', i.IpAddress);
-                print.keyVal('Instance Type', i.InstanceType);
-                print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
-                print.out('\n');
-            });
-
-            cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
-
-            let awsVpcName = cluster.vpc_name;
-            print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
-
-            if (cluster.vpc_name) {
-                print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
-                let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
-                    cache: awsCache,
+            if (in_extra) {
+                let instanceIds = aws.getInstanceIdsWithTags([
+                    {
+                        key: "ServiceName",
+                        vals: [
+                            serviceName
+                        ]
+                    },
+                    {
+                        key: "Environment",
+                        vals: [
+                            environment
+                        ]
+                    }
+                ], {
                     profile: serviceConfig.aws.profile
                 });
-                print.clearLine();
 
-                if (awsVpcId) {
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
-                } else {
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Id', '???');
-                }
-
-                print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
-                let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
-                    cache: awsCache,
-                    profile: serviceConfig.aws.profile
+                instanceIds.forEach(i => {
+                    cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
+                    print.keyVal('Instance Id', i.InstanceId);
+                    print.keyVal('Instance Ip Address', i.IpAddress);
+                    print.keyVal('Instance Type', i.InstanceType);
+                    print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
+                    print.out('\n');
                 });
-                print.clearLine();
 
-                if (awsDefaultVpcSecurityGroupId) {
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
-                } else {
-                    print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '???');
+                let awsVpcName = cluster.vpc_name;
+                if (awsVpcName) {
+                    cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
+
+                    print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
+
+                    if (cluster.vpc_name) {
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
+                        let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
+                            cache: awsCache,
+                            profile: serviceConfig.aws.profile
+                        });
+                        print.clearLine();
+
+                        if (awsVpcId) {
+                            print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
+                        } else {
+                            print.keyVal('AWS ' + environmentTitle + ' VPC Id', '???');
+                        }
+
+                        print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
+                        let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
+                            cache: awsCache,
+                            profile: serviceConfig.aws.profile
+                        });
+                        print.clearLine();
+
+                        if (awsDefaultVpcSecurityGroupId) {
+                            print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
+                        } else {
+                            print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '???');
+                        }
+                    }
+
+                    print.out('\n');
                 }
             }
-
-            print.out('\n');
         }
     }
 
@@ -1001,10 +1004,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     }
 
     let dockerImageName = serviceConfig.docker.image.name;
-    if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
-    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1110,10 +1109,13 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     cprint.cyan('Creating auto scaling group...');
 
     let tagsDict = {
-        DockerImageName: dockerImageName,
         Environment: environment,
         ServiceName: serviceName,
         Name: serviceName + '-group-instance'
+    }
+
+    if (dockerImageName) {
+        tagsDict.DockerImageName = dockerImageName;
     }
 
     let clusterTags = cluster.instance.tags || [];
@@ -1310,10 +1312,10 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
-    cprint.magenta('-- Bucket Username --');
+    cprint.magenta('-- Bucket User --');
     print.keyVal('AWS Bucket', bucketName);
 
-    cprint.cyan('Creating bucket username...');
+    cprint.cyan('Creating bucket user...');
 
     let args = [
         'iam',
@@ -1330,7 +1332,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         return false;
     } else {
         cmd.printResult('  ');
-        cprint.green('Created bucket username');
+        cprint.green('Created bucket user');
     }
 
     print.keyVal('AWS Bucket Username', bucketUsername);
@@ -1352,25 +1354,25 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let bucketUsernameAccessKey = '';
-    let bucketUsernameSecretKey = '';
+    let bucketUserAccessKey = '';
+    let bucketUserSecretKey = '';
     let bucketRegion = in_serviceConfig.service.bucket.region || awsRegion;
 
-    let bucketUsernameAccessKeyResults = cmd.resultObj;
-    if (bucketUsernameAccessKeyResults.AccessKey) {
-        cprint.green('Created bucket username access-key');
-        bucketUsernameAccessKey = bucketUsernameAccessKeyResults.AccessKey.AccessKeyId;
-        bucketUsernameSecretKey = bucketUsernameAccessKeyResults.AccessKey.SecretAccessKey;
+    let bucketUserAccessKeyResults = cmd.resultObj;
+    if (bucketUserAccessKeyResults.AccessKey) {
+        cprint.green('Created bucket user access-key');
+        bucketUserAccessKey = bucketUserAccessKeyResults.AccessKey.AccessKeyId;
+        bucketUserSecretKey = bucketUserAccessKeyResults.AccessKey.SecretAccessKey;
     } else {
-        cprint.yellow('Failed to parse bucket username access-key response');
+        cprint.yellow('Failed to parse bucket user access-key response');
         cmd.printResult('  ');
         return false;
     }
 
-    print.keyVal('AWS Bucket Username Access Key', bucketUsernameAccessKey);
-    print.keyVal('AWS Bucket Username Secrety Key', '*******');
+    print.keyVal('AWS Bucket User Access Key', bucketUserAccessKey);
+    print.keyVal('AWS Bucket User Secrety Key', '*******');
 
-    cprint.cyan('Attaching inline policy to bucket username...');
+    cprint.cyan('Attaching inline policy to bucket user...');
 
     let bucketUsernameInlinePolicyName = bucketUsername + '-read';
     let bucketUsernameInlinePolicy = {
@@ -1420,7 +1422,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         return false;
     } else {
         cmd.printResult('  ');
-        cprint.green('Attached inline policy to bucket username');
+        cprint.green('Attached inline policy to bucket user');
     }
 
     let path = require('path');
@@ -1437,8 +1439,8 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
 
     fs.writeFile(awsCredentialsFile, [
         `[default]`,
-        `aws_access_key_id = ${bucketUsernameAccessKey}`,
-        `aws_secret_access_key = ${bucketUsernameSecretKey}`,
+        `aws_access_key_id = ${bucketUserAccessKey}`,
+        `aws_secret_access_key = ${bucketUserSecretKey}`,
         ``
     ].join('\n'), true);
 
@@ -1652,8 +1654,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         },
         {
             'container': '/var/log/tm-services/$SERVICE_NAME',
-            'host': '/volume/logs',
-            'name': serviceName + '-logs'
+            'host': '/volumes/logs',
+            'name': '$SERVICE_NAME-logs'
         },
         {
             'container': '/etc/tm-services',
@@ -1968,12 +1970,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerImageName = serviceConfig.docker.image.name;
-    if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
-    }
-
     let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
 
     let dockerImagePort;
@@ -1988,11 +1984,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
         dockerImagePort = port.container;
     });
-
-    if (!dockerImagePort) {
-        cprint.yellow('Docker image port not set');
-        return false;
-    }
 
     let awsTaskDefinitionName = serviceConfig.service.task_definition.name;
     if (!awsTaskDefinitionName) {
@@ -2037,6 +2028,11 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (awsLoadBalancerName) {
+        if (!dockerImagePort) {
+            cprint.yellow('Docker image port not set');
+            return false;
+        }
+
         loadBalancers.push({
             loadBalancerName: awsLoadBalancerName,
             containerName: dockerContainerName,
@@ -2093,22 +2089,15 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 // ******************************
 
 function awsCleanAll (in_serviceConfig, in_environment) {
-    if (!awsCleanInfrastructure(in_serviceConfig, in_environment)) {
-        return;
-    }
-
-    if (!awsCleanDeliveryStructure(in_serviceConfig)) {
-        return;
-    }
+    awsCleanInfrastructure(in_serviceConfig, in_environment);
+    awsCleanDeliveryStructure(in_serviceConfig);
+    return true;
 }
 
 // ******************************
 
 function awsCleanInfrastructure (in_serviceConfig, in_environment) {
-    if (!awsCleanLaunchConfigurations(in_serviceConfig, in_environment)) {
-        return;
-    }
-
+    awsCleanLaunchConfigurations(in_serviceConfig, in_environment);
     return true;
 }
 
@@ -2158,6 +2147,8 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+
+    cprint.cyan('Cleaning launch configurations...');
 
     let sourceFolder = serviceConfig.cwd || false;
 
@@ -2232,14 +2223,8 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
 // ******************************
 
 function awsCleanDeliveryStructure (in_serviceConfig, in_environment) {
-    if (!awsCleanRepository(in_serviceConfig)) {
-        return;
-    }
-
-    if (!awsCleanTaskDefinitions(in_serviceConfig)) {
-        return;
-    }
-
+    awsCleanRepository(in_serviceConfig);
+    awsCleanTaskDefinitions(in_serviceConfig);
     return true;
 }
 
@@ -2257,6 +2242,8 @@ function awsCleanRepository (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
+
+    cprint.cyan('Cleaning repositories...');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2335,6 +2322,8 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
+
+    cprint.cyan('Cleaning task definitions...');
 
     let sourceFolder = serviceConfig.cwd || false;
     let dockerFolder = docker.getFolder(sourceFolder);
@@ -2440,10 +2429,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     }
 
     let dockerImageName = serviceConfig.docker.image.name;
-    if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
-    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2549,10 +2534,13 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     cprint.cyan('Updating auto scaling group...');
 
     let tagsDict = {
-        DockerImageName: dockerImageName,
         Environment: environment,
         ServiceName: serviceName,
         Name: serviceName + '-group-instance'
+    }
+
+    if (dockerImageName) {
+        tagsDict.DockerImageName = dockerImageName;
     }
 
     let clusterTags = cluster.instance.tags || [];
