@@ -12,6 +12,7 @@ let fs = require('../utils/filesystem');
 let git = require('../utils/git');
 let hg = require('../utils/mercurial');
 let nginx = require('../utils/nginx');
+let object = require('../utils/object');
 let service = require('../utils/service');
 
 // ******************************
@@ -81,7 +82,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         }
     }
 
-    if (serviceConfig.docker.image.nginx) {
+    if (serviceConfig.docker.image.nginx && !object.isEmpty(serviceConfig.docker.image.nginx)) {
         let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
         if (serviceConfig.docker.image.nginx.servers.length) {
             let nginxFileContents = nginx.getFileContents(in_serviceConfig);
@@ -129,12 +130,12 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     }
 
     // TODO: Shift to global setup file
-    if (serviceConfig.auth) {
+    if (serviceConfig.auth && !object.isEmpty(serviceConfig.auth)) {
         fs.setupFolder('docker auth', path.resolve(dockerFolder, 'auth'));
     }
 
     // TODO: Shift to global setup file
-    if (serviceConfig.model) {
+    if (serviceConfig.model && !object.isEmpty(serviceConfig.model)) {
         if (serviceConfig.model.type === 'bundled') {
             fs.setupFolder('docker bundled_model', path.resolve(dockerFolder, 'bundled_model'));
         } else if (serviceConfig.model.type === 'model_store') {

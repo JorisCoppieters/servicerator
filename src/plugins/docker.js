@@ -747,8 +747,8 @@ function stopDockerContainer (in_serviceConfig) {
         return false;
     }
 
-    let dockerImageIds = _getDockerImageIds(in_serviceConfig);
-    dockerImageIds.forEach(id => stopDockerImageIdContainer(id));
+    // let dockerImageIds = _getDockerImageIds(in_serviceConfig);
+    // dockerImageIds.forEach(id => stopDockerImageIdContainer(id));
 
     if (getDockerContainerState(in_serviceConfig) < docker.k_STATE_RUNNING) {
         return;

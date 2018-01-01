@@ -831,50 +831,53 @@ function _updateServiceConfig (in_serviceConfig) {
         schema_version: 'NUMBER'
     });
 
-    let updatedServiceConfig;
-    let hasBeenUpdated = false;
+    let serviceConfigChanged;
+    let newServiceConfig = in_serviceConfig;
+    let requiresSave = false;
 
     let schemaVersion = serviceConfig.schema_version || 0;
 
     _checkSchemaVersion(schemaVersion);
 
     if (schemaVersion < 1) {
-        updatedServiceConfig = _updateServiceConfigFrom0To1(in_serviceConfig);
-        if (updatedServiceConfig) {
-            in_serviceConfig = updatedServiceConfig;
-            hasBeenUpdated = true;
+        serviceConfigChanged = _updateServiceConfigFrom0To1(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
         }
     }
 
     if (schemaVersion < 2) {
-        updatedServiceConfig = _updateServiceConfigFrom1To2(in_serviceConfig);
-        if (updatedServiceConfig) {
-            in_serviceConfig = updatedServiceConfig;
-            hasBeenUpdated = true;
+        serviceConfigChanged = _updateServiceConfigFrom1To2(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
         }
     }
 
     if (schemaVersion < 3) {
-        updatedServiceConfig = _updateServiceConfigFrom2To3(in_serviceConfig);
-        if (updatedServiceConfig) {
-            in_serviceConfig = updatedServiceConfig;
-            hasBeenUpdated = true;
+        serviceConfigChanged = _updateServiceConfigFrom2To3(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
         }
     }
 
-    let schema = getServiceConfigSchemaUrl();
-    if (in_serviceConfig.$schema !== schema) {
-        in_serviceConfig.$schema = schema;
-        hasBeenUpdated = true;
+    let scriptSchema = getServiceConfigSchemaUrl();
+    let scriptSchemaVersion = getServiceConfigSchemaVersion();
+
+    if (!schemaVersion || schemaVersion < scriptSchemaVersion) {
+        newServiceConfig.schema_version = scriptSchemaVersion;
+        newServiceConfig.$schema = scriptSchema;
+        requiresSave = true;
     }
 
-    if (hasBeenUpdated) {
+    if (requiresSave) {
         cprint.green('Updated service config');
-        in_serviceConfig.schema_version = getServiceConfigSchemaVersion();
-        _saveServiceConfig(in_serviceConfig);
+        _saveServiceConfig(newServiceConfig);
     }
 
-    return in_serviceConfig;
+    return newServiceConfig;
 }
 
 // ******************************
