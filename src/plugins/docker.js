@@ -1174,6 +1174,10 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         return;
     }
 
+    if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_UNKNOWN) {
+        removeDockerContainer(in_serviceConfig);
+    }
+
     let dockerUsername = docker.getUsername(in_serviceConfig);
     let dockerImageName = serviceConfig.docker.image.name;
     let dockerImageTags = docker.getImageTags(in_serviceConfig) || [];
@@ -1187,18 +1191,19 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         serviceConfig.docker.image.name);
 
     let dockerImagePath = dockerImageDetails.shortImagePath;
-    let dockerImageStartCommand = '';
+
+    let testDockerImageStartCommand = false;
+    let dockerImageStartCommand = false;
 
     serviceConfig.docker.container.commands.forEach(command => {
         if (command.test) {
+            testDockerImageStartCommand = command.val;
+        } else {
             dockerImageStartCommand = command.val;
-            return;
         }
     });
 
-    if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_UNKNOWN) {
-        removeDockerContainer(in_serviceConfig);
-    }
+    dockerImageStartCommand = testDockerImageStartCommand || dockerImageStartCommand;
 
     let runWithBash = false;
     if (!dockerImageStartCommand || in_useBash) {
@@ -1241,6 +1246,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     });
 
     Object.assign(portArgs, testPortArgs);
+
     Object.keys(portArgs).forEach(containerPort => {
         let hostPort = portArgs[containerPort];
         args.push('--publish');
