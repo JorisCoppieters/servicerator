@@ -23,7 +23,7 @@ function indentContents (in_contents, in_indent) {
                 return;
             }
             contents += indent + c + '\n';
-        })
+        });
 
     contents = contents
         .replace(/\n$/,'');

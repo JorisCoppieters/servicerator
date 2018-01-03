@@ -34,7 +34,7 @@ function mercurialCmd (in_args, in_options) {
     }
 
     if (!Array.isArray(in_args)) {
-        in_args = [in_args]
+        in_args = [in_args];
     }
 
     return exec.cmdSync('hg', in_args, {
@@ -139,7 +139,7 @@ function getRootFolder (in_serviceConfig) {
 
     let mercurialRootFolder = serviceConfig.version_control.root_folder || false;
     if (!mercurialRootFolder) {
-        cprint.yellow("Mercurial root folder not set");
+        cprint.yellow('Mercurial root folder not set');
         return;
     }
 

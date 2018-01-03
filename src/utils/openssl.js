@@ -31,7 +31,7 @@ function opensslCmd (in_args, in_options) {
     }
 
     if (!Array.isArray(in_args)) {
-        in_args = [in_args]
+        in_args = [in_args];
     }
 
     return exec.cmdSync('openssl', in_args, {

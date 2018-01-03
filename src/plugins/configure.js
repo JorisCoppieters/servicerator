@@ -8,7 +8,6 @@ let cprint = require('color-print');
 
 let print = require('../utils/print');
 let service = require('../utils/service');
-let sync = require('../utils/sync');
 
 // ******************************
 // Functions:
@@ -31,17 +30,17 @@ function showAllWizard (in_serviceConfig) {
 
     let questions = [
         {
-            prompt: `What is your docker base image`,
+            prompt: 'What is your docker base image',
             currentValue: serviceConfig.docker.image.base,
             path: 'docker.image.base'
         },
         {
-            prompt: `What is your docker image name`,
+            prompt: 'What is your docker image name',
             currentValue: serviceConfig.docker.image.name,
             path: 'docker.image.name'
         },
         {
-            prompt: `What is your service name`,
+            prompt: 'What is your service name',
             currentValue: serviceConfig.service.name,
             path: 'service.name'
         }
@@ -93,11 +92,11 @@ function showAllWizard (in_serviceConfig) {
 // ******************************
 
 function _printHeader (in_title) {
-    console.log();
+    print.out('\n');
     cprint.backgroundLightYellow(cprint.toBlack(' '.repeat(in_title.length + 2), true));
     cprint.backgroundLightYellow(cprint.toBlack(' ' + in_title + ' ', true));
     cprint.backgroundLightYellow(cprint.toBlack(' '.repeat(in_title.length + 2), true));
-    console.log();
+    print.out('\n');
 }
 
 // ******************************
@@ -156,12 +155,12 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
     switch(command)
     {
-        case '':
-        case 'all':
-            showAllWizard(in_serviceConfig);
-            break;
-        default:
-            return false;
+    case '':
+    case 'all':
+        showAllWizard(in_serviceConfig);
+        break;
+    default:
+        return false;
     }
     return true;
 }

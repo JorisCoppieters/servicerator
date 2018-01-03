@@ -56,11 +56,11 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     switch(command)
     {
-        case '':
-            runService(in_serviceConfig);
-            break;
-        default:
-            return false;
+    case '':
+        runService(in_serviceConfig);
+        break;
+    default:
+        return false;
     }
     return true;
 }

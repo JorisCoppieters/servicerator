@@ -11,7 +11,6 @@ let cache = require('../utils/cache');
 let date = require('../utils/date');
 let docker = require('../utils/docker');
 let fs = require('../utils/filesystem');
-let object = require('../utils/object');
 let print = require('../utils/print');
 let service = require('../utils/service');
 let str = require('../utils/string');
@@ -58,7 +57,11 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     cprint.magenta('-- AWS --');
-    print.keyVal('AWS Account Id', awsAccountId || '(Not Set)');
+
+    if (awsAccountId) {
+        print.keyVal('AWS Account Id', awsAccountId);
+    }
+
     print.keyVal('AWS Access Key', awsAccessKey || '(Not Set)');
     print.keyVal('AWS Secret Key', awsSecretKey ? '*******' : '(Not Set)');
     print.out('\n');
@@ -109,9 +112,9 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                 }
             }
 
-            print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', cluster.service_name || '(Not Set)');
-
             if (in_extra && cluster.name && cluster.service_name) {
+                print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', cluster.service_name);
+
                 print.keyVal('AWS ' + environmentTitle + ' Cluster Service Running', '...', true);
                 let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, cluster.service_name, {
                     cache: awsCache,
@@ -177,13 +180,13 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
             if (in_extra) {
                 let instanceIds = aws.getInstanceIdsWithTags([
                     {
-                        key: "ServiceName",
+                        key: 'ServiceName',
                         vals: [
                             serviceName
                         ]
                     },
                     {
-                        key: "Environment",
+                        key: 'Environment',
                         vals: [
                             environment
                         ]
@@ -380,7 +383,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         awsClusterTaskArns.forEach(t => {
             aws.stopClusterTask(awsClusterName, t, {
                 profile: serviceConfig.aws.profile
-            })
+            });
         });
     }
 
@@ -497,9 +500,6 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         cwd: 'STRING'
     });
 
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
-
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('Service name not set');
@@ -537,22 +537,35 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     let awsClusterName = cluster.name;
     let awsInstanceType = cluster.instance.type || 't2.micro';
-    let awsIamRole = cluster.instance.iam_role || 'role';
-    let awsAmi = cluster.instance.ami || 'ami';
+    let awsIamRole = cluster.instance.iam_role;
+    let awsAmi = cluster.instance.ami;
+    let pemKeyName = cluster.identity_file;
+
+    if (!awsAmi) {
+        cprint.yellow('AWS AMI not set');
+        return false;
+    }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     cprint.magenta('-- Launch Configuration --');
     print.keyVal('AWS Instance Type', awsInstanceType);
-    print.keyVal('AWS IAM Role', awsIamRole);
+    if (awsIamRole) {
+        print.keyVal('AWS IAM Role', awsIamRole);
+    }
     print.keyVal('AWS AMI', awsAmi);
 
     print.keyVal('AWS ' + environmentTitle + ' Launch Configuration', awsLaunchConfigurationName);
 
-    let pemKeyName = cluster.identity_file;
-    print.keyVal('AWS ' + environmentTitle + ' PEM Key', pemKeyName);
+    if (pemKeyName) {
+        print.keyVal('AWS ' + environmentTitle + ' PEM Key', pemKeyName);
+    }
 
     let awsVpcName = cluster.vpc_name;
+    if (!awsVpcName) {
+        cprint.yellow('AWS VPC Name not set');
+        return false;
+    }
     print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', '...', true);
@@ -567,6 +580,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
+    let awsLaunchConfigurationSecurityGroupsFound = true;
     let awsLaunchConfigurationSecurityGroups = [];
 
     if (awsLaunchConfigurationSecurityGroupNames.length) {
@@ -579,6 +593,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
                     profile: serviceConfig.aws.profile
                 });
                 if (!awsVpcSecurityGroupId) {
+                    awsLaunchConfigurationSecurityGroupsFound = false;
                     return;
                 }
                 print.clearLine();
@@ -601,6 +616,10 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         awsLaunchConfigurationSecurityGroups.push(awsDefaultVpcSecurityGroupId);
     }
 
+    if (!awsLaunchConfigurationSecurityGroupsFound) {
+        return;
+    }
+
     let userData = (cluster.instance.user_data || []).join('\n');
     userData = service.replaceConfigReferences(in_serviceConfig, userData, {
         'ENVIRONMENT': environment,
@@ -611,7 +630,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating launch configuration...');
 
-    let cmdResult = aws.cmd([
+    let args = [
         'autoscaling',
         'create-launch-configuration',
 
@@ -624,24 +643,34 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         '--security-groups',
         JSON.stringify(awsLaunchConfigurationSecurityGroups),
 
-        '--key-name',
-        pemKeyName,
-
         '--instance-type',
         awsInstanceType,
 
-        '--iam-instance-profile',
-        awsIamRole,
-
         '--image-id',
-        awsAmi,
+        awsAmi
+    ];
 
-        '--block-device-mappings',
-        blockDeviceMappings,
+    if (awsIamRole) {
+        args.push('--iam-instance-profile');
+        args.push(awsIamRole);
+    }
 
-        '--user-data',
-        userData
-    ], {
+    if (blockDeviceMappings) {
+        args.push('--block-device-mappings');
+        args.push(blockDeviceMappings);
+    }
+
+    if (userData) {
+        args.push('--user-data');
+        args.push(userData);
+    }
+
+    if (pemKeyName) {
+        args.push('--key-name');
+        args.push(pemKeyName);
+    }
+
+    let cmdResult = aws.cmd(args, {
         profile: serviceConfig.aws.profile
     });
 
@@ -689,19 +718,19 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                         ],
                         ports: [
                             {
-                                protocol: "STRING",
-                                load_balancer_port: "NUMBER",
-                                instance_protocol: "STRING",
-                                instance_port: "NUMBER",
-                                ssl_certificate_id: "STRING"
+                                protocol: 'STRING',
+                                load_balancer_port: 'NUMBER',
+                                instance_protocol: 'STRING',
+                                instance_port: 'NUMBER',
+                                ssl_certificate_id: 'STRING'
                             }
                         ],
                         healthcheck: {
-                            target: "STRING",
-                            interval: "NUMBER",
-                            timeout: "NUMBER",
-                            unhealthy_threshold: "NUMBER",
-                            healthy_threshold: "NUMBER"
+                            target: 'STRING',
+                            interval: 'NUMBER',
+                            timeout: 'NUMBER',
+                            unhealthy_threshold: 'NUMBER',
+                            healthy_threshold: 'NUMBER'
                         }
                     },
                     default: 'BOOLEAN',
@@ -714,9 +743,6 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -777,6 +803,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
+    let awsLoadBalancerSecurityGroupsFound = true;
     let awsLoadBalancerSecurityGroups = [];
 
     if (awsLoadBalancerSecurityGroupNames.length) {
@@ -789,6 +816,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                     profile: serviceConfig.aws.profile
                 });
                 if (!awsVpcSecurityGroupId) {
+                    awsLoadBalancerSecurityGroupsFound = false;
                     return;
                 }
                 print.clearLine();
@@ -811,6 +839,11 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         awsLoadBalancerSecurityGroups.push(awsDefaultVpcSecurityGroupId);
     }
 
+    if (!awsLoadBalancerSecurityGroupsFound) {
+        return;
+    }
+
+    let awsVpcSubnetIdsFound = true;
     let awsVpcSubnetIds = awsVpcSubnetNames
         .map(awsVpcSubnetName => {
             print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
@@ -820,6 +853,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                 profile: serviceConfig.aws.profile
             });
             if (!awsVpcSubnetId) {
+                awsVpcSubnetIdsFound = false;
                 return;
             }
             print.clearLine();
@@ -827,9 +861,13 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             return awsVpcSubnetId;
         });
 
+    if (!awsVpcSubnetIdsFound) {
+        return;
+    }
+
     let tagsDict = {
         LoadBalancer: awsLoadBalancerName
-    }
+    };
 
     let clusterTags = cluster.load_balancer.tags || [];
     clusterTags.forEach(t => {
@@ -841,19 +879,19 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         return {
             Key: key,
             Value: val
-        }
+        };
     });
 
     let listeners = cluster.load_balancer.ports
         .map(port => {
             let awsPort = {};
-            awsPort["Protocol"] = port.protocol;
-            awsPort["LoadBalancerPort"] = port.load_balancer_port;
-            awsPort["InstanceProtocol"] = port.instance_protocol;
-            awsPort["InstancePort"] = port.instance_port;
+            awsPort['Protocol'] = port.protocol;
+            awsPort['LoadBalancerPort'] = port.load_balancer_port;
+            awsPort['InstanceProtocol'] = port.instance_protocol;
+            awsPort['InstancePort'] = port.instance_port;
 
             if (port.ssl_certificate_id) {
-                awsPort["SSLCertificateId"] = port.ssl_certificate_id;
+                awsPort['SSLCertificateId'] = port.ssl_certificate_id;
             }
             return awsPort;
         });
@@ -861,11 +899,11 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     let healthcheck = cluster.load_balancer.healthcheck || false;
     let awsHealthcheck = {};
     if (healthcheck) {
-        awsHealthcheck["Target"] = healthcheck.target;
-        awsHealthcheck["Interval"] = healthcheck.interval;
-        awsHealthcheck["Timeout"] = healthcheck.timeout;
-        awsHealthcheck["UnhealthyThreshold"] = healthcheck.unhealthy_threshold;
-        awsHealthcheck["HealthyThreshold"] = healthcheck.healthy_threshold;
+        awsHealthcheck['Target'] = healthcheck.target;
+        awsHealthcheck['Interval'] = healthcheck.interval;
+        awsHealthcheck['Timeout'] = healthcheck.timeout;
+        awsHealthcheck['UnhealthyThreshold'] = healthcheck.unhealthy_threshold;
+        awsHealthcheck['HealthyThreshold'] = healthcheck.healthy_threshold;
     }
 
     let listenerArgs = listeners
@@ -873,8 +911,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             return Object.keys(l)
                 .map(k => {
                     let v = l[k];
-                    return `${k}=${v}`
-                })
+                    return `${k}=${v}`;
+                });
         });
 
     cprint.cyan('Creating load balancer...');
@@ -911,7 +949,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         let healthCheckArgs = Object.keys(awsHealthcheck)
             .map(k => {
                 let v = awsHealthcheck[k];
-                return `${k}=${v}`
+                return `${k}=${v}`;
             })
             .join(',');
 
@@ -993,9 +1031,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -1090,6 +1125,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
+    let awsVpcSubnetIdsFound = true;
     let awsVpcSubnetIds = awsVpcSubnetNames
         .map(awsVpcSubnetName => {
             print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
@@ -1099,6 +1135,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                 profile: serviceConfig.aws.profile
             });
             if (!awsVpcSubnetId) {
+                awsVpcSubnetIdsFound = false;
                 return;
             }
             print.clearLine();
@@ -1106,13 +1143,17 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             return awsVpcSubnetId;
         });
 
+    if (!awsVpcSubnetIdsFound) {
+        return;
+    }
+
     cprint.cyan('Creating auto scaling group...');
 
     let tagsDict = {
         Environment: environment,
         ServiceName: serviceName,
         Name: serviceName + '-group-instance'
-    }
+    };
 
     if (dockerImageName) {
         tagsDict.DockerImageName = dockerImageName;
@@ -1127,11 +1168,11 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         let val = tagsDict[key];
         return {
             ResourceId: awsAutoScalingGroupName,
-            ResourceType: "auto-scaling-group",
+            ResourceType: 'auto-scaling-group',
             Key: key,
             Value: val,
             PropagateAtLaunch: true
-        }
+        };
     });
 
     let args = [
@@ -1208,7 +1249,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function awsCreateBucket (in_serviceConfig, in_environment) {
+function awsCreateBucket (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             bucket: {
@@ -1221,8 +1262,8 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
         cwd: 'STRING'
     });
 
-    let bucketName = serviceConfig.service.bucket.name;
-    if (!bucketName) {
+    let awsBucketName = serviceConfig.service.bucket.name;
+    if (!awsBucketName) {
         cprint.yellow('Service bucket name not set');
         return false;
     }
@@ -1235,24 +1276,23 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     cprint.magenta('-- Bucket --');
+    print.keyVal('AWS Bucket Name', awsBucketName);
+
+    let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
+        cache: awsCache,
+        profile: serviceConfig.aws.profile
+    });
+    if (awsBucketPath) {
+        cprint.green('AWS bucket already exists!');
+        return;
+    }
 
     cprint.cyan('Creating bucket...');
 
-    let args = [
-        's3',
-        'mb',
-        's3://' + bucketName
-    ];
-
-    let cmdResult = aws.cmd(args, {
+    if (!aws.createBucket(awsBucketName, {
         profile: serviceConfig.aws.profile
-    });
-    if (cmdResult.hasError) {
-        cmdResult.printError('  ');
-        return false;
-    } else {
-        cmdResult.printResult('  ');
-        cprint.green('Created bucket');
+    })) {
+        return;
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -1265,7 +1305,7 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function awsCreateBucketUser (in_serviceConfig, in_environment) {
+function awsCreateBucketUser (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         service: {
             bucket: {
@@ -1282,14 +1322,14 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
 
     let sourceFolder = serviceConfig.cwd || false;
 
-    let bucketName = serviceConfig.service.bucket.name;
-    if (!bucketName) {
+    let awsBucketName = serviceConfig.service.bucket.name;
+    if (!awsBucketName) {
         cprint.yellow('Service bucket name not set');
         return false;
     }
 
-    let bucketUsername = serviceConfig.service.bucket.username;
-    if (!bucketUsername) {
+    let awsBucketUsername = serviceConfig.service.bucket.username;
+    if (!awsBucketUsername) {
         cprint.yellow('Service bucket username not set');
         return false;
     }
@@ -1313,69 +1353,47 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     cprint.magenta('-- Bucket User --');
-    print.keyVal('AWS Bucket', bucketName);
+    print.keyVal('AWS Bucket', awsBucketName);
+    print.keyVal('AWS Bucket User Name', awsBucketUsername);
+
+    let awsUserArn = aws.getUserArnForUsername(awsBucketUsername, {
+        cache: awsCache,
+        profile: serviceConfig.aws.profile
+    });
+    if (awsUserArn) {
+        cprint.green('AWS bucket user already exists!');
+        return;
+    }
 
     cprint.cyan('Creating bucket user...');
 
-    let args = [
-        'iam',
-        'create-user',
-        '--user-name',
-        bucketUsername
-    ];
-
-    let cmd = aws.cmd(args, {
+    if (!aws.createUser(awsBucketUsername, {
         profile: serviceConfig.aws.profile
-    });
-    if (cmd.hasError) {
-        cmd.printError('  ');
-        return false;
-    } else {
-        cmd.printResult('  ');
-        cprint.green('Created bucket user');
+    })) {
+        return;
     }
-
-    print.keyVal('AWS Bucket Username', bucketUsername);
 
     cprint.cyan('Creating access key...');
 
-    args = [
-        'iam',
-        'create-access-key',
-        '--user-name',
-        bucketUsername
-    ];
-
-    cmd = aws.cmd(args, {
+    let userObject = aws.createUserAccessKey(awsBucketUsername, {
         profile: serviceConfig.aws.profile
     });
-    if (cmd.hasError) {
-        cmd.printError('  ');
-        return false;
+
+    if (!userObject) {
+        return;
     }
 
-    let bucketUserAccessKey = '';
-    let bucketUserSecretKey = '';
+    let bucketUserAccessKey = userObject.AccessKey;
+    let bucketUserSecretKey = userObject.SecretKey;
     let bucketRegion = in_serviceConfig.service.bucket.region || awsRegion;
-
-    let bucketUserAccessKeyResults = cmd.resultObj;
-    if (bucketUserAccessKeyResults.AccessKey) {
-        cprint.green('Created bucket user access-key');
-        bucketUserAccessKey = bucketUserAccessKeyResults.AccessKey.AccessKeyId;
-        bucketUserSecretKey = bucketUserAccessKeyResults.AccessKey.SecretAccessKey;
-    } else {
-        cprint.yellow('Failed to parse bucket user access-key response');
-        cmd.printResult('  ');
-        return false;
-    }
 
     print.keyVal('AWS Bucket User Access Key', bucketUserAccessKey);
     print.keyVal('AWS Bucket User Secrety Key', '*******');
 
     cprint.cyan('Attaching inline policy to bucket user...');
 
-    let bucketUsernameInlinePolicyName = bucketUsername + '-read';
-    let bucketUsernameInlinePolicy = {
+    let awsBucketUsernameInlinePolicyName = awsBucketUsername + '-read';
+    let awsBucketUsernameInlinePolicy = {
         Statement: [
             {
                 Action: [
@@ -1384,7 +1402,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
                 ],
                 Effect: 'Allow',
                 Resource: [
-                    'arn:aws:s3:::' + bucketName
+                    'arn:aws:s3:::' + awsBucketName
                 ]
             },
             {
@@ -1393,36 +1411,17 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
                 ],
                 Effect: 'Allow',
                 Resource: [
-                    'arn:aws:s3:::' + bucketName + '/*'
+                    'arn:aws:s3:::' + awsBucketName + '/*'
                 ]
             }
         ],
         Version: '2012-10-17'
-    }
+    };
 
-    args = [
-        'iam',
-        'put-user-policy',
-
-        '--user-name',
-        bucketUsername,
-
-        '--policy-name',
-        bucketUsernameInlinePolicyName,
-
-        '--policy-document',
-        JSON.stringify(bucketUsernameInlinePolicy)
-    ];
-
-    cmd = aws.cmd(args, {
+    if (!aws.attachInlinePolicyToUser(awsBucketUsername, awsBucketUsernameInlinePolicyName, awsBucketUsernameInlinePolicy, {
         profile: serviceConfig.aws.profile
-    });
-    if (cmd.hasError) {
-        cmd.printError('  ');
-        return false;
-    } else {
-        cmd.printResult('  ');
-        cprint.green('Attached inline policy to bucket user');
+    })) {
+        return;
     }
 
     let path = require('path');
@@ -1438,16 +1437,16 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
     cprint.cyan('Setting up AWS files...');
 
     fs.writeFile(awsCredentialsFile, [
-        `[default]`,
+        '[default]',
         `aws_access_key_id = ${bucketUserAccessKey}`,
         `aws_secret_access_key = ${bucketUserSecretKey}`,
-        ``
+        ''
     ].join('\n'), true);
 
     fs.writeFile(awsConfigFile, [
-        `[default]`,
+        '[default]',
         `bucket_location = ${bucketRegion}`,
-        ``
+        ''
     ].join('\n'), true);
 
 
@@ -1556,7 +1555,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                 logging_support: 'BOOLEAN',
                 ports: [
                     {
-                        test: "BOOLEAN",
+                        test: 'BOOLEAN',
                         host: 'NUMBER',
                         container: 'NUMBER'
                     }
@@ -1571,13 +1570,13 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                 ],
                 commands: [
                     {
-                        test: "BOOLEAN",
+                        test: 'BOOLEAN',
                         val: 'STRING'
                     }
                 ],
                 environment_variables: [
                     {
-                        key: "STRING",
+                        key: 'STRING',
                         value: 'STRING'
                     }
                 ]
@@ -1595,9 +1594,6 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         },
         cwd: 'STRING'
     });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
 
     let loggingSupport = !!serviceConfig.docker.container.logging_support;
 
@@ -1689,7 +1685,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         }
 
         serviceContainerDefinition.command = command.val
-            .split(' ')
+            .split(' ');
         return;
     });
 
@@ -1850,9 +1846,6 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
         cwd: 'STRING'
     });
 
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
-
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('Service name not set');
@@ -1946,6 +1939,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                     },
                     instance: {
                         count: 'NUMBER'
+                    },
+                    auto_scaling_group: {
+                        health_check_grace_period: 'NUMBER'
                     }
                 }
             ]
@@ -1955,9 +1951,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -1969,8 +1962,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
-
-    let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
 
     let dockerImagePort;
     serviceConfig.docker.container.ports.forEach(port => {
@@ -2042,6 +2033,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let desiredCount = cluster.instance.count || 0;
 
+    let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
+
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     cprint.magenta('-- AWS ' + environmentTitle + ' Cluster Service --');
@@ -2072,7 +2065,97 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     }
 
     cprint.cyan('Creating cluster service...');
-    if (!aws.createClusterService(awsClusterName, awsClusterServiceName, taskDefinitionArn, loadBalancers, desiredCount, {
+    if (!aws.createClusterService(awsClusterName, awsClusterServiceName, taskDefinitionArn, loadBalancers, desiredCount, healthCheckGracePeriod, {
+        profile: serviceConfig.aws.profile
+    })) {
+        return;
+    }
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    cprint.magenta('----');
+    return true;
+}
+
+// ******************************
+
+function awsCreateEC2AccessECSRole (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        aws: {
+            profile: 'STRING',
+        },
+        cwd: 'STRING'
+    });
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let awsRoleName = 'ec2-access-ecs';
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    cprint.magenta('-- AWS EC2 Access ECS Role --');
+    print.keyVal('AWS Role Name', awsRoleName);
+
+    let awsRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
+        cache: awsCache,
+        showWarning: false,
+        profile: serviceConfig.aws.profile
+    });
+    if (awsRoleArn) {
+        cprint.green('AWS role already exists!');
+        return;
+    }
+
+    let awsRoleDescription = 'Allow EC2 instances to access ECS';
+    let awsRolePolicyDocument = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Action: 'sts:AssumeRole',
+                Effect: 'Allow',
+                Principal: {
+                    Service: 'ec2.amazonaws.com'
+                }
+            }
+        ]
+    };
+
+    cprint.cyan('Creating role...');
+    if (!aws.createRole(awsRoleName, awsRoleDescription, awsRolePolicyDocument, {
+        profile: serviceConfig.aws.profile
+    })) {
+        return;
+    }
+
+    let awsEC2ContainerServiceforEC2RolePolicyArn = 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role';
+
+    print.keyVal('AWS Role Policy', aws.arnToTitle(awsEC2ContainerServiceforEC2RolePolicyArn));
+
+    cprint.cyan('Attaching role policy...');
+    if (!aws.attachRolePolicy(awsRoleName, awsEC2ContainerServiceforEC2RolePolicyArn, {
+        profile: serviceConfig.aws.profile
+    })) {
+        return;
+    }
+
+    let awsInstanceProfileName = awsRoleName;
+
+    print.keyVal('AWS Role Instance Profile', awsInstanceProfileName);
+
+    cprint.cyan('Creating instance profile...');
+    if (!aws.createInstanceProfile(awsInstanceProfileName, {
+        profile: serviceConfig.aws.profile
+    })) {
+        return;
+    }
+
+    cprint.cyan('Adding role to instance profile...');
+    if (!aws.addRoleToInstanceProfile(awsInstanceProfileName, awsRoleName, {
         profile: serviceConfig.aws.profile
     })) {
         return;
@@ -2150,8 +2233,6 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
 
     cprint.cyan('Cleaning launch configurations...');
 
-    let sourceFolder = serviceConfig.cwd || false;
-
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('Service name not set');
@@ -2172,9 +2253,6 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
         }
         return false;
     }
-
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
@@ -2222,7 +2300,7 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function awsCleanDeliveryStructure (in_serviceConfig, in_environment) {
+function awsCleanDeliveryStructure (in_serviceConfig) {
     awsCleanRepository(in_serviceConfig);
     awsCleanTaskDefinitions(in_serviceConfig);
     return true;
@@ -2325,9 +2403,6 @@ function awsCleanTaskDefinitions (in_serviceConfig) {
 
     cprint.cyan('Cleaning task definitions...');
 
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
-
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
         cprint.yellow('Service name not set');
@@ -2418,9 +2493,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-
-    let sourceFolder = serviceConfig.cwd || false;
-    let dockerFolder = docker.getFolder(sourceFolder);
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -2515,6 +2587,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     print.clearLine();
     print.keyVal('AWS ' + environmentTitle + ' VPC Id', awsVpcId);
 
+    let awsVpcSubnetIdsFound = true;
     let awsVpcSubnetIds = awsVpcSubnetNames
         .map(awsVpcSubnetName => {
             print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
@@ -2524,6 +2597,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
                 profile: serviceConfig.aws.profile
             });
             if (!awsVpcSubnetId) {
+                awsVpcSubnetIdsFound = false;
                 return;
             }
             print.clearLine();
@@ -2531,13 +2605,17 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             return awsVpcSubnetId;
         });
 
+    if (!awsVpcSubnetIdsFound) {
+        return;
+    }
+
     cprint.cyan('Updating auto scaling group...');
 
     let tagsDict = {
         Environment: environment,
         ServiceName: serviceName,
         Name: serviceName + '-group-instance'
-    }
+    };
 
     if (dockerImageName) {
         tagsDict.DockerImageName = dockerImageName;
@@ -2546,17 +2624,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     let clusterTags = cluster.instance.tags || [];
     clusterTags.forEach(t => {
         tagsDict[t.key] = t.val;
-    });
-
-    let tags = Object.keys(tagsDict).map(key => {
-        let val = tagsDict[key];
-        return {
-            ResourceId: awsAutoScalingGroupName,
-            ResourceType: "auto-scaling-group",
-            Key: key,
-            Value: val,
-            PropagateAtLaunch: true
-        }
     });
 
     let args = [
@@ -2726,9 +2793,6 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
-
     let instanceCount = cluster.instance.count || 2;
 
     let autoScalingGroupName = cluster.auto_scaling_group.name;
@@ -2801,9 +2865,6 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
-
     let autoScalingGroupName = cluster.auto_scaling_group.name;
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
         profile: serviceConfig.aws.profile,
@@ -2831,7 +2892,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function awsViewConsoleLogin (in_serviceConfig, in_environment) {
+function awsViewConsoleLogin (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         aws: {
             account_id: 'NUMBER'
@@ -2946,9 +3007,6 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
-
     let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
     if (!awsLoadBalancerName) {
         cprint.yellow('Load balancer name not set');
@@ -3002,9 +3060,6 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
-
     let awsLaunchConfigurationName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationName) {
         cprint.yellow('Launch configuration name not set');
@@ -3057,9 +3112,6 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
         }
         return false;
     }
-
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
 
     let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
     if (!awsAutoScalingGroupName) {
@@ -3205,9 +3257,6 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
-
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
@@ -3255,9 +3304,6 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let environment = cluster.environment;
-    let environmentTitle = str.toTitleCase(environment);
-
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         profile: serviceConfig.aws.profile
     });
@@ -3272,6 +3318,71 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
     let awsClusterServiceName = cluster.service_name;
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/services/${awsClusterServiceName}/tasks`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    _open(url);
+}
+
+// ******************************
+
+function awsViewBucket (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            bucket: {
+                name: 'STRING'
+            }
+        },
+        aws: {
+            profile: 'STRING',
+        },
+        cwd: 'STRING'
+    });
+
+    let awsBucketName = serviceConfig.service.bucket.name;
+    if (!awsBucketName) {
+        cprint.yellow('Service bucket name not set');
+        return false;
+    }
+
+    let url = `console.aws.amazon.com/s3/buckets/${awsBucketName}`;
+    url = 'https://' + url;
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    _open(url);
+}
+
+// ******************************
+
+function awsViewBucketUser (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            bucket: {
+                username: 'STRING'
+            }
+        },
+        aws: {
+            profile: 'STRING'
+        },
+        cwd: 'STRING'
+    });
+
+    let awsBucketUsername = serviceConfig.service.bucket.username;
+    if (!awsBucketUsername) {
+        cprint.yellow('Service bucket username not set');
+        return false;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
+        profile: serviceConfig.aws.profile
+    });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
+    let awsRegion = awsDockerCredentials.region;
+
+    let url = `console.aws.amazon.com/iam/home?region=${awsRegion}#/users/${awsBucketUsername}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _open(url);
@@ -3293,8 +3404,8 @@ function _getEnvironmentCluster (in_clusters, in_environment) {
 
     if (in_environment) {
         let environmentCluster = clusters.find(c => {
-                return c.environment === in_environment;
-            });
+            return c.environment === in_environment;
+        });
 
         return environmentCluster;
     }
@@ -3336,186 +3447,193 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
     switch(command)
     {
-        case '':
-        case 'info':
-        case 'state':
-        case 'service':
-            printAwsServiceInfo(in_serviceConfig, env, extra);
-            break;
+    case '':
+    case 'info':
+    case 'state':
+    case 'service':
+        printAwsServiceInfo(in_serviceConfig, env, extra);
+        break;
 
-        case 'setup':
-        case 'login':
-            awsSetup(in_serviceConfig);
-            break;
+    case 'docker-login':
+        awsDockerLogin(in_serviceConfig);
+        break;
 
-        case 'docker-login':
-            awsDockerLogin(in_serviceConfig);
-            break;
+    case 'create':
+    case 'create-all':
+        awsCreateAll(in_serviceConfig, env);
+        break;
 
-        case 'create':
-        case 'create-all':
-            awsCreateAll(in_serviceConfig, env);
-            break;
+    case 'create-infrastructure':
+        awsCreateInfrastructure(in_serviceConfig, env);
+        break;
 
-        case 'create-infrastructure':
-            awsCreateInfrastructure(in_serviceConfig, env);
-            break;
+    case 'create-launch-configuration':
+        awsCreateLaunchConfiguration(in_serviceConfig, env);
+        break;
 
-        case 'create-launch-configuration':
-            awsCreateLaunchConfiguration(in_serviceConfig, env);
-            break;
+    case 'create-load-balancer':
+        awsCreateLoadBalancer(in_serviceConfig, env);
+        break;
 
-        case 'create-load-balancer':
-            awsCreateLoadBalancer(in_serviceConfig, env);
-            break;
+    case 'create-auto-scaling-group':
+        awsCreateAutoScalingGroup(in_serviceConfig, env);
+        break;
 
-        case 'create-auto-scaling-group':
-            awsCreateAutoScalingGroup(in_serviceConfig, env);
-            break;
+    case 'create-bucket':
+        awsCreateBucket(in_serviceConfig);
+        break;
 
-        case 'create-bucket':
-            awsCreateBucket(in_serviceConfig, env);
-            break;
+    case 'create-bucket-user':
+        awsCreateBucketUser(in_serviceConfig, env);
+        break;
 
-        case 'create-bucket-user':
-            awsCreateBucketUser(in_serviceConfig, env);
-            break;
+    case 'create-delivery-structure':
+        awsCreateDeliveryStructure(in_serviceConfig, env);
+        break;
 
-        case 'create-delivery-structure':
-            awsCreateDeliveryStructure(in_serviceConfig, env);
-            break;
+    case 'create-repository':
+        awsCreateRepository(in_serviceConfig);
+        break;
 
-        case 'create-repository':
-            awsCreateRepository(in_serviceConfig);
-            break;
+    case 'create-task-definition':
+        awsCreateTaskDefinition(in_serviceConfig);
+        break;
 
-        case 'create-task-definition':
-            awsCreateTaskDefinition(in_serviceConfig);
-            break;
+    case 'create-cluster':
+        awsCreateCluster(in_serviceConfig, env);
+        break;
 
-        case 'create-cluster':
-            awsCreateCluster(in_serviceConfig, env);
-            break;
+    case 'create-cluster-service':
+        awsCreateClusterService(in_serviceConfig, env);
+        break;
 
-        case 'create-cluster-service':
-            awsCreateClusterService(in_serviceConfig, env);
-            break;
+    case 'create-ec2-access-ecs-role':
+        awsCreateEC2AccessECSRole(in_serviceConfig, env);
+        break;
 
-        case 'clean':
-        case 'clean-all':
-            awsCleanAll(in_serviceConfig, env);
-            break;
+    case 'clean':
+    case 'clean-all':
+        awsCleanAll(in_serviceConfig, env);
+        break;
 
-        case 'clean-infrastructure':
-            awsCleanInfrastructure(in_serviceConfig, env);
-            break;
+    case 'clean-infrastructure':
+        awsCleanInfrastructure(in_serviceConfig, env);
+        break;
 
-        case 'clean-launch-configurations':
-            awsCleanLaunchConfigurations(in_serviceConfig, env);
-            break;
+    case 'clean-launch-configurations':
+        awsCleanLaunchConfigurations(in_serviceConfig, env);
+        break;
 
-        case 'clean-delivery-structure':
-            awsCleanDeliveryStructure(in_serviceConfig, env);
-            break;
+    case 'clean-delivery-structure':
+        awsCleanDeliveryStructure(in_serviceConfig, env);
+        break;
 
-        case 'clean-repository':
-            awsCleanRepository(in_serviceConfig);
-            break;
+    case 'clean-repository':
+        awsCleanRepository(in_serviceConfig);
+        break;
 
-        case 'clean-task-definitions':
-            awsCleanTaskDefinitions(in_serviceConfig);
-            break;
+    case 'clean-task-definitions':
+        awsCleanTaskDefinitions(in_serviceConfig);
+        break;
 
-        case 'update-auto-scaling-group':
-            awsUpdateAutoScalingGroup(in_serviceConfig, env);
-            break;
+    case 'update-auto-scaling-group':
+        awsUpdateAutoScalingGroup(in_serviceConfig, env);
+        break;
 
-        case 'open-console':
-        case 'open-login':
-        case 'open-console-login':
-        case 'view-console':
-        case 'view-login':
-        case 'view-console-login':
-            awsViewConsoleLogin(in_serviceConfig);
-            break;
+    case 'open-console':
+    case 'open-login':
+    case 'open-console-login':
+    case 'view-console':
+    case 'view-login':
+    case 'view-console-login':
+        awsViewConsoleLogin(in_serviceConfig);
+        break;
 
-        case 'open':
-        case 'view':
-        case 'open-all':
-        case 'view-all':
-            awsViewAll(in_serviceConfig, env);
-            break;
+    case 'open':
+    case 'view':
+    case 'open-all':
+    case 'view-all':
+        awsViewAll(in_serviceConfig, env);
+        break;
 
-        case 'open-infrastructure':
-        case 'view-infrastructure':
-            awsViewInfrastructure(in_serviceConfig, env);
-            break;
+    case 'open-infrastructure':
+    case 'view-infrastructure':
+        awsViewInfrastructure(in_serviceConfig, env);
+        break;
 
-        case 'open-instances':
-        case 'view-instances':
-            awsViewInstances(in_serviceConfig, env);
-            break;
+    case 'open-instances':
+    case 'view-instances':
+        awsViewInstances(in_serviceConfig, env);
+        break;
 
-        case 'open-load-balancer':
-        case 'view-load-balancer':
-            awsViewLoadBalancer(in_serviceConfig, env);
-            break;
+    case 'open-load-balancer':
+    case 'view-load-balancer':
+        awsViewLoadBalancer(in_serviceConfig, env);
+        break;
 
-        case 'open-launch-configuration':
-        case 'view-launch-configuration':
-            awsViewLaunchConfiguration(in_serviceConfig, env);
-            break;
+    case 'open-launch-configuration':
+    case 'view-launch-configuration':
+        awsViewLaunchConfiguration(in_serviceConfig, env);
+        break;
 
-        case 'open-auto-scaling-group':
-        case 'view-auto-scaling-group':
-            awsViewAutoScalingGroup(in_serviceConfig, env);
-            break;
+    case 'open-auto-scaling-group':
+    case 'view-auto-scaling-group':
+        awsViewAutoScalingGroup(in_serviceConfig, env);
+        break;
 
-        case 'open-delivery-structure':
-        case 'view-delivery-structure':
-            awsViewDeliveryStructure(in_serviceConfig, env);
-            break;
+    case 'open-delivery-structure':
+    case 'view-delivery-structure':
+        awsViewDeliveryStructure(in_serviceConfig, env);
+        break;
 
-        case 'open-repository':
-        case 'view-repository':
-            awsViewRepository(in_serviceConfig, env);
-            break;
+    case 'open-repository':
+    case 'view-repository':
+        awsViewRepository(in_serviceConfig, env);
+        break;
 
-        case 'open-task-definition':
-        case 'view-task-definition':
-            awsViewTaskDefinition(in_serviceConfig, env);
-            break;
+    case 'open-task-definition':
+    case 'view-task-definition':
+        awsViewTaskDefinition(in_serviceConfig, env);
+        break;
 
-        case 'open-cluster':
-        case 'view-cluster':
-            awsViewCluster(in_serviceConfig, env);
-            break;
+    case 'open-cluster':
+    case 'view-cluster':
+        awsViewCluster(in_serviceConfig, env);
+        break;
 
-        case 'open-cluster-service':
-        case 'view-cluster-service':
-            awsViewClusterService(in_serviceConfig, env);
-            break;
+    case 'open-cluster-service':
+    case 'view-cluster-service':
+        awsViewClusterService(in_serviceConfig, env);
+        break;
 
-        case 'deploy':
-            awsDeploy(in_serviceConfig, stopTasks, env);
-            break;
+    case 'view-bucket':
+        awsViewBucket(in_serviceConfig, env);
+        break;
 
-        case 'deploy-new-launch-configuration':
-            awsDeployNewLaunchConfiguration(in_serviceConfig, env);
-            break;
+    case 'view-bucket-user':
+        awsViewBucketUser(in_serviceConfig, env);
+        break;
 
-        case 'start-cluster':
-        case 'start':
-            awsStartCluster(in_serviceConfig, env);
-            break;
+    case 'deploy':
+        awsDeploy(in_serviceConfig, stopTasks, env);
+        break;
 
-        case 'stop-cluster':
-        case 'stop':
-            awsStopCluster(in_serviceConfig, env);
-            break;
+    case 'deploy-new-launch-configuration':
+        awsDeployNewLaunchConfiguration(in_serviceConfig, env);
+        break;
 
-        default:
-            return false;
+    case 'start-cluster':
+    case 'start':
+        awsStartCluster(in_serviceConfig, env);
+        break;
+
+    case 'stop-cluster':
+    case 'stop':
+        awsStopCluster(in_serviceConfig, env);
+        break;
+
+    default:
+        return false;
     }
     return true;
 }
@@ -3551,6 +3669,8 @@ function getCommands () {
         { params: ['create-cluster'], description: 'Create cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-cluster-service'], description: 'Create cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
 
+        { params: ['create-ec2-access-ecs-role'], description: 'Create role for allowing EC2 instances to access ECS', options: [{param:'environment', description:'Environment'}] },
+
         { params: ['clean-all', 'clean'], description: 'Clean all infrastructure and delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['clean-infrastructure'], description: 'Clean infrastructure for the service', options: [{param:'environment', description:'Environment'}] },
@@ -3581,7 +3701,10 @@ function getCommands () {
         { params: ['view-repository', 'open-repository'], description: 'View repository for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-task-definition', 'open-task-definition'], description: 'View task definition for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-cluster', 'open-cluster'], description: 'View cluster for the service', options: [{param:'environment', description:'Environment'}] },
-        { params: ['view-cluster-service', 'open-cluster-service'], description: 'View cluster-service for the service', options: [{param:'environment', description:'Environment'}] }
+        { params: ['view-cluster-service', 'open-cluster-service'], description: 'View cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
+
+        { params: ['view-bucket'], description: 'View bucket for the service model', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-bucket-user'], description: 'View bucket user for the service', options: [{param:'environment', description:'Environment'}] }
     ];
 }
 

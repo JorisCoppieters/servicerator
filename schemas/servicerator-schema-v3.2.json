@@ -77,9 +77,6 @@
                     "type": "string"
                 }
             },
-            "required": [
-                "account_id"
-            ],
             "type": "object"
         },
         "corpus": {
@@ -612,7 +609,8 @@
                                     }
                                 },
                                 "required": [
-                                    "name"
+                                    "name",
+                                    "subnets"
                                 ],
                                 "type": "object"
                             },
@@ -622,14 +620,6 @@
                             },
                             "environment": {
                                 "description": "The name of the cluster environment",
-                                "enum": [
-                                    "production",
-                                    "stage",
-                                    "test",
-                                    "development",
-                                    "monitoring",
-                                    "operations"
-                                ],
                                 "type": "string"
                             },
                             "identity_file": {
@@ -765,6 +755,7 @@
                                             "p3.8xlarge",
                                             "p3.16xlarge"
                                         ],
+                                        "default": "t2.micro",
                                         "type": "string"
                                     },
                                     "user_data": {
@@ -822,9 +813,7 @@
                                     }
                                 },
                                 "required": [
-                                    "ami",
-                                    "iam_role",
-                                    "type"
+                                    "ami"
                                 ],
                                 "type": "object"
                             },
@@ -844,8 +833,7 @@
                                     }
                                 },
                                 "required": [
-                                    "name",
-                                    "security_groups"
+                                    "name"
                                 ],
                                 "type": "object"
                             },
@@ -1001,6 +989,9 @@
                                 "type": "string"
                             }
                         },
+                        "required": [
+                            "environment"
+                        ],
                         "type": "object"
                     },
                     "type": "array"

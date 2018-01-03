@@ -7,7 +7,6 @@
 let cprint = require('color-print');
 
 let docker = require('../utils/docker');
-let exec = require('../utils/exec');
 let fs = require('../utils/filesystem');
 let openssl = require('../utils/openssl');
 let print = require('../utils/print');
@@ -101,8 +100,6 @@ function generateAuthFiles (in_serviceConfig) {
 
     let path = require('path');
 
-    let serviceName = serviceConfig.service.name || false;
-
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
         cprint.yellow('Source folder not set');
@@ -133,7 +130,6 @@ function generateAuthFiles (in_serviceConfig) {
     let caSignSerial = path.resolve(tmpAuthFolder, 'tmp-serial');
     let caSignConfig = path.resolve(tmpAuthFolder, 'ca-sign-config.cnf');
     let caSignExtConfig = path.resolve(tmpAuthFolder, 'ca-sign-ext-config.cnf');
-    let reqCaCrtConfig = path.resolve(tmpAuthFolder, 'req-ca-crt-config.cnf');
     let reqCrtConfig = path.resolve(tmpAuthFolder, 'req-crt-config.cnf');
 
     let rootCAKey = path.resolve(tmpAuthFolder, 'rootCA.key');
@@ -182,18 +178,18 @@ function generateAuthFiles (in_serviceConfig) {
         print.keyVal('Root CA certificate', rootCACertificate);
 
         let reqCaCrtConfigContents = [
-            `[req]`,
-            `distinguished_name = req_distinguished_name`,
-            `default_bits = 2048`,
-            `req_extensions = req_ext`,
-            `prompt = no`,
+            '[req]',
+            'distinguished_name = req_distinguished_name',
+            'default_bits = 2048',
+            'req_extensions = req_ext',
+            'prompt = no',
 
-            `[req_distinguished_name]`,
-            `C = NZ`,
-            `ST = Wellington`,
-            `L = Wellington`,
-            `O = TradeMe Ltd.`,
-            `OU = Data Science`
+            '[req_distinguished_name]',
+            'C = NZ',
+            'ST = Wellington',
+            'L = Wellington',
+            'O = TradeMe Ltd.',
+            'OU = Data Science'
         ];
 
         if (firstUrl) {
@@ -201,16 +197,16 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         reqCaCrtConfigContents = reqCaCrtConfigContents.concat([
-            `[req_ext]`,
-            `keyUsage = keyEncipherment, dataEncipherment`,
-            `extendedKeyUsage = serverAuth`
+            '[req_ext]',
+            'keyUsage = keyEncipherment, dataEncipherment',
+            'extendedKeyUsage = serverAuth'
         ]);
 
         if (otherUrls.length) {
             reqCaCrtConfigContents = reqCaCrtConfigContents.concat([
-                `subjectAltName = @alt_names`,
+                'subjectAltName = @alt_names',
 
-                `[alt_names]`
+                '[alt_names]'
             ]);
 
             otherUrls.forEach((u, idx) => {
@@ -233,40 +229,40 @@ function generateAuthFiles (in_serviceConfig) {
         serviceKey = serviceKey.replace(new RegExp('\\\\', 'g'), '/');
 
         let caSignConfigContents = [
-            `[ ca ]`,
-            `default_ca = tm_ds_ca`,
+            '[ ca ]',
+            'default_ca = tm_ds_ca',
 
-            `[ tm_ds_ca ]`,
+            '[ tm_ds_ca ]',
             `serial = "${caSignSerial}"`,
             `database = "${caSignDB}"`,
             `new_certs_dir = "${tmpAuthFolder}"`,
             `certificate = "${rootCACertificate}"`,
             `private_key = "${rootCAKey}"`,
-            `default_md = sha256`,
-            `default_days = 365`,
-            `policy = my_policy`,
+            'default_md = sha256',
+            'default_days = 365',
+            'policy = my_policy',
 
-            `[ my_policy ]`,
-            `countryName = match`,
-            `stateOrProvinceName = supplied`,
-            `organizationName = supplied`,
-            `organizationalUnitName = optional`
+            '[ my_policy ]',
+            'countryName = match',
+            'stateOrProvinceName = supplied',
+            'organizationName = supplied',
+            'organizationalUnitName = optional'
         ];
 
         let caSignExtConfigContents = [
-            `basicConstraints=CA:FALSE`,
-            `subjectKeyIdentifier = hash`,
+            'basicConstraints=CA:FALSE',
+            'subjectKeyIdentifier = hash',
         ];
 
         if (urls.length) {
             caSignConfigContents = caSignConfigContents.concat([
-                `commonName = supplied`
+                'commonName = supplied'
             ]);
 
             caSignExtConfigContents = caSignExtConfigContents.concat([
-                `subjectAltName=@alternate_names`,
+                'subjectAltName=@alternate_names',
 
-                `[ alternate_names ]`
+                '[ alternate_names ]'
             ]);
 
             urls.forEach((u, idx) => {
@@ -363,18 +359,18 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
     switch(command)
     {
-        case '':
-        case 'info':
-            printAuthInfo(in_serviceConfig);
-            break;
+    case '':
+    case 'info':
+        printAuthInfo(in_serviceConfig);
+        break;
 
-        case 'generate':
-        case 'create':
-            generateAuthFiles(in_serviceConfig);
-            break;
+    case 'generate':
+    case 'create':
+        generateAuthFiles(in_serviceConfig);
+        break;
 
-        default:
-            return false;
+    default:
+        return false;
     }
     return true;
 }

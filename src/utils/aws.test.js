@@ -6,10 +6,7 @@
 
 let cprint = require('color-print');
 
-let date = require('./date');
 let aws = require('./aws');
-let env = require('./env');
-let fs = require('./filesystem');
 let test = require('./test');
 
 // ******************************

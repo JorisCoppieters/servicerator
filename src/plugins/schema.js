@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let service = require('../utils/service');
 let print = require('../utils/print');
 
@@ -26,11 +24,11 @@ function handleCommand (in_args, in_params) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     switch(command)
     {
-        case '':
-            printSchema();
-            break;
-        default:
-            return false;
+    case '':
+        printSchema();
+        break;
+    default:
+        return false;
     }
     return true;
 }

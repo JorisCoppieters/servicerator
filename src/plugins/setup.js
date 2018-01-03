@@ -6,7 +6,6 @@
 
 let cprint = require('color-print');
 
-let bash = require('../utils/bash');
 let docker = require('../utils/docker');
 let fs = require('../utils/filesystem');
 let git = require('../utils/git');
@@ -61,7 +60,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 
     cprint.cyan('Setting up "' + sourceFolder + '"...');
 
-    let dockerFolder = docker.getFolder(sourceFolder)
+    let dockerFolder = docker.getFolder(sourceFolder);
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
         dockerFolder = sourceFolder;
     }
@@ -173,7 +172,7 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow("Source folder not set");
+        cprint.yellow('Source folder not set');
         return;
     }
 
@@ -238,12 +237,12 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let overwrite = in_args['overwrite'];
     switch(command)
     {
-        case '':
-        case 'all':
-            setupFolder(in_serviceConfig, overwrite);
-            break;
-        default:
-            return false;
+    case '':
+    case 'all':
+        setupFolder(in_serviceConfig, overwrite);
+        break;
+    default:
+        return false;
     }
     return true;
 }

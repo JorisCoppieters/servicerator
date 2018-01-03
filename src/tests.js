@@ -4,9 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
-let c = require('./constants');
 let env = require('./utils/env');
 let aws_test = require('./utils/aws.test');
 let docker_test = require('./utils/docker.test');

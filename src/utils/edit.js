@@ -23,7 +23,7 @@ let g_EDITOR = undefined;
 function editFiles (in_paths) {
     let editor = getEditor();
     if (!editor) {
-        cprint.yellow("No editor set");
+        cprint.yellow('No editor set');
         return false;
     }
 
@@ -69,20 +69,20 @@ function getEditor () {
 
     if (env.isWindows()) {
         editorPaths = editorPaths.concat([
-            "C:/Program Files/Microsoft VS Code/Code.exe",
-            "C:/Program Files/Sublime Text/sublime_text.exe",
-            "C:/Program Files/Sublime Text 2/sublime_text.exe",
-            "C:/Program Files/Sublime Text 3/sublime_text.exe",
-            "C:/Program Files (x86)/Sublime Text/sublime_text.exe",
-            "C:/Program Files (x86)/Sublime Text 2/sublime_text.exe",
-            "C:/Program Files (x86)/Sublime Text 3/sublime_text.exe"
+            'C:/Program Files/Microsoft VS Code/Code.exe',
+            'C:/Program Files/Sublime Text/sublime_text.exe',
+            'C:/Program Files/Sublime Text 2/sublime_text.exe',
+            'C:/Program Files/Sublime Text 3/sublime_text.exe',
+            'C:/Program Files (x86)/Sublime Text/sublime_text.exe',
+            'C:/Program Files (x86)/Sublime Text 2/sublime_text.exe',
+            'C:/Program Files (x86)/Sublime Text 3/sublime_text.exe'
         ]);
     }
 
     editor = editorPaths
         .map(p => path.resolve(p))
         .filter(p => fs.fileExists(p))
-        .find(p => true);
+        .find(() => true);
 
     if (editor) {
         g_EDITOR = editor;

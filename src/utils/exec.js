@@ -55,7 +55,9 @@ function execCmdSync (in_cmd, in_args, in_options) {
     let cmdResultObj = {};
     try {
         cmdResultObj = JSON.parse(cmdResult);
-    } catch (e) {}
+    } catch (e) {
+        // Do Nothing
+    }
 
     return {
         error: cmdErrorResult,
@@ -110,7 +112,7 @@ function execCmd (in_cmd, in_args, in_options) {
         }
     });
 
-    child.on('close', close => {
+    child.on('close', () => {
         if (opt.doneCb) {
             opt.doneCb(!seenError);
         }

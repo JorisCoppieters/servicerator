@@ -6,7 +6,6 @@
 
 let fs = require('./filesystem');
 let object = require('./object');
-let print = require('./print');
 let service = require('./service');
 
 // ******************************
@@ -35,7 +34,7 @@ function parseBashEnvContents (in_bashEnvContents) {
         if (key === '_MODEL_VERSION') {
             serviceConfig.model = serviceConfig.model || {};
             serviceConfig.model.version = val;
-            serviceConfig.model.type = "bundled";
+            serviceConfig.model.type = 'bundled';
         } else if (key === 'DOCKER_IMAGE_USERNAME') {
             serviceConfig.docker = serviceConfig.docker || {};
             serviceConfig.docker.username = val;
@@ -99,8 +98,11 @@ function parseBashEnvContents (in_bashEnvContents) {
             });
 
         } else if (key === 'DOCKER_VERIFY_API_COMMAND') {
+            // Do Nothing
         } else if (key === 'DOCKER_VERIFY_API_EXPECTED_RESULT') {
+            // Do Nothing
         } else if (key === 'DOCKER_EXTRA_TAG') {
+            // Do Nothing
         } else if (key === 'DOCKER_CONTAINER_SECURE_URL_TEST') {
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.clusters = serviceConfig.service.clusters || [];
@@ -126,6 +128,7 @@ function parseBashEnvContents (in_bashEnvContents) {
             }
             cluster.url = val;
         } else if (key === 'DOCKER_CONTAINER_MOUNT_VOLUMES') {
+            // Do Nothing
         } else if (key === 'CLUSTER_INSTANCE_COUNT') {
             serviceConfig.service = serviceConfig.service || {};
             serviceConfig.service.clusters = serviceConfig.service.clusters || [];

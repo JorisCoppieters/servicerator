@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 
+let print = require('./utils/print');
 let c = require('./constants');
 let env = require('./utils/env');
 
@@ -22,21 +23,21 @@ let SPACING = 32;
 function printHelp (in_message) {
     if (in_message) {
         cprint.yellow(in_message);
-        console.log();
+        print.out('\n');
     }
 
-    console.log();
-    console.log(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)));
-    console.log(cprint.toBackgroundMagenta(cprint.toWhite('  ' + c.SCRIPT_NAME + ' Help  ' + ' '.repeat(9), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite('  Version ' + c.VERSION + '  ', true)));
-    console.log(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)));
-    console.log();
+    print.out('\n');
+    print.out(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)) + '\n');
+    print.out(cprint.toBackgroundMagenta(cprint.toWhite('  ' + c.SCRIPT_NAME + ' Help  ' + ' '.repeat(9), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite('  Version ' + c.VERSION + '  ', true)) + '\n');
+    print.out(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)) + '\n');
+    print.out('\n');
     _printHelpHeader('General Options');
-    console.log(cprint.toWhite('--help') + '\t\t\t\t' + cprint.toCyan('Show this menu'));
-    console.log(cprint.toWhite('--version') + '\t\t\t' + cprint.toCyan('Print the version'));
-    console.log();
+    print.out(cprint.toWhite('--help') + '\t\t\t\t' + cprint.toCyan('Show this menu') + '\n');
+    print.out(cprint.toWhite('--version') + '\t\t\t' + cprint.toCyan('Print the version') + '\n');
+    print.out('\n');
     _printHelpHeader('Init Commands');
-    console.log(cprint.toLightGreen('init') + ' ' + cprint.toLightGrey('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder'));
-    console.log();
+    print.out(cprint.toLightGreen('init') + ' ' + cprint.toLightGrey('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder') + '\n');
+    print.out('\n');
 
     let plugins = env.getPlugins();
     plugins.forEach(p => {
@@ -82,9 +83,9 @@ function _printPluginHelp (in_plugin, in_commands) {
         firstParam = (firstParam + ' '.repeat(SPACING)).substr(0, SPACING);
 
         if (defaultParam) {
-            console.log(cprint.toLightGreen(firstParam) + cprint.toCyan(description));
+            print.out(cprint.toLightGreen(firstParam) + cprint.toCyan(description) + '\n');
         } else {
-            console.log(cprint.toGreen(firstParam) + cprint.toCyan(description));
+            print.out(cprint.toGreen(firstParam) + cprint.toCyan(description) + '\n');
         }
 
         options.forEach(option => {
@@ -105,21 +106,21 @@ function _printPluginHelp (in_plugin, in_commands) {
 
             optionParam = (indent + optionParam + ' '.repeat(SPACING)).substr(0, SPACING);
 
-            console.log(cprint.toLightGrey(optionParam) + '  ' + cprint.toCyan(optionDescription));
+            print.out(cprint.toLightGrey(optionParam) + '  ' + cprint.toCyan(optionDescription) + '\n');
         });
 
-        console.log();
+        print.out('\n');
     });
 }
 
 // ******************************
 
 function _printHelpHeader (in_title) {
-    console.log();
+    print.out('\n');
     cprint.backgroundLightBlue(cprint.toWhite(' '.repeat(in_title.length + 2), true));
     cprint.backgroundLightBlue(cprint.toWhite(' ' + in_title + ' ', true));
     cprint.backgroundLightBlue(cprint.toWhite(' '.repeat(in_title.length + 2), true));
-    console.log();
+    print.out('\n');
 }
 
 // ******************************

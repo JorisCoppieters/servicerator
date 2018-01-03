@@ -4,6 +4,8 @@
 // Requires:
 // ******************************
 
+let cprint = require('color-print');
+
 let fs = require('./filesystem');
 let date = require('./date');
 

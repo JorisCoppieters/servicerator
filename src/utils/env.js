@@ -7,7 +7,6 @@
 let cprint = require('color-print');
 
 let fs = require('./filesystem');
-let service = require('./service');
 
 // ******************************
 // Constants:
@@ -70,14 +69,14 @@ function getServiceConfigFile (in_sourceFolder) {
     let currentDirectory = './';
 
     let directory = path.resolve(process.cwd(), currentDirectory);
-    let oldDirectory = directory;
 
     serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
 
     let maxUpwardsIteration = 100;
     let loopCount = 0;
 
-    while (true) {
+    const loop = true;
+    while (loop) {
         if (fs.fileExists(serviceConfigFile)) {
             break;
         }

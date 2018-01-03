@@ -16,21 +16,7 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-let minimist = require('minimist');
-
-let help = require('./src/help');
 let tests = require('./src/tests');
-
-let env = require('./src/utils/env');
-let service = require('./src/utils/service');
-let plugins = env.getPlugins();
-
-// ******************************
-// Arguments:
-// ******************************
-
-let g_ARGV = minimist(process.argv.slice(2));
 
 // ******************************
 // Script:

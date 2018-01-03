@@ -15,7 +15,7 @@ function setIfNotSet (in_object, in_field, in_value) {
 // ******************************
 
 function isEmpty (in_object) {
-    return Object.keys(in_object).length === 0 && in_object.constructor === Object
+    return Object.keys(in_object).length === 0 && in_object.constructor === Object;
 }
 
 // ******************************

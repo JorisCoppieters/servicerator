@@ -271,13 +271,13 @@ function getExtensionForType (in_fileType) {
     let extension = '';
     switch (in_fileType)
     {
-        case 'bash':
-            extension = '.sh';
-            break;
+    case 'bash':
+        extension = '.sh';
+        break;
 
-        default:
-            cprint.yellow('Unknown file type: ' + in_fileType);
-            return '';
+    default:
+        cprint.yellow('Unknown file type: ' + in_fileType);
+        return '';
 
     }
 

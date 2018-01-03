@@ -18,10 +18,10 @@ let service = require('../utils/service');
 function editServiceConfigFile () {
     let serviceConfigFile = env.getServiceConfigFile();
     if (!serviceConfigFile) {
-        service.initFolder('.')
+        service.initFolder('.');
         serviceConfigFile = env.getServiceConfigFile();
         if (!serviceConfigFile) {
-            cprint.yellow("No service config file set");
+            cprint.yellow('No service config file set');
             return;
         }
     }
@@ -38,13 +38,13 @@ function editServiceDockerfile (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow("Source folder not set");
+        cprint.yellow('Source folder not set');
         return;
     }
 
     let serviceDockerfile = docker.getDockerfile(sourceFolder);
     if (!serviceDockerfile) {
-        cprint.yellow("Service Dockerfile not set");
+        cprint.yellow('Service Dockerfile not set');
         return;
     }
 
@@ -60,7 +60,7 @@ function editServiceFolder (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow("Source folder not set");
+        cprint.yellow('Source folder not set');
         return;
     }
 
@@ -75,19 +75,19 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase().toLowerCase() : '';
     switch(command)
     {
-        case '':
-        case 'config':
-            editServiceConfigFile(in_serviceConfig);
-            break;
-        case 'docker':
-        case 'dockerfile':
-            editServiceDockerfile(in_serviceConfig);
-            break;
-        case 'folder':
-            editServiceFolder(in_serviceConfig);
-            break;
-        default:
-            return false;
+    case '':
+    case 'config':
+        editServiceConfigFile(in_serviceConfig);
+        break;
+    case 'docker':
+    case 'dockerfile':
+        editServiceDockerfile(in_serviceConfig);
+        break;
+    case 'folder':
+        editServiceFolder(in_serviceConfig);
+        break;
+    default:
+        return false;
     }
     return true;
 }

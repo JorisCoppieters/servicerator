@@ -42,18 +42,18 @@ if (g_ARGV['help']) {
     let command = params.length ? params.shift().toLowerCase() : 'info';
     if (command === 'help') {
         help.printHelp();
-        return;
+        process.exit(0);
     }
 
     if (command === 'version') {
         help.printVersion();
-        return;
+        process.exit(0);
     }
 
     if (command === 'init') {
         let folderName = params.length ? params.shift() : '.';
         service.initFolder(folderName);
-        return;
+        process.exit(0);
     }
 
     let serviceConfig = service.loadConfig();
@@ -95,7 +95,7 @@ if (g_ARGV['help']) {
                     return;
                 }
             } catch (e) {
-                let stack = e.stack.replace(/[\\]/g, "\\$&");
+                let stack = e.stack.replace(/[\\]/g, '\\$&');
 
                 let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
                 print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
@@ -122,11 +122,11 @@ if (g_ARGV['help']) {
     });
 
     if (pluginHandled) {
-        return;
+        process.exit(0);
     }
 
     if (!serviceConfig) {
-        return;
+        process.exit(0);
     }
 
     cprint.yellow('Unknown command: ' + command + ' ' + params);

@@ -48,8 +48,12 @@ function createServiceConfig (in_folderName, in_initialise) {
         serviceConfig.cwd = sourceFolder;
     }
 
+    let scriptSchema = getServiceConfigSchemaUrl();
+    let scriptSchemaVersion = getServiceConfigSchemaVersion();
+
     if (!serviceConfig.schema_version) {
-        serviceConfig.schema_version = getServiceConfigSchemaVersion();
+        serviceConfig.schema_version = scriptSchemaVersion;
+        serviceConfig.$schema = scriptSchema;
     }
 
     let bashEnvFile = path.resolve(sourceFolder, '_env.sh');
@@ -110,7 +114,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
             serviceConfig.docker.other_repositories.push({
                 type: 'AWS'
-            })
+            });
         }
     }
 
@@ -203,7 +207,7 @@ function loadServiceConfig (in_sourceFolder) {
     }
 
     serviceConfig.cwd = path.dirname(serviceConfigFile);
-    _updateServiceConfig(serviceConfig);
+    _upgradeServiceConfig(serviceConfig);
 
     return serviceConfig;
 }
@@ -241,7 +245,6 @@ function maskServiceConfig (in_source, in_mask) {
     let source = in_source;
     let mask = in_mask;
     let result = {};
-    let resultIsArray = false;
 
     if (Array.isArray(mask)) {
         if (!mask.length) {
@@ -333,7 +336,7 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
 
     Object.keys(replacements).forEach(search => {
         let replace = replacements[search];
-        replaced = replaced.replace(new RegExp("\\\$" + search), replace);
+        replaced = replaced.replace(new RegExp('\\$' + search), replace);
     });
 
     return replaced;
@@ -620,7 +623,6 @@ function initFolder (in_folderName) {
 function hasServiceConfigFile (in_sourceFolder) {
     let path = require('path');
 
-    let serviceConfig = false;
     let serviceConfigFile = path.resolve(in_sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
 
     if (fs.fileExists(serviceConfigFile)) {
@@ -692,7 +694,6 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
 
 function unsetServiceConfigValue (in_serviceConfig, in_keyPath, in_options) {
     let opt = in_options || {};
-    let serviceConfig = in_serviceConfig || {};
 
     if (!in_keyPath) {
         cprint.yellow('Specify a key path to unset, i.e service.name');
@@ -713,23 +714,44 @@ function unsetServiceConfigValue (in_serviceConfig, in_keyPath, in_options) {
 
     let keyPathPart;
     let configSubObject = removeConfig;
-    while (keyPathParts.length > 1) {
+    while (keyPathParts.length > 0) {
         keyPathPart = keyPathParts.shift();
-        configSubObject[keyPathPart] = {};
-        configSubObject = configSubObject[keyPathPart];
+
+        let keyPathPartArrayIndexMatch = keyPathPart.match(/^(.*)\[([0-9]+)\]$/);
+        let keyPathPartArrayIndex = -1;
+
+        if (keyPathPartArrayIndexMatch) {
+            keyPathPart = keyPathPartArrayIndexMatch[1];
+            keyPathPartArrayIndex = parseInt(keyPathPartArrayIndexMatch[2]);
+        }
+
+        if (keyPathParts.length === 0) {
+            if (keyPathPartArrayIndex >= 0) {
+                configSubObject[keyPathPart] = [];
+                configSubObject[keyPathPart][keyPathPartArrayIndex] = false;
+            } else {
+                configSubObject[keyPathPart] = false;
+            }
+            break;
+        }
+
+        if (keyPathPartArrayIndex >= 0) {
+            configSubObject[keyPathPart] = [];
+            configSubObject[keyPathPart][keyPathPartArrayIndex] = {};
+            configSubObject = configSubObject[keyPathPart][keyPathPartArrayIndex];
+        } else {
+            configSubObject[keyPathPart] = {};
+            configSubObject = configSubObject[keyPathPart];
+        }
     }
 
-    keyPathPart = keyPathParts.shift();
-    configSubObject[keyPathPart] = false;
-
-    serviceConfig = removeServiceConfig(serviceConfig, removeConfig, opt);
+    removeServiceConfig(in_serviceConfig, removeConfig, opt);
 }
 
 // ******************************
 
 function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_options) {
     let opt = in_options || {};
-    let serviceConfig = in_serviceConfig || {};
 
     if (!in_keyPath) {
         cprint.yellow('Specify a key path to set, i.e service.name');
@@ -737,11 +759,11 @@ function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_op
     }
 
     let keyPath = in_keyPath;
-    let keyPathMatch = keyPath.match(/(.*?)=(.*)/);
+    let keyPathMatch = keyPath.match(/(.*?)[=:](.*)/);
     let keyValue = in_keyValue;
     if (keyPathMatch) {
-        keyPath = keyPathMatch[1];
-        keyValue = keyPathMatch[2];
+        keyPath = keyPathMatch[1].trim();
+        keyValue = keyPathMatch[2].trim();
     }
 
     if (typeof(keyValue) === 'undefined') {
@@ -773,16 +795,38 @@ function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_op
 
     let keyPathPart;
     let configSubObject = updateConfig;
-    while (keyPathParts.length > 1) {
+    while (keyPathParts.length > 0) {
         keyPathPart = keyPathParts.shift();
-        configSubObject[keyPathPart] = {};
-        configSubObject = configSubObject[keyPathPart];
+
+        let keyPathPartArrayIndexMatch = keyPathPart.match(/^(.*)\[([0-9]+)\]$/);
+        let keyPathPartArrayIndex = -1;
+
+        if (keyPathPartArrayIndexMatch) {
+            keyPathPart = keyPathPartArrayIndexMatch[1];
+            keyPathPartArrayIndex = parseInt(keyPathPartArrayIndexMatch[2]);
+        }
+
+        if (keyPathParts.length === 0) {
+            if (keyPathPartArrayIndex >= 0) {
+                configSubObject[keyPathPart] = [];
+                configSubObject[keyPathPart][keyPathPartArrayIndex] = keyValue;
+            } else {
+                configSubObject[keyPathPart] = keyValue;
+            }
+            break;
+        }
+
+        if (keyPathPartArrayIndex >= 0) {
+            configSubObject[keyPathPart] = [];
+            configSubObject[keyPathPart][keyPathPartArrayIndex] = {};
+            configSubObject = configSubObject[keyPathPart][keyPathPartArrayIndex];
+        } else {
+            configSubObject[keyPathPart] = {};
+            configSubObject = configSubObject[keyPathPart];
+        }
     }
 
-    keyPathPart = keyPathParts.shift();
-    configSubObject[keyPathPart] = keyValue;
-
-    serviceConfig = updateServiceConfig(serviceConfig, updateConfig, opt);
+    updateServiceConfig(in_serviceConfig, updateConfig, opt);
 }
 
 // ******************************
@@ -826,7 +870,7 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
 // Helper Functions:
 // ******************************
 
-function _updateServiceConfig (in_serviceConfig) {
+function _upgradeServiceConfig (in_serviceConfig) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         schema_version: 'NUMBER'
     });
@@ -840,7 +884,7 @@ function _updateServiceConfig (in_serviceConfig) {
     _checkSchemaVersion(schemaVersion);
 
     if (schemaVersion < 1) {
-        serviceConfigChanged = _updateServiceConfigFrom0To1(newServiceConfig);
+        serviceConfigChanged = _upgradeServiceConfigFrom0To1(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
             requiresSave = true;
@@ -848,7 +892,7 @@ function _updateServiceConfig (in_serviceConfig) {
     }
 
     if (schemaVersion < 2) {
-        serviceConfigChanged = _updateServiceConfigFrom1To2(newServiceConfig);
+        serviceConfigChanged = _upgradeServiceConfigFrom1To2(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
             requiresSave = true;
@@ -856,7 +900,7 @@ function _updateServiceConfig (in_serviceConfig) {
     }
 
     if (schemaVersion < 3) {
-        serviceConfigChanged = _updateServiceConfigFrom2To3(newServiceConfig);
+        serviceConfigChanged = _upgradeServiceConfigFrom2To3(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
             requiresSave = true;
@@ -894,7 +938,7 @@ function _checkSchemaVersion (in_configSchemaVersion) {
     }
 }
 
-function _updateServiceConfigFrom0To1 (in_serviceConfig) {
+function _upgradeServiceConfigFrom0To1 (in_serviceConfig) {
     let hasBeenUpdated = false;
 
     if (in_serviceConfig.service) {
@@ -921,7 +965,7 @@ function _updateServiceConfigFrom0To1 (in_serviceConfig) {
 
 // ******************************
 
-function _updateServiceConfigFrom1To2 (in_serviceConfig) {
+function _upgradeServiceConfigFrom1To2 (in_serviceConfig) {
     let hasBeenUpdated = false;
 
     if (in_serviceConfig.service) {
@@ -941,7 +985,7 @@ function _updateServiceConfigFrom1To2 (in_serviceConfig) {
 
 // ******************************
 
-function _updateServiceConfigFrom2To3 (in_serviceConfig) {
+function _upgradeServiceConfigFrom2To3 (in_serviceConfig) {
     let hasBeenUpdated = false;
 
     if (in_serviceConfig.service) {
@@ -996,12 +1040,14 @@ function _removeFromServiceConfig (in_source, in_destination) {
     }
 
     if (Array.isArray(source)) {
-        destination = [];
-    } else {
         Object.keys(source).forEach(k => {
             let v = source[k];
             if (!destination[k]) {
                 return;
+            }
+
+            if (!Array.isArray(destination)) {
+                destination = [];
             }
 
             if (typeof(v) === 'object') {
@@ -1009,7 +1055,21 @@ function _removeFromServiceConfig (in_source, in_destination) {
                 return;
             }
 
+            delete destination[k];
+        });
+    } else {
+        Object.keys(source).forEach(k => {
+            let v = source[k];
+            if (!destination[k]) {
+                return;
+            }
+
             if (typeof(destination) !== 'object') {
+                return;
+            }
+
+            if (typeof(v) === 'object') {
+                destination[k] = _removeFromServiceConfig(v, destination[k]);
                 return;
             }
 
@@ -1027,17 +1087,29 @@ function _copyToServiceConfig (in_source, in_destination) {
     let destination = in_destination || {};
 
     if (Array.isArray(source)) {
-        destination = source;
-    } else {
         Object.keys(source).forEach(k => {
             let v = source[k];
+            if (!Array.isArray(destination)) {
+                destination = [];
+            }
+
             if (typeof(v) === 'object') {
                 destination[k] = _copyToServiceConfig(v, destination[k]);
                 return;
             }
 
+            destination[k] = v;
+        });
+    } else {
+        Object.keys(source).forEach(k => {
+            let v = source[k];
             if (typeof(destination) !== 'object') {
                 destination = {};
+            }
+
+            if (typeof(v) === 'object') {
+                destination[k] = _copyToServiceConfig(v, destination[k]);
+                return;
             }
 
             destination[k] = v;
@@ -1154,7 +1226,7 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
             return;
         }
 
-        if (!objVal || !objVal.match(/^([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
+        if (!objVal || !objVal.match(/^([A-Za-z0-9 _:$.*-]*[/\\]?)*$/)) {
             cprint.yellow('Not a valid filesystem reference format (' + objVal + ') in path "' + in_path + '": ' + objVal);
             return;
         }
@@ -1166,7 +1238,7 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
             return;
         }
 
-        if (!objVal || !objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[\/\\]?)*$/)) {
+        if (!objVal || !objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[/\\]?)*$/)) {
             cprint.yellow('Not a valid url format (' + objVal + ') in path "' + in_path + '": ' + objVal);
             return;
         }
@@ -1190,7 +1262,7 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
     if (Array.isArray(objVal)) {
         objVal.forEach(elem => {
             _checkArrayElementAgainstSchema(in_path + '[]', elem, schemaVal[0], in_checkValueAsType, in_fullPath);
-        })
+        });
         return;
     }
 
@@ -1202,22 +1274,22 @@ function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_c
 // ******************************
 
 function _convertToJSONSchema (in_value) {
-    if (typeof(in_value) === "string") {
-        if (in_value === "NUMBER") {
+    if (typeof(in_value) === 'string') {
+        if (in_value === 'NUMBER') {
             return {
-                "type": "number"
+                'type': 'number'
             };
-        } else if (in_value === "STRING" || in_value === "PATH" || in_value === "URL") {
+        } else if (in_value === 'STRING' || in_value === 'PATH' || in_value === 'URL') {
             return {
-                "type": "string"
+                'type': 'string'
             };
-        } else if (in_value === "BOOLEAN") {
+        } else if (in_value === 'BOOLEAN') {
             return {
-                "type": "boolean"
+                'type': 'boolean'
             };
-        } else if (in_value === "ANY") {
+        } else if (in_value === 'ANY') {
             return {
-                "type": "object"
+                'type': 'object'
             };
         }
 
@@ -1225,11 +1297,11 @@ function _convertToJSONSchema (in_value) {
         let list = in_value;
         let firstItem = list[0];
         return {
-            "type": "array",
-            "items": _convertToJSONSchema(firstItem)
+            'type': 'array',
+            'items': _convertToJSONSchema(firstItem)
         };
 
-    } else if (typeof(in_value) === "object") {
+    } else if (typeof(in_value) === 'object') {
         let properties = {};
         for (let k in in_value) {
             let v = in_value[k];
@@ -1238,8 +1310,8 @@ function _convertToJSONSchema (in_value) {
         }
 
         return {
-            "type": "object",
-            "properties": properties
+            'type': 'object',
+            'properties': properties
         };
     } else {
         cprint.red('Unknown value type:' + in_value);

@@ -45,7 +45,7 @@ function shellCmd (in_args, in_options) {
         args = [
             '-c',
             ['winpty'].concat(args).join(' ')
-        ]
+        ];
     }
 
     if (shell.match(/^\/bin\/bash$/)) {
@@ -84,21 +84,21 @@ function getShell () {
 
     if (env.isWindows()) {
         shellPaths = shellPaths.concat([
-            "C:/Program Files/Git/git-bash.exe",
-            "C:/Program Files (x86)/Git/git-bash.exe"
+            'C:/Program Files/Git/git-bash.exe',
+            'C:/Program Files (x86)/Git/git-bash.exe'
         ]);
     }
 
     if (env.isLinux()) {
         shellPaths = shellPaths.concat([
-            "/bin/bash"
+            '/bin/bash'
         ]);
     }
 
     shell = shellPaths
         .map(p => path.resolve(p))
         .filter(p => fs.fileExists(p))
-        .find(p => true);
+        .find(() => true);
 
     if (shell) {
         g_SHELL = shell;

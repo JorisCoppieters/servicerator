@@ -4,17 +4,7 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let service = require('../utils/service');
-
-// ******************************
-// Functions:
-// ******************************
-
-function getServiceValue (in_serviceConfig, in_keyPath) {
-    service.getValue(in_serviceConfig, in_keyPath);
-}
 
 // ******************************
 // Plugin Functions:
@@ -22,7 +12,7 @@ function getServiceValue (in_serviceConfig, in_keyPath) {
 
 function handleCommand (in_args, in_params, in_serviceConfig) {
     let keyPath = in_params.shift() || '';
-    getServiceValue(in_serviceConfig, keyPath);
+    service.getValue(in_serviceConfig, keyPath);
     return true;
 }
 

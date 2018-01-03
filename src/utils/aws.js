@@ -186,7 +186,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
 
 // ******************************
 
-function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefinitionArn, in_loadBalancers, in_desiredCount, in_options) {
+function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefinitionArn, in_loadBalancers, in_desiredCount, in_healthCheckGracePeriod, in_options) {
     let loadBalancers = JSON.stringify(in_loadBalancers || []);
     let desiredCount = in_desiredCount || 0;
 
@@ -197,13 +197,16 @@ function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefi
         'create-service',
         '--cluster', in_clusterArn,
         '--task-definition', in_taskDefinitionArn,
+        '--health-check-grace-period-seconds', in_healthCheckGracePeriod,
         '--service-name', in_clusterServiceName,
         '--desired-count', desiredCount
     ];
 
     if (loadBalancers && loadBalancers.length) {
-        args['--load-balancers'] = loadBalancers;
-        args['--role'] = 'ecsServiceRole'; // TODO: This should be specified in the config and should be ecs-service-role
+        args.push('--load-balancers');
+        args.push(loadBalancers);
+        args.push('--role');
+        args.push('ecsServiceRole'); // TODO: This should be specified in the config and should be ecs-service-role
     }
 
     let cmdResult = awsCmd(args, in_options);
@@ -308,8 +311,6 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
 // ******************************
 
 function getTaskDetails (in_clusterName, in_taskArns, in_options) {
-    let opt = in_options || {};
-
     let tasks = getTasks(in_clusterName, in_taskArns, in_options);
     if (!tasks || !tasks.length) {
         return [];
@@ -440,8 +441,6 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
 // ******************************
 
 function getClusterServiceVersionForTaskDefinition (in_taskDefinitionArn, in_options) {
-    let opt = in_options || {};
-
     let taskDefinition = getTaskDefinition(in_taskDefinitionArn, in_options);
     if (!taskDefinition) {
         cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
@@ -507,7 +506,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
             .map(obj => obj.deployments || [])
             .reduce((a,b) => a.concat(b), [])
             .map(obj => obj.taskDefinition)
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (!awsTaskDefinitionArn) {
@@ -574,7 +573,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
 
                 return aVal < bVal ? 1 : -1;
             })
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (!latestTaskDefinitionArn) {
@@ -718,7 +717,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
     let awsResult = parseAwsCmdResult(cmdResult);
     if (awsResult && awsResult.containerInstances) {
         awsTasks = awsResult.containerInstances
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (!awsTasks) {
@@ -892,50 +891,6 @@ function createDockerRepository (in_dockerImageName, in_options) {
 }
 
 // ******************************
-// Cache Clearing Functions:
-// ******************************
-
-function clearCachedAutoScalingGroups (in_cache) {
-    let cache = in_cache || {};
-    cache['AllAutoScalingGroups'] = undefined;
-}
-
-// ******************************
-
-function clearCachedAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache) {
-    let cache = in_cache || {};
-    cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName] = undefined;
-}
-
-// ******************************
-
-function clearCachedTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache) {
-    let cache = in_cache || {};
-    cache['TaskDefinitionArn_' + in_taskDefinitionName] = undefined;
-}
-
-// ******************************
-
-function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_cache) {
-    let cache = in_cache || {};
-    cache['DockerRepositoryImages_' + in_dockerRepositoryName] = undefined;
-}
-
-// ******************************
-
-function clearCachedLaunchConfigurationLike (in_launchConfigurationTemplate, in_cache) {
-    let cache = in_cache || {};
-    cache['LaunchConfiguration_' + in_launchConfigurationTemplate] = undefined;
-}
-
-// ******************************
-
-function clearCachedLaunchConfigurationsLike (in_launchConfigurationTemplate, in_cache) {
-    let cache = in_cache || {};
-    cache['LaunchConfigurations_' + in_launchConfigurationTemplate] = undefined;
-}
-
-// ******************************
 // Launch Configuration Functions:
 // ******************************
 
@@ -957,7 +912,7 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
     let latestLaunchConfiguration;
 
     if (launchConfigurations && launchConfigurations.length) {
-        latestLaunchConfiguration = launchConfigurations.find(name => true);
+        latestLaunchConfiguration = launchConfigurations.find(() => true);
     }
 
     if (latestLaunchConfiguration === undefined) {
@@ -1011,7 +966,7 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
             .map(obj => obj.LaunchConfigurationName)
             .filter(name => name.match(in_launchConfigurationTemplate))
             .sort()
-            .reverse()
+            .reverse();
     }
 
     cache['LaunchConfigurations_' + in_launchConfigurationTemplate] = {
@@ -1077,13 +1032,11 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
 
     cprint.cyan('Setting Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '" to ' + in_autoScalingGroupInstanceCount + '...');
 
-    let autoScalingGroupInstanceCount = in_autoScalingGroupInstanceCount || 1;
-
     let cmdResult = awsCmd([
         'autoscaling',
         'update-auto-scaling-group',
         '--auto-scaling-group', in_autoScalingGroupName,
-        '--desired-capacity', in_autoScalingGroupInstanceCount,
+        '--desired-capacity', in_autoScalingGroupInstanceCount || 1,
         '--min-size', 0
     ], in_options);
 
@@ -1183,7 +1136,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     if (awsResult && awsResult.AutoScalingGroups) {
         desiredCapacity = awsResult.AutoScalingGroups
             .map(obj => obj.DesiredCapacity)
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (desiredCapacity === undefined) {
@@ -1222,6 +1175,379 @@ function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, 
         .find(g => g.LaunchConfigurationName === in_launchConfigurationName);
 
     return autoScalingGroupForLaunchConfiguration;
+}
+
+// ******************************
+// IAM Role Functions:
+// ******************************
+
+function getRoleArnForRoleName (in_roleName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS Role ARN for Role "' + in_roleName + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['RoleArn_' + in_roleName];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'iam',
+        'list-roles'
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let awsRoleArn;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.Roles) {
+        awsRoleArn = awsResult.Roles
+            .sort()
+            .reverse()
+            .find(obj => obj.RoleName === in_roleName);
+    }
+
+    if (!awsRoleArn) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find AWS Role ARN for Role "' + in_roleName + '"');
+        }
+        return false;
+    }
+
+    cache['RoleArn_' + in_roleName] = {
+        val: awsRoleArn,
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+    };
+
+    return awsRoleArn;
+}
+
+// ******************************
+
+function createRole (in_roleName, in_roleDescription, in_rolePolicyDocument, in_options) {
+    cprint.cyan('Creating AWS Role "' + in_roleName + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'create-role',
+        '--role-name', in_roleName,
+        '--description', in_roleDescription,
+        '--assume-role-policy-document', JSON.stringify(in_rolePolicyDocument)
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Created AWS Role "' + in_roleName + '"');
+    return true;
+}
+
+// ******************************
+
+function attachRolePolicy (in_roleName, in_rolePolicyArn, in_options) {
+    cprint.cyan('Attaching AWS Role Policy to AWS Role "' + in_roleName + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'attach-role-policy',
+        '--role-name', in_roleName,
+        '--policy-arn', in_rolePolicyArn
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Attached AWS Role Policy to AWS Role "' + in_roleName + '"');
+    return true;
+}
+
+// ******************************
+
+function createInstanceProfile (in_instanceProfileName, in_options) {
+    cprint.cyan('Creating AWS Instance Profile "' + in_instanceProfileName + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'create-instance-profile',
+        '--instance-profile-name', in_instanceProfileName
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Created AWS Instance Profile "' + in_instanceProfileName + '"');
+    return true;
+}
+
+// ******************************
+
+function addRoleToInstanceProfile (in_instanceProfileName, in_roleName, in_options) {
+    cprint.cyan('Adding AWS Role "' + in_roleName + '" to AWS Instance Profile "' + in_instanceProfileName + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'add-role-to-instance-profile',
+        '--instance-profile-name', in_instanceProfileName,
+        '--role-name', in_roleName
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Added AWS Role "' + in_roleName + '" to AWS Instance Profile "' + in_instanceProfileName + '"');
+    return true;
+}
+
+// ******************************
+// IAM User Functions:
+// ******************************
+
+function getUserArnForUsername (in_username, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving AWS User ARN for Username "' + in_username + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['UserArn_' + in_username];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'iam',
+        'list-users'
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let awsUserArn;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.Users) {
+        awsUserArn = awsResult.Users
+            .sort()
+            .reverse()
+            .find(obj => obj.UserName === in_username);
+    }
+
+    if (!awsUserArn) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find AWS User ARN for Username "' + in_username + '"');
+        }
+        return false;
+    }
+
+    cache['UserArn_' + in_username] = {
+        val: awsUserArn,
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+    };
+
+    return awsUserArn;
+}
+
+// ******************************
+
+function createUser (in_username, in_options) {
+    cprint.cyan('Creating AWS User "' + in_username + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'create-user',
+        '--user-name', in_username
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Created AWS User "' + in_username + '"');
+    return true;
+}
+
+// ******************************
+
+function createUserAccessKey (in_username, in_options) {
+    cprint.cyan('Creating AWS User Access Key for AWS User "' + in_username + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'create-access-key',
+        '--user-name', in_username
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let bucketUserAccessKeyResults = cmdResult.resultObj;
+    if (!bucketUserAccessKeyResults.AccessKey) {
+        cprint.yellow('Failed to parse bucket user access-key response');
+        cmdResult.printResult('  ');
+        return false;
+    }
+
+    let userObject = {
+        AccessKey: bucketUserAccessKeyResults.AccessKey.AccessKeyId,
+        SecretKey: bucketUserAccessKeyResults.AccessKey.SecretAccessKey,
+    };
+
+    cmdResult.printResult('  ');
+    cprint.green('Created AWS User Access Key for AWS User "' + in_username + '"');
+    return userObject;
+}
+
+// ******************************
+
+function attachInlinePolicyToUser (in_username, in_inlinePolicyName, in_inlinePolicy, in_options) {
+    cprint.cyan('Attaching Inline Policy To AWS User "' + in_username + '"...');
+
+    let cmdResult = awsCmd([
+        'iam',
+        'put-user-policy',
+
+        '--user-name',
+        in_username,
+
+        '--policy-name',
+        in_inlinePolicyName,
+
+        '--policy-document',
+        JSON.stringify(in_inlinePolicy)
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Attached Inline Policy To AWS User "' + in_username + '"');
+    return true;
+}
+
+// ******************************
+// S3 Functions:
+// ******************************
+
+function getBucketPathForBucketName (in_bucketName, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Retrieving Bucket Path for Bucket "' + in_bucketName + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheItem = cache['BucketPath_' + in_bucketName];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        's3',
+        'ls'
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let awsBucketPath;
+    let awsResult = cmdResult.result;
+    if (awsResult) {
+        awsBucketPath = awsResult
+            .trim()
+            .split(/[\r\n]+/)
+            .map(obj => {
+                let objMatch = obj.match(/([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}) (.*)/);
+                if (!objMatch) {
+                    return false;
+                }
+
+                return {
+                    bucketCreatedDate: objMatch[1],
+                    bucketCreatedTime: objMatch[2],
+                    bucketName: objMatch[3],
+                    bucketPath: 's3://' + objMatch[3]
+                };
+            })
+            .filter(obj => obj && obj.bucketName === in_bucketName)
+            .map(obj => obj.bucketPath)
+            .find(() => true);
+    }
+
+    if (!awsBucketPath) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t find Bucket Path for Bucket "' + in_bucketName + '"');
+        }
+        return false;
+    }
+
+    cache['BucketPath_' + in_bucketName] = {
+        val: awsBucketPath,
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+    };
+
+    return awsBucketPath;
+}
+
+// ******************************
+
+function createBucket (in_bucketName, in_options) {
+    cprint.cyan('Creating AWS Bucket "' + in_bucketName + '"...');
+
+    let bucketPath = 's3://' + in_bucketName;
+
+    let cmdResult = awsCmd([
+        's3',
+        'mb', bucketPath
+    ], in_options);
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    cmdResult.printResult('  ');
+    cprint.green('Created AWS Bucket "' + in_bucketName + '"');
+    return true;
 }
 
 // ******************************
@@ -1264,7 +1590,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
             .sort()
             .reverse()
             .map(obj => obj.VpcId)
-            .find(obj => true);
+            .find( true);
     }
 
     if (!awsVpcId) {
@@ -1301,7 +1627,7 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
         'describe-security-groups',
         '--filters',
         `Name=vpc-id,Values="${in_vpcId}"`,
-        `Name=group-name,Values="default"`
+        'Name=group-name,Values="default"'
     ], {
         hide: !opt.verbose,
         profile: opt.profile
@@ -1319,7 +1645,7 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
             .sort()
             .reverse()
             .map(obj => obj.GroupId)
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (!awsDefaultVpcSecurityGroupId) {
@@ -1372,7 +1698,7 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
         awsVpcSecurityGroupId = awsResult.SecurityGroups
             .filter(obj => obj.GroupName === in_groupName)
             .map(obj => obj.GroupId)
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (!awsVpcSecurityGroupId) {
@@ -1427,7 +1753,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
             .sort()
             .reverse()
             .map(obj => obj.SubnetId)
-            .find(obj => true);
+            .find(() => true);
     }
 
     if (!awsVpcSubnetId) {
@@ -1626,7 +1952,7 @@ function getAwsDockerRepositoryUrl (in_serviceConfig) {
     });
 
     if (!serviceConfig.aws.account_id) {
-        cprint.yellow("AWS account id not set");
+        cprint.yellow('AWS account id not set');
         return false;
     }
 
@@ -1654,7 +1980,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
     }
 
     let response = awsCmdResult.result;
-    let responseRegExp = new RegExp('docker login -u (AWS) -p ([\\S]+) -e (.*?) (https?:\/\/.*)');
+    let responseRegExp = new RegExp('docker login -u (AWS) -p ([\\S]+) -e (.*?) (https?://.*)');
     let responseMatch = response.match(responseRegExp);
     if (!responseMatch || responseMatch.length !== 5) {
         return false;
@@ -1724,13 +2050,13 @@ function awsLogin (in_serviceConfig) {
 
     let awsAccessKey = serviceConfig.aws.access_key;
     if (!awsAccessKey) {
-        cprint.yellow("AWS access key not set");
+        cprint.yellow('AWS access key not set');
         return false;
     }
 
     let awsSecretKey = getAwsSecretKey(in_serviceConfig);
     if (!awsSecretKey) {
-        cprint.yellow("AWS secret key not set");
+        cprint.yellow('AWS secret key not set');
         return false;
     }
 
@@ -1747,17 +2073,61 @@ function awsLogin (in_serviceConfig) {
     cprint.cyan('Setting up AWS credentials...');
 
     fs.writeFile(awsCredentialsFile, [
-        `[default]`,
+        '[default]',
         `aws_access_key_id = ${awsAccessKey}`,
         `aws_secret_access_key = ${awsSecretKey}`,
-        ``
+        ''
     ].join('\n'), true);
 
     fs.writeFile(awsConfigFile, [
-        `[default]`,
+        '[default]',
         `region = ${awsRegion}`,
-        ``
+        ''
     ].join('\n'), true);
+}
+
+// ******************************
+// Cache Clearing Functions:
+// ******************************
+
+function clearCachedAutoScalingGroups (in_cache) {
+    let cache = in_cache || {};
+    cache['AllAutoScalingGroups'] = undefined;
+}
+
+// ******************************
+
+function clearCachedAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_cache) {
+    let cache = in_cache || {};
+    cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName] = undefined;
+}
+
+// ******************************
+
+function clearCachedTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache) {
+    let cache = in_cache || {};
+    cache['TaskDefinitionArn_' + in_taskDefinitionName] = undefined;
+}
+
+// ******************************
+
+function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_cache) {
+    let cache = in_cache || {};
+    cache['DockerRepositoryImages_' + in_dockerRepositoryName] = undefined;
+}
+
+// ******************************
+
+function clearCachedLaunchConfigurationLike (in_launchConfigurationTemplate, in_cache) {
+    let cache = in_cache || {};
+    cache['LaunchConfiguration_' + in_launchConfigurationTemplate] = undefined;
+}
+
+// ******************************
+
+function clearCachedLaunchConfigurationsLike (in_launchConfigurationTemplate, in_cache) {
+    let cache = in_cache || {};
+    cache['LaunchConfigurations_' + in_launchConfigurationTemplate] = undefined;
 }
 
 // ******************************
@@ -1766,7 +2136,7 @@ function awsLogin (in_serviceConfig) {
 
 function awsArnToTitle (in_arn) {
     let title = in_arn || '';
-    let match = in_arn.match(/arn:aws:[a-z]+:[a-z0-9-]+:[0-9]+:[a-z-]+\/(.*)/);
+    let match = in_arn.match(/arn:aws(?::[a-z0-9-]*){4}\/(.*)/);
     if (match) {
         title = match[1];
     }
@@ -1792,7 +2162,7 @@ function awsCmd (in_args, in_options) {
     let args = in_args;
 
     if (!Array.isArray(args)) {
-        args = [args]
+        args = [args];
     }
 
     args.push('--profile');
@@ -1818,7 +2188,7 @@ function parseAwsCmdResult (in_cmdResult) {
 
     let jsonObject;
     try {
-        jsonObject = JSON.parse(in_cmdResult.result)
+        jsonObject = JSON.parse(in_cmdResult.result);
     } catch (e) {
         cprint.red('Failed to parse "' + jsonObject.result + '":\n  ' + e.stack);
         return false;
@@ -1856,17 +2226,25 @@ function awsVersion () {
 // Exports:
 // ******************************
 
+module.exports['addRoleToInstanceProfile'] = addRoleToInstanceProfile;
 module.exports['arnToTitle'] = awsArnToTitle;
+module.exports['attachInlinePolicyToUser'] = attachInlinePolicyToUser;
+module.exports['attachRolePolicy'] = attachRolePolicy;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;
 module.exports['clearCachedAutoScalingGroups'] = clearCachedAutoScalingGroups;
+module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCachedDockerRepositoryImagesForRepositoryName;
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
 module.exports['clearCachedLaunchConfigurationsLike'] = clearCachedLaunchConfigurationsLike;
 module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
-module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCachedDockerRepositoryImagesForRepositoryName;
 module.exports['cmd'] = awsCmd;
+module.exports['createBucket'] = createBucket;
 module.exports['createCluster'] = createCluster;
 module.exports['createClusterService'] = createClusterService;
 module.exports['createDockerRepository'] = createDockerRepository;
+module.exports['createInstanceProfile'] = createInstanceProfile;
+module.exports['createRole'] = createRole;
+module.exports['createUser'] = createUser;
+module.exports['createUserAccessKey'] = createUserAccessKey;
 module.exports['deleteDockerRepositoryImages'] = deleteDockerRepositoryImages;
 module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
@@ -1874,6 +2252,7 @@ module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
 module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
 module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
+module.exports['getBucketPathForBucketName'] = getBucketPathForBucketName;
 module.exports['getClusterArnForClusterName'] = getClusterArnForClusterName;
 module.exports['getClusterServiceArnForClusterName'] = getClusterServiceArnForClusterName;
 module.exports['getClusterServiceVersionForTaskDefinition'] = getClusterServiceVersionForTaskDefinition;
@@ -1891,6 +2270,7 @@ module.exports['getLaunchConfigurationsLike'] = getLaunchConfigurationsLike;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
 module.exports['getRepositoryServiceConfig'] = getAwsRepositoryServiceConfig;
+module.exports['getRoleArnForRoleName'] = getRoleArnForRoleName;
 module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getServiceConfig'] = getAwsServiceConfig;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;
@@ -1898,6 +2278,7 @@ module.exports['getTaskDefinition'] = getTaskDefinition;
 module.exports['getTaskDefinitionArnForClusterService'] = getTaskDefinitionArnForClusterService;
 module.exports['getTaskDetails'] = getTaskDetails;
 module.exports['getTasks'] = getTasks;
+module.exports['getUserArnForUsername'] = getUserArnForUsername;
 module.exports['getVpcIdForVpc'] = getVpcIdForVpc;
 module.exports['getVpcSecurityGroupIdFromGroupName'] = getVpcSecurityGroupIdFromGroupName;
 module.exports['getVpcSubnetIdForVpc'] = getVpcSubnetIdForVpc;

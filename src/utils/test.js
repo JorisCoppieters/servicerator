@@ -6,6 +6,8 @@
 
 let cprint = require('color-print');
 
+let print = require('./print');
+
 // ******************************
 // Constants:
 // ******************************
@@ -19,9 +21,9 @@ function assertEquals (in_testName, in_expected, in_received) {
     let received = _toString(in_received);
 
     if (expected === received) {
-        console.log(cprint.toGreen('✔ ' + in_testName));
+        print.out((cprint.toGreen('✔ ' + in_testName)) + '\n');
     } else {
-        console.log(cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected: ') + cprint.toYellow(expected) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received));
+        print.out((cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected: ') + cprint.toYellow(expected) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received)) + '\n');
     }
 }
 
@@ -32,9 +34,9 @@ function assertMatch (in_testName, in_expectedMatch, in_received) {
     let received = _toString(in_received);
 
     if (received.match(expectedRe)) {
-        console.log(cprint.toGreen('✔ ' + in_testName));
+        print.out((cprint.toGreen('✔ ' + in_testName)) + '\n');
     } else {
-        console.log(cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected Match: ') + cprint.toYellow(expectedRe) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received));
+        print.out((cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected Match: ') + cprint.toYellow(expectedRe) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received)) + '\n');
     }
 }
 
