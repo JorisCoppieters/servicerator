@@ -2904,7 +2904,7 @@ function awsViewConsoleLogin (in_serviceConfig) {
     let url = `${awsAccountId}.signin.aws.amazon.com/console`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -2974,7 +2974,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environmentTitle};tag:ServiceName=${serviceName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3027,7 +3027,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#LoadBalancers:search=${awsLoadBalancerName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3080,7 +3080,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#LaunchConfigurations:id=${awsLaunchConfigurationName};filter=${awsLaunchConfigurationName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3133,7 +3133,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#AutoScalingGroups:id=${awsAutoScalingGroupName};filter=${awsAutoScalingGroupName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3184,7 +3184,7 @@ function awsViewRepository (in_serviceConfig) {
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/repositories/${dockerImageName}#images;tagStatus=ALL`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3226,7 +3226,7 @@ function awsViewTaskDefinition (in_serviceConfig) {
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/taskDefinitions/${awsTaskDefinitionName}/latest`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3272,7 +3272,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/tasks`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3320,7 +3320,7 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/services/${awsClusterServiceName}/tasks`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3347,7 +3347,7 @@ function awsViewBucket (in_serviceConfig) {
     let url = `console.aws.amazon.com/s3/buckets/${awsBucketName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
@@ -3385,16 +3385,16 @@ function awsViewBucketUser (in_serviceConfig) {
     let url = `console.aws.amazon.com/iam/home?region=${awsRegion}#/users/${awsBucketUsername}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
-    _open(url);
+    _openUrl(url);
 }
 
 // ******************************
 // Helper Functions:
 // ******************************
 
-function _open (in_url) {
-    let open = require('open');
-    open(in_url);
+function _openUrl (in_url) {
+    let openUrl = require('open');
+    openUrl(in_url);
 }
 
 // ******************************

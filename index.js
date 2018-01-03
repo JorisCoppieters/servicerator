@@ -42,94 +42,87 @@ if (g_ARGV['help']) {
     let command = params.length ? params.shift().toLowerCase() : 'info';
     if (command === 'help') {
         help.printHelp();
-        process.exit(0);
     }
 
-    if (command === 'version') {
+    else if (command === 'version') {
         help.printVersion();
-        process.exit(0);
     }
 
-    if (command === 'init') {
+    else if (command === 'init') {
         let folderName = params.length ? params.shift() : '.';
         service.initFolder(folderName);
-        process.exit(0);
     }
 
-    let serviceConfig = service.loadConfig();
-    if (serviceConfig) {
-        service.checkConfigSchema(serviceConfig);
-    } else {
-        serviceConfig = service.createConfig('.');
-    }
-
-    plugins.forEach(p => {
-        if (!serviceConfig && !p.noConfigRequired) {
-            return;
+    else {
+        let serviceConfig = service.loadConfig();
+        if (serviceConfig) {
+            service.checkConfigSchema(serviceConfig);
+        } else {
+            serviceConfig = service.createConfig('.');
         }
-        if (p.onOpen) {
-            p.onOpen(serviceConfig);
-        }
-    });
-
-    let pluginHandled = false;
-    plugins.forEach(p => {
-        if (!serviceConfig && !p.noConfigRequired) {
-            return;
-        }
-        if (!p.getBaseCommands) {
-            return;
-        }
-        if (p.getBaseCommands().indexOf(command) >= 0) {
-            let nextParam = (params[0] || '').toLowerCase();
-            if (nextParam === 'help') {
-                help.printPluginHelp(command);
-                pluginHandled = true;
+    
+        plugins.forEach(p => {
+            if (!serviceConfig && !p.noConfigRequired) {
                 return;
             }
-
-            try {
-                let clone = require('clone');
-                if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
+            if (p.onOpen) {
+                p.onOpen(serviceConfig);
+            }
+        });
+    
+        let pluginHandled = false;
+        plugins.forEach(p => {
+            if (!serviceConfig && !p.noConfigRequired) {
+                return;
+            }
+            if (!p.getBaseCommands) {
+                return;
+            }
+            if (p.getBaseCommands().indexOf(command) >= 0) {
+                let nextParam = (params[0] || '').toLowerCase();
+                if (nextParam === 'help') {
+                    help.printPluginHelp(command);
                     pluginHandled = true;
                     return;
                 }
-            } catch (e) {
-                let stack = e.stack.replace(/[\\]/g, '\\$&');
-
-                let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
-                print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
-                print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow('  ' + errorTitle + '  ', true), true)) + '\n');
-                print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
-                print.out('\n');
-                print.out(cprint.toMagenta('Please send the following to') + ' ' + cprint.toBold(cprint.toLightMagenta('joris.coppieters@gmail.com', true)) + '\n');
-                print.out('\n');
-                print.out(cprint.toYellow('Script Command: [' + process.argv.slice(2).join(', ') + ']') + '\n');
-                print.out(cprint.toYellow('Error Stack Trace: '));
-                print.out(cprint.toRed(stack) + '\n');
-                process.exit(1);
+    
+                try {
+                    let clone = require('clone');
+                    if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
+                        pluginHandled = true;
+                        return;
+                    }
+                } catch (e) {
+                    let stack = e.stack.replace(/[\\]/g, '\\$&');
+    
+                    let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
+                    print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
+                    print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow('  ' + errorTitle + '  ', true), true)) + '\n');
+                    print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
+                    print.out('\n');
+                    print.out(cprint.toMagenta('Please send the following to') + ' ' + cprint.toBold(cprint.toLightMagenta('joris.coppieters@gmail.com', true)) + '\n');
+                    print.out('\n');
+                    print.out(cprint.toYellow('Script Command: [' + process.argv.slice(2).join(', ') + ']') + '\n');
+                    print.out(cprint.toYellow('Error Stack Trace: '));
+                    print.out(cprint.toRed(stack) + '\n');
+                    process.exit(1);
+                }
             }
+        });
+    
+        plugins.forEach(p => {
+            if (!serviceConfig && !p.noConfigRequired) {
+                return;
+            }
+            if (p.onClose) {
+                p.onClose(serviceConfig);
+            }
+        });
+    
+        if (!pluginHandled && serviceConfig) {
+            cprint.yellow('Unknown command: ' + command + ' ' + params);
         }
-    });
-
-    plugins.forEach(p => {
-        if (!serviceConfig && !p.noConfigRequired) {
-            return;
-        }
-        if (p.onClose) {
-            p.onClose(serviceConfig);
-        }
-    });
-
-    if (pluginHandled) {
-        process.exit(0);
     }
-
-    if (!serviceConfig) {
-        process.exit(0);
-    }
-
-    cprint.yellow('Unknown command: ' + command + ' ' + params);
 }
 
 // ******************************

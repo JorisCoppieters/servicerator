@@ -1036,7 +1036,7 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
         'autoscaling',
         'update-auto-scaling-group',
         '--auto-scaling-group', in_autoScalingGroupName,
-        '--desired-capacity', in_autoScalingGroupInstanceCount || 1,
+        '--desired-capacity', in_autoScalingGroupInstanceCount,
         '--min-size', 0
     ], in_options);
 
@@ -1590,7 +1590,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
             .sort()
             .reverse()
             .map(obj => obj.VpcId)
-            .find( true);
+            .find(() => true);
     }
 
     if (!awsVpcId) {
