@@ -1285,8 +1285,14 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
             return;
         }
 
+        let key = environment_variable.key;
+        let value = environment_variable.value;
+
+        key = service.replaceConfigReferences(in_serviceConfig, key);
+        value = service.replaceConfigReferences(in_serviceConfig, value);
+
         args.push('--env');
-        args.push(environment_variable.key + '=' + environment_variable.value);
+        args.push(key + '=' + value);
     });
 
     args.push(dockerImagePath);

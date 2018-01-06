@@ -975,6 +975,10 @@
                                 "description": "The name of this cluster",
                                 "type": "string"
                             },
+                            "role": {
+                                "description": "The AWS role of the cluster service",
+                                "type": "string"
+                            },
                             "service_name": {
                                 "description": "The name of the service running on the cluster",
                                 "type": "string"

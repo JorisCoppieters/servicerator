@@ -26,12 +26,9 @@ function runTests () {
     }
 
     let tempDockerFolder = fs.createFolder(path.resolve(env.getTemp(), 'docker.test'));
-    let tempDockerFile = fs.writeFile(path.resolve(tempDockerFolder, 'Dockerfile'), [
-        `FROM ubuntu:trusty`
-    ].join('\n'));
 
     cprint.magenta('Running docker util tests...');
-    test.assertMatch('docker folder', '.*docker\.test', docker.getFolder(tempDockerFolder));
+    test.assertMatch('docker folder', '.*docker.test', docker.getFolder(tempDockerFolder));
     test.assertMatch('docker file', '.*\\Dockerfile', docker.getDockerfile(tempDockerFolder));
     test.assertMatch('docker password', '.+', docker.getPassword({
         docker: {

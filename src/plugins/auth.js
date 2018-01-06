@@ -7,6 +7,7 @@
 let cprint = require('color-print');
 
 let docker = require('../utils/docker');
+let env = require('../utils/env');
 let fs = require('../utils/filesystem');
 let openssl = require('../utils/openssl');
 let print = require('../utils/print');
@@ -122,7 +123,8 @@ function generateAuthFiles (in_serviceConfig) {
         return;
     }
 
-    let tmpAuthFolder = path.resolve(authFolder, 'tmp');
+    let tempFolder = env.getTemp();
+    let tmpAuthFolder = path.resolve(tempFolder, 'servicerator-auth-tmp');
     fs.deleteFolder(tmpAuthFolder);
     fs.createFolder(tmpAuthFolder);
 

@@ -7,6 +7,7 @@
 let env = require('./utils/env');
 let aws_test = require('./utils/aws.test');
 let docker_test = require('./utils/docker.test');
+let object_test = require('./utils/object.test');
 let plugins = env.getPlugins();
 
 // ******************************
@@ -18,8 +19,9 @@ let plugins = env.getPlugins();
 // ******************************
 
 function runAllTests () {
-    aws_test.runTests();
-    docker_test.runTests();
+    object_test.runTests();
+    // aws_test.runTests();
+    // docker_test.runTests();
 
     plugins.forEach(p => {
         if (p.runTests) {

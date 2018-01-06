@@ -186,27 +186,40 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
 
 // ******************************
 
-function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefinitionArn, in_loadBalancers, in_desiredCount, in_healthCheckGracePeriod, in_options) {
-    let loadBalancers = JSON.stringify(in_loadBalancers || []);
-    let desiredCount = in_desiredCount || 0;
+function createClusterService (in_clusterServiceConfig, in_options) {
+    let clusterServiceConfig = in_clusterServiceConfig || {};
 
-    cprint.cyan('Creating AWS Cluster Service in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"...');
+    let clusterArn = clusterServiceConfig.clusterArn;
+    let clusterServiceName = clusterServiceConfig.clusterServiceName;
+    let taskDefinitionArn = clusterServiceConfig.taskDefinitionArn;
+    let loadBalancers = JSON.stringify(clusterServiceConfig.loadBalancers || []);
+    let desiredCount = clusterServiceConfig.desiredCount || 0;
+    let role = clusterServiceConfig.role;
+    let healthCheckGracePeriod = clusterServiceConfig.healthCheckGracePeriod;
+    let maximumPercent = clusterServiceConfig.maximumPercent || 50;
+    let minimumHealthyPercent = clusterServiceConfig.minimumHealthyPercent || 100;
+
+    cprint.cyan('Creating AWS Cluster Service in AWS Cluster "' + awsArnToTitle(clusterArn) +'" for AWS Cluster Service "' + clusterServiceName + '"...');
 
     let args = [
         'ecs',
         'create-service',
-        '--cluster', in_clusterArn,
-        '--task-definition', in_taskDefinitionArn,
-        '--health-check-grace-period-seconds', in_healthCheckGracePeriod,
-        '--service-name', in_clusterServiceName,
-        '--desired-count', desiredCount
+        '--cluster', clusterArn,
+        '--task-definition', taskDefinitionArn,
+        '--health-check-grace-period-seconds', healthCheckGracePeriod,
+        '--service-name', clusterServiceName,
+        '--desired-count', desiredCount,
+        '--deployment-configuration', JSON.stringify({
+            maximumPercent: maximumPercent,
+            minimumHealthyPercent: minimumHealthyPercent
+        })
     ];
 
     if (loadBalancers && loadBalancers.length) {
         args.push('--load-balancers');
         args.push(loadBalancers);
         args.push('--role');
-        args.push('ecsServiceRole'); // TODO: This should be specified in the config and should be ecs-service-role
+        args.push(role);
     }
 
     let cmdResult = awsCmd(args, in_options);
@@ -217,7 +230,7 @@ function createClusterService (in_clusterArn, in_clusterServiceName, in_taskDefi
     }
 
     cmdResult.printResult('  ');
-    cprint.green('Created AWS Cluster Service in AWS Cluster "' + awsArnToTitle(in_clusterArn) + '" for AWS Cluster Service "' + in_clusterServiceName + '"');
+    cprint.green('Created AWS Cluster Service in AWS Cluster "' + awsArnToTitle(clusterArn) + '" for AWS Cluster Service "' + clusterServiceName + '"');
     return true;
 }
 
@@ -2111,6 +2124,13 @@ function clearCachedTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, i
 
 // ******************************
 
+function clearCachedLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_cache) {
+    let cache = in_cache || {};
+    cache['LatestTaskDefinitionArn_' + in_taskDefinitionName] = undefined;
+}
+
+// ******************************
+
 function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_cache) {
     let cache = in_cache || {};
     cache['DockerRepositoryImages_' + in_dockerRepositoryName] = undefined;
@@ -2236,6 +2256,7 @@ module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCach
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
 module.exports['clearCachedLaunchConfigurationsLike'] = clearCachedLaunchConfigurationsLike;
 module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
+module.exports['clearCachedLatestTaskDefinitionArnForTaskDefinition'] = clearCachedLatestTaskDefinitionArnForTaskDefinition;
 module.exports['cmd'] = awsCmd;
 module.exports['createBucket'] = createBucket;
 module.exports['createCluster'] = createCluster;

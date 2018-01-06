@@ -21,9 +21,9 @@ function assertEquals (in_testName, in_expected, in_received) {
     let received = _toString(in_received);
 
     if (expected === received) {
-        print.out((cprint.toGreen('✔ ' + in_testName)) + '\n');
+        print.out(cprint.toGreen('✔ ' + in_testName) + '\n');
     } else {
-        print.out((cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected: ') + cprint.toYellow(expected) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received)) + '\n');
+        print.out(cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected: ') + cprint.toYellow(expected) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received) + '\n');
     }
 }
 
@@ -34,9 +34,9 @@ function assertMatch (in_testName, in_expectedMatch, in_received) {
     let received = _toString(in_received);
 
     if (received.match(expectedRe)) {
-        print.out((cprint.toGreen('✔ ' + in_testName)) + '\n');
+        print.out(cprint.toGreen('✔ ' + in_testName) + '\n');
     } else {
-        print.out((cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected Match: ') + cprint.toYellow(expectedRe) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received)) + '\n');
+        print.out(cprint.toRed('✘ ' + in_testName) + '\n' + cprint.toRed('Expected Match: ') + cprint.toYellow(expectedRe) + '\n' + cprint.toRed('Received: ') + cprint.toYellow(received) + '\n');
     }
 }
 
@@ -60,6 +60,8 @@ function _toString (in_obj) {
 // ******************************
 
 module.exports['assertEquals'] = assertEquals;
+module.exports['xassertEquals'] = () => {};
 module.exports['assertMatch'] = assertMatch;
+module.exports['xassertMatch'] = () => {};
 
 // ******************************

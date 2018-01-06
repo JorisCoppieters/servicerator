@@ -8,9 +8,10 @@ let cprint = require('color-print');
 
 let bash = require('./bash');
 let docker = require('./docker');
-let print = require('./print');
 let env = require('./env');
 let fs = require('./filesystem');
+let object = require('./object');
+let print = require('./print');
 
 // ******************************
 // Globals:
@@ -60,13 +61,13 @@ function createServiceConfig (in_folderName, in_initialise) {
     if (bashEnvFile && fs.fileExists(bashEnvFile)) {
         let bashServiceConfig = bash.parseEnvFile(bashEnvFile);
         if (bashServiceConfig) {
-            serviceConfig = _copyToServiceConfig(bashServiceConfig, serviceConfig);
+            serviceConfig = object.setMask(bashServiceConfig, serviceConfig);
         }
     }
 
     let dockerfile = docker.getDockerfile(in_folderName);
     if (dockerfile && fs.fileExists(dockerfile)) {
-        serviceConfig = _copyToServiceConfig(serviceConfig, {
+        serviceConfig = object.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -75,7 +76,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     let pythonFolder = path.resolve(sourceFolder, 'python');
     if (pythonFolder && fs.folderExists(pythonFolder)) {
-        serviceConfig = _copyToServiceConfig(serviceConfig, {
+        serviceConfig = object.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -84,7 +85,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     let nodeFolder = path.resolve(sourceFolder, 'node');
     if (nodeFolder && fs.folderExists(nodeFolder)) {
-        serviceConfig = _copyToServiceConfig(serviceConfig, {
+        serviceConfig = object.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -93,7 +94,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     if (serviceConfig.docker) {
         if (serviceConfig.aws) {
-            serviceConfig = _copyToServiceConfig(serviceConfig, {
+            serviceConfig = object.setMask(serviceConfig, {
                 docker: {
                     image: {
                         log: true
@@ -129,7 +130,7 @@ function createServiceConfig (in_folderName, in_initialise) {
     }
 
     if (modelFolder && fs.folderExists(modelFolder)) {
-        serviceConfig = _copyToServiceConfig(serviceConfig, {
+        serviceConfig = object.setMask(serviceConfig, {
             model: {
                 source: path.relative(sourceFolder, modelFolder),
                 type: bundledModel ? 'bundled' : 'model_store'
@@ -151,7 +152,7 @@ function createServiceConfig (in_folderName, in_initialise) {
     }
 
     if (in_initialise) {
-        serviceConfig = _copyToServiceConfig(serviceConfig, {
+        serviceConfig = object.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder)),
             }
@@ -300,7 +301,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
             name: 'STRING'
         },
         model: {
-            version: 'STRING'
+            version: 'STRING',
+            bucket: 'STRING'
         },
         docker: {
             image: {
@@ -323,6 +325,7 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         'WORKING_DIR': `${sourceFolder}`,
         'SERVICE_NAME': `${serviceConfig.service.name}`,
         'MODEL_VERSION': `${serviceConfig.model.version}`,
+        'MODEL_BUCKET': `${serviceConfig.model.bucket}`,
         'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`
     };
 
@@ -651,18 +654,18 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options)
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
-        let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, savedServiceConfig);
+        let updatedServiceConfig = object.setMask(in_newServiceConfig, savedServiceConfig);
         _saveServiceConfig(updatedServiceConfig, opt);
     }
 
-    let updatedServiceConfig = _copyToServiceConfig(in_newServiceConfig, in_serviceConfig);
+    let updatedServiceConfig = object.setMask(in_newServiceConfig, in_serviceConfig);
     return updatedServiceConfig;
 }
 
 // ******************************
 
 function combineServiceConfig (in_serviceConfig1, in_serviceConfig2) {
-    let combinedServiceConfig = _copyToServiceConfig(in_serviceConfig1, in_serviceConfig2);
+    let combinedServiceConfig = object.setMask(in_serviceConfig1, in_serviceConfig2);
     return combinedServiceConfig;
 }
 
@@ -682,11 +685,11 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
-        let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, savedServiceConfig);
+        let updatedServiceConfig = object.unsetMask(in_removeServiceConfig, savedServiceConfig);
         _saveServiceConfig(updatedServiceConfig, opt);
     }
 
-    let updatedServiceConfig = _removeFromServiceConfig(in_removeServiceConfig, in_serviceConfig);
+    let updatedServiceConfig = object.unsetMask(in_removeServiceConfig, in_serviceConfig);
     return updatedServiceConfig;
 }
 
@@ -849,15 +852,38 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
         return;
     }
 
+    let keyValue;
     let keyPathPart;
     let configSubObject = serviceConfig;
-    while (keyPathParts.length > 1) {
-        keyPathPart = keyPathParts.shift();
-        configSubObject = configSubObject[keyPathPart] || {};
-    }
 
-    keyPathPart = keyPathParts.shift();
-    let keyValue = configSubObject[keyPathPart];
+    while (keyPathParts.length > 0) {
+        keyPathPart = keyPathParts.shift();
+
+        let keyPathPartArrayIndexMatch = keyPathPart.match(/^(.*)\[([0-9]+)\]$/);
+        let keyPathPartArrayIndex = -1;
+
+        if (keyPathPartArrayIndexMatch) {
+            keyPathPart = keyPathPartArrayIndexMatch[1];
+            keyPathPartArrayIndex = parseInt(keyPathPartArrayIndexMatch[2]);
+        }
+
+        if (keyPathParts.length === 0) {
+            if (keyPathPartArrayIndex >= 0) {
+                let configSubObjectArray = configSubObject[keyPathPart] || [];
+                keyValue = configSubObjectArray[keyPathPartArrayIndex];
+            } else {
+                keyValue = configSubObject[keyPathPart];            
+            }
+            break;
+        }
+
+        if (keyPathPartArrayIndex >= 0) {
+            let configSubObjectArray = configSubObject[keyPathPart] || [];
+            configSubObject = configSubObjectArray[keyPathPartArrayIndex] || {};
+        } else {
+            configSubObject = configSubObject[keyPathPart] || {};
+        }
+    }
 
     if (typeof(keyValue) === 'object') {
         keyValue = JSON.stringify(keyValue, null, 4);
@@ -901,6 +927,14 @@ function _upgradeServiceConfig (in_serviceConfig) {
 
     if (schemaVersion < 3) {
         serviceConfigChanged = _upgradeServiceConfigFrom2To3(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
+    if (schemaVersion < 3.3) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3To3_3(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
             requiresSave = true;
@@ -1007,6 +1041,23 @@ function _upgradeServiceConfigFrom2To3 (in_serviceConfig) {
 
 // ******************************
 
+function _upgradeServiceConfigFrom3To3_3 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service.clusters) {
+        in_serviceConfig.service.clusters.forEach(cluster => {
+            if (!cluster.role) {
+                cluster.role = 'ecsServiceRole';
+                hasBeenUpdated = true;
+            }
+        });
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
 function _saveServiceConfig (in_serviceConfig, in_options) {
     let path = require('path');
 
@@ -1028,95 +1079,6 @@ function _saveServiceConfig (in_serviceConfig, in_options) {
     let serviceConfigFile = path.resolve(sourceFolder, env.SERVICE_CONFIG_FILE_NAME);
     let serviceConfigContents = JSON.stringify(in_serviceConfig, _serviceConfigReplacer, 4);
     fs.writeFile(serviceConfigFile, serviceConfigContents, true);
-}
-
-// ******************************
-
-function _removeFromServiceConfig (in_source, in_destination) {
-    let source = in_source || {};
-    let destination = in_destination;
-    if (!destination) {
-        return undefined;
-    }
-
-    if (Array.isArray(source)) {
-        Object.keys(source).forEach(k => {
-            let v = source[k];
-            if (!destination[k]) {
-                return;
-            }
-
-            if (!Array.isArray(destination)) {
-                destination = [];
-            }
-
-            if (typeof(v) === 'object') {
-                destination[k] = _removeFromServiceConfig(v, destination[k]);
-                return;
-            }
-
-            delete destination[k];
-        });
-    } else {
-        Object.keys(source).forEach(k => {
-            let v = source[k];
-            if (!destination[k]) {
-                return;
-            }
-
-            if (typeof(destination) !== 'object') {
-                return;
-            }
-
-            if (typeof(v) === 'object') {
-                destination[k] = _removeFromServiceConfig(v, destination[k]);
-                return;
-            }
-
-            delete destination[k];
-        });
-    }
-
-    return destination;
-}
-
-// ******************************
-
-function _copyToServiceConfig (in_source, in_destination) {
-    let source = in_source || {};
-    let destination = in_destination || {};
-
-    if (Array.isArray(source)) {
-        Object.keys(source).forEach(k => {
-            let v = source[k];
-            if (!Array.isArray(destination)) {
-                destination = [];
-            }
-
-            if (typeof(v) === 'object') {
-                destination[k] = _copyToServiceConfig(v, destination[k]);
-                return;
-            }
-
-            destination[k] = v;
-        });
-    } else {
-        Object.keys(source).forEach(k => {
-            let v = source[k];
-            if (typeof(destination) !== 'object') {
-                destination = {};
-            }
-
-            if (typeof(v) === 'object') {
-                destination[k] = _copyToServiceConfig(v, destination[k]);
-                return;
-            }
-
-            destination[k] = v;
-        });
-    }
-
-    return destination;
 }
 
 // ******************************

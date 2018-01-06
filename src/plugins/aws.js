@@ -249,6 +249,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     }
 
     cprint.magenta('----');
+    return true;
 }
 
 // ******************************
@@ -396,6 +397,25 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     }
 
     cprint.magenta('----');
+    return true;
+}
+
+// ******************************
+
+function awsDeployNewTaskDefinition (in_serviceConfig, in_stopTasks, in_environment) {
+    if (!awsCreateTaskDefinition(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsDeploy(in_serviceConfig, in_stopTasks, in_environment)) {
+        return;
+    }
+
+    if (!awsCleanTaskDefinitions(in_serviceConfig)) {
+        return;
+    }
+
+    return true;
 }
 
 // ******************************
@@ -412,6 +432,8 @@ function awsDeployNewLaunchConfiguration (in_serviceConfig, in_environment) {
     if (!awsCleanLaunchConfigurations(in_serviceConfig, in_environment)) {
         return;
     }
+
+    return true;
 }
 
 // ******************************
@@ -424,6 +446,16 @@ function awsCreateAll (in_serviceConfig, in_environment) {
     if (!awsCreateDeliveryStructure(in_serviceConfig, in_environment)) {
         return;
     }
+
+    if (!awsCreateBucket(in_serviceConfig)) {
+        return;
+    }
+
+    if (!awsCreateBucketUser(in_serviceConfig)) {
+        return;
+    }
+
+    return true;
 }
 
 // ******************************
@@ -768,7 +800,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
 
-    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
+    let awsLoadBalancerName = cluster.load_balancer.name;
     if (!awsLoadBalancerName) {
         cprint.yellow('Load balancer name not set');
         return false;
@@ -1084,7 +1116,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
 
-    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name || false; // TODO: Remove load_balancer_name
+    let awsLoadBalancerName = cluster.load_balancer.name;
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -1284,7 +1316,7 @@ function awsCreateBucket (in_serviceConfig) {
     });
     if (awsBucketPath) {
         cprint.green('AWS bucket already exists!');
-        return;
+        return true;
     }
 
     cprint.cyan('Creating bucket...');
@@ -1362,7 +1394,7 @@ function awsCreateBucketUser (in_serviceConfig) {
     });
     if (awsUserArn) {
         cprint.green('AWS bucket user already exists!');
-        return;
+        return true;
     }
 
     cprint.cyan('Creating bucket user...');
@@ -1523,7 +1555,7 @@ function awsCreateRepository (in_serviceConfig) {
     });
     if (awsDockerRepository) {
         cprint.green('Repository already exists!');
-        return;
+        return true;
     }
 
     cprint.cyan('Creating repository...');
@@ -1663,9 +1695,15 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
     let serviceContainerEnvironmentVariables = [];
     awsTaskDefinitionEnvironmentVariables.forEach(awsTaskDefinitionEnvironmentVariable => {
+        let key = awsTaskDefinitionEnvironmentVariable.key;
+        let value = awsTaskDefinitionEnvironmentVariable.value;
+
+        key = service.replaceConfigReferences(in_serviceConfig, key);
+        value = service.replaceConfigReferences(in_serviceConfig, value);
+
         serviceContainerEnvironmentVariables.push({
-            name: awsTaskDefinitionEnvironmentVariable.key,
-            value: awsTaskDefinitionEnvironmentVariable.value
+            name: key,
+            value: value
         });
     });
 
@@ -1816,6 +1854,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         let taskDefinitionArn = (cmdResult.resultObj.taskDefinition || {}).taskDefinitionArn;
         cprint.green('Created task definition "' + taskDefinitionArn + '"');
         aws.clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
+        aws.clearCachedLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -1887,7 +1926,7 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
     });
     if (awsClusterArn) {
         cprint.green('Cluster already exists!');
-        return;
+        return true;
     }
 
     cprint.cyan('Creating cluster...');
@@ -1918,7 +1957,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                 ports: [
                     {
                         container: 'NUMBER',
-                        host: 'NUMBER'
+                        host: 'NUMBER',
+                        test: 'BOOLEAN'
                     }
                 ]
             }
@@ -1932,6 +1972,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                 {
                     name: 'STRING',
                     service_name: 'STRING',
+                    role: 'STRING',
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     load_balancer: {
@@ -1962,19 +2003,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
-
-    let dockerImagePort;
-    serviceConfig.docker.container.ports.forEach(port => {
-        if (!port.host || !port.container) {
-            return;
-        }
-
-        if (port.test) {
-            return;
-        }
-
-        dockerImagePort = port.container;
-    });
 
     let awsTaskDefinitionName = serviceConfig.service.task_definition.name;
     if (!awsTaskDefinitionName) {
@@ -2017,29 +2045,40 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let loadBalancers = [];
 
-    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
+    let awsLoadBalancerName = cluster.load_balancer.name;
     if (awsLoadBalancerName) {
-        if (!dockerImagePort) {
-            cprint.yellow('Docker image port not set');
-            return false;
-        }
+        serviceConfig.docker.container.ports.forEach(port => {
+            if (!port.host || !port.container) {
+                return;
+            }
 
-        loadBalancers.push({
-            loadBalancerName: awsLoadBalancerName,
-            containerName: dockerContainerName,
-            containerPort: dockerImagePort
+            if (port.test) {
+                return;
+            }
+
+            loadBalancers.push({
+                loadBalancerName: awsLoadBalancerName,
+                containerName: dockerContainerName,
+                containerPort: port.container
+            });
         });
+    }
+
+    if (loadBalancers.length > 1) {
+        loadBalancers = [loadBalancers[0]];
     }
 
     let desiredCount = cluster.instance.count || 0;
 
     let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
+    let role = cluster.role || 'ecs-access-elb';
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     cprint.magenta('-- AWS ' + environmentTitle + ' Cluster Service --');
     print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Desired Count', desiredCount);
+    print.keyVal('AWS ' + environmentTitle + ' Role', role);
     print.keyVal('AWS ' + environmentTitle + ' Load Balancers', JSON.stringify(loadBalancers, null, 4));
 
     print.keyVal('AWS Task Definition', '...', true);
@@ -2061,11 +2100,11 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     });
     if (awsClusterServiceArn) {
         cprint.green('Cluster service already exists!');
-        return;
+        return true;
     }
 
     cprint.cyan('Creating cluster service...');
-    if (!aws.createClusterService(awsClusterName, awsClusterServiceName, taskDefinitionArn, loadBalancers, desiredCount, healthCheckGracePeriod, {
+    if (!aws.createClusterService(awsClusterName, awsClusterServiceName, taskDefinitionArn, loadBalancers, desiredCount, role, healthCheckGracePeriod, {
         profile: serviceConfig.aws.profile
     })) {
         return;
@@ -2108,7 +2147,7 @@ function awsCreateEC2AccessECSRole (in_serviceConfig) {
     });
     if (awsRoleArn) {
         cprint.green('AWS role already exists!');
-        return;
+        return true;
     }
 
     let awsRoleDescription = 'Allow EC2 instances to access ECS';
@@ -2156,6 +2195,78 @@ function awsCreateEC2AccessECSRole (in_serviceConfig) {
 
     cprint.cyan('Adding role to instance profile...');
     if (!aws.addRoleToInstanceProfile(awsInstanceProfileName, awsRoleName, {
+        profile: serviceConfig.aws.profile
+    })) {
+        return;
+    }
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    cprint.magenta('----');
+    return true;
+}
+
+// ******************************
+
+function awsCreateECSAccessELBRole (in_serviceConfig) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        aws: {
+            profile: 'STRING',
+        },
+        cwd: 'STRING'
+    });
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let awsRoleName = 'ecs-access-elb';
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    cprint.magenta('-- AWS ECS Access ELB Role --');
+    print.keyVal('AWS Role Name', awsRoleName);
+
+    let awsRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
+        cache: awsCache,
+        showWarning: false,
+        profile: serviceConfig.aws.profile
+    });
+    if (awsRoleArn) {
+        cprint.green('AWS role already exists!');
+        return true;
+    }
+
+    let awsRoleDescription = 'Allow ECS cluster services to access ELB';
+    let awsRolePolicyDocument = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Action: 'sts:AssumeRole',
+                Effect: 'Allow',
+                Principal: {
+                    Service: 'ecs.amazonaws.com'
+                }
+            }
+        ]
+    };
+
+    cprint.cyan('Creating role...');
+    if (!aws.createRole(awsRoleName, awsRoleDescription, awsRolePolicyDocument, {
+        profile: serviceConfig.aws.profile
+    })) {
+        return;
+    }
+
+    let awsECSRolePolicyArn = 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole';
+
+    print.keyVal('AWS Role Policy', aws.arnToTitle(awsECSRolePolicyArn));
+
+    cprint.cyan('Attaching role policy...');
+    if (!aws.attachRolePolicy(awsRoleName, awsECSRolePolicyArn, {
         profile: serviceConfig.aws.profile
     })) {
         return;
@@ -2546,7 +2657,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
 
-    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name || false; // TODO: Remove load_balancer_name
+    let awsLoadBalancerName = cluster.load_balancer.name;
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -2912,6 +3023,8 @@ function awsViewConsoleLogin (in_serviceConfig) {
 function awsViewAll (in_serviceConfig, in_environment) {
     awsViewInfrastructure(in_serviceConfig, in_environment);
     awsViewDeliveryStructure(in_serviceConfig, in_environment);
+    awsViewBucket(in_serviceConfig);
+    awsViewBucketUser(in_serviceConfig);
 }
 
 // ******************************
@@ -3007,7 +3120,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsLoadBalancerName = cluster.load_balancer.name || cluster.load_balancer_name; // TODO: Remove load_balancer_name
+    let awsLoadBalancerName = cluster.load_balancer.name;
     if (!awsLoadBalancerName) {
         cprint.yellow('Load balancer name not set');
         return false;
@@ -3484,7 +3597,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         break;
 
     case 'create-bucket-user':
-        awsCreateBucketUser(in_serviceConfig, env);
+        awsCreateBucketUser(in_serviceConfig);
         break;
 
     case 'create-delivery-structure':
@@ -3508,7 +3621,11 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         break;
 
     case 'create-ec2-access-ecs-role':
-        awsCreateEC2AccessECSRole(in_serviceConfig, env);
+        awsCreateEC2AccessECSRole(in_serviceConfig);
+        break;
+
+    case 'create-ecs-access-elb-role':
+        awsCreateECSAccessELBRole(in_serviceConfig);
         break;
 
     case 'clean':
@@ -3607,11 +3724,11 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         break;
 
     case 'view-bucket':
-        awsViewBucket(in_serviceConfig, env);
+        awsViewBucket(in_serviceConfig);
         break;
 
     case 'view-bucket-user':
-        awsViewBucketUser(in_serviceConfig, env);
+        awsViewBucketUser(in_serviceConfig);
         break;
 
     case 'deploy':
@@ -3620,6 +3737,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
     case 'deploy-new-launch-configuration':
         awsDeployNewLaunchConfiguration(in_serviceConfig, env);
+        break;
+
+    case 'deploy-new-task-definition':
+        awsDeployNewTaskDefinition(in_serviceConfig, stopTasks, env);
         break;
 
     case 'start-cluster':
@@ -3660,8 +3781,8 @@ function getCommands () {
         { params: ['create-launch-configuration'], description: 'Create launch configuration for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-load-balancer'], description: 'Create load balancer for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-auto-scaling-group'], description: 'Create auto scaling group for the service', options: [{param:'environment', description:'Environment'}] },
-        { params: ['create-bucket'], description: 'Create bucket for the service model', options: [{param:'environment', description:'Environment'}] },
-        { params: ['create-bucket-user'], description: 'Create bucket user for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['create-bucket'], description: 'Create bucket for the service model' },
+        { params: ['create-bucket-user'], description: 'Create bucket user for the service' },
 
         { params: ['create-delivery-structure'], description: 'Create delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-repository'], description: 'Create repository for the service' },
@@ -3669,7 +3790,8 @@ function getCommands () {
         { params: ['create-cluster'], description: 'Create cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-cluster-service'], description: 'Create cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
 
-        { params: ['create-ec2-access-ecs-role'], description: 'Create role for allowing EC2 instances to access ECS', options: [{param:'environment', description:'Environment'}] },
+        { params: ['create-ec2-access-ecs-role'], description: 'Create role for allowing EC2 instances to access ECS' },
+        { params: ['create-ecs-access-elb-role'], description: 'Create role for allowing ECS cluster services to access ELB' },
 
         { params: ['clean-all', 'clean'], description: 'Clean all infrastructure and delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
 
@@ -3683,6 +3805,7 @@ function getCommands () {
         { params: ['update-auto-scaling-group'], description: 'Update auto scaling group for the service', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['deploy-new-launch-configuration'], description: 'Deploy new launch configuration and update the auto scaling groups', options: [{param:'environment', description:'Environment'}] },
+        { params: ['deploy-new-task-definition'], description: 'Create new task definition and deploy it', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
         { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
 
         { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'environment', description:'Environment'}] },
@@ -3703,8 +3826,8 @@ function getCommands () {
         { params: ['view-cluster', 'open-cluster'], description: 'View cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-cluster-service', 'open-cluster-service'], description: 'View cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
 
-        { params: ['view-bucket'], description: 'View bucket for the service model', options: [{param:'environment', description:'Environment'}] },
-        { params: ['view-bucket-user'], description: 'View bucket user for the service', options: [{param:'environment', description:'Environment'}] }
+        { params: ['view-bucket'], description: 'View bucket for the service model' },
+        { params: ['view-bucket-user'], description: 'View bucket user for the service' }
     ];
 }
 
