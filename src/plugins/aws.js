@@ -2104,7 +2104,15 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     }
 
     cprint.cyan('Creating cluster service...');
-    if (!aws.createClusterService(awsClusterName, awsClusterServiceName, taskDefinitionArn, loadBalancers, desiredCount, role, healthCheckGracePeriod, {
+    if (!aws.createClusterService({
+        name: awsClusterName,
+        serviceName: awsClusterServiceName,
+        taskDefinitionArn: taskDefinitionArn,
+        loadBalancers: loadBalancers,
+        desiredCount: desiredCount,
+        role: role,
+        healthCheckGracePeriod: healthCheckGracePeriod
+    }, {
         profile: serviceConfig.aws.profile
     })) {
         return;

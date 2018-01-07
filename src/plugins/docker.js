@@ -697,7 +697,7 @@ function dockerLogin (in_serviceConfig) {
 // Container Functions:
 // ******************************
 
-function startDockerContainer (in_serviceConfig) {
+function startDockerContainer (in_serviceConfig, in_attach) {
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
         return false;
@@ -708,7 +708,9 @@ function startDockerContainer (in_serviceConfig) {
         return false;
     }
 
-    _startDockerContainer(in_serviceConfig);
+    _startDockerContainer(in_serviceConfig, {
+        attach: in_attach
+    });
 }
 
 // ******************************
@@ -726,7 +728,9 @@ function enterDockerContainer (in_serviceConfig) {
 
     let runningDockerContainerId = getRunningDockerContainerId(in_serviceConfig);
     if (!runningDockerContainerId) {
-        _startDockerContainer(in_serviceConfig, true);
+        _startDockerContainer(in_serviceConfig, {
+            useBash: true
+        });
         return;
     }
 
@@ -1098,7 +1102,12 @@ function editServiceDockerfile (in_serviceConfig) {
 // Helper Functions:
 // ******************************
 
-function _startDockerContainer (in_serviceConfig, in_useBash) {
+function _startDockerContainer (in_serviceConfig, in_options) {
+    let opt = in_options || {};
+
+    let useBash = opt.useBash;
+    let attach = opt.attach;
+
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
@@ -1190,7 +1199,11 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     dockerImageStartCommand = testDockerImageStartCommand || dockerImageStartCommand;
 
     let runWithBash = false;
-    if (!dockerImageStartCommand || in_useBash) {
+    if (!dockerImageStartCommand || useBash) {
+        runWithBash = true;
+    }
+
+    if (dockerImageStartCommand && attach) {
         runWithBash = true;
     }
 
@@ -1298,8 +1311,14 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
     args.push(dockerImagePath);
 
     if (runWithBash) {
-        cprint.cyan('Starting Docker container "' + containerName + '"...');
-        let cmdResult = shell.cmd(['docker'].concat(args).concat(['bash']));
+        if (dockerImageStartCommand && !useBash) {
+            args.push(dockerImageStartCommand);
+            cprint.cyan('Starting Docker container "' + containerName + '" via external console with start command...');
+        } else {
+            args.push('bash');
+            cprint.cyan('Starting Docker container "' + containerName + '" via external console with bash...');
+        }
+        let cmdResult = shell.cmd(['docker'].concat(args));
         if (!cmdResult) {
             return;
         }
@@ -1311,7 +1330,7 @@ function _startDockerContainer (in_serviceConfig, in_useBash) {
         }
     } else {
         args.push(dockerImageStartCommand);
-        cprint.cyan('Starting Docker container "' + containerName + '"...');
+        cprint.cyan('Starting Docker container "' + containerName + '" in detached mode with start command...');
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
@@ -1549,6 +1568,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     let no_cache = in_args['cache'] === false;
     let force = in_args['force'];
+    let attach = in_args['attach'];
     switch(command)
     {
     case '':
@@ -1600,7 +1620,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     case 'start-container':
     case 'run':
     case 'run-container':
-        startDockerContainer(in_serviceConfig);
+        startDockerContainer(in_serviceConfig, attach);
         break;
 
     case 'enter':
@@ -1661,7 +1681,7 @@ function getCommands () {
             {param:'+b', description:'Increment bug version (i.e 1.2.5 -> 1.2.6)'},
             {param:'b', description:'Decrement bug version (i.e 1.2.7 -> 1.2.6)'}
         ]},
-        { params: ['start-container', 'start', 'run', 'run-container'], description: 'Start the service docker container' },
+        { params: ['start-container', 'start', 'run', 'run-container'], description: 'Start the service docker container', options: [{param:'attach', description:'Run the container in attached mode'}] },
         { params: ['enter-container', 'enter', 'interact', 'interactive'], description: 'Enter the running service docker container' },
         { params: ['stop-container', 'stop'], description: 'Stop the service docker container' },
         { params: ['remove-container', 'remove', 'rm'], description: 'Remove the service docker container' },

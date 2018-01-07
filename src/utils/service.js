@@ -298,7 +298,10 @@ function maskServiceConfig (in_source, in_mask) {
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         service: {
-            name: 'STRING'
+            name: 'STRING',
+            bucket: {
+                name: 'STRING'
+            }
         },
         model: {
             version: 'STRING',
@@ -324,6 +327,7 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         'BASE_DIR': `${sourceFolder}`,
         'WORKING_DIR': `${sourceFolder}`,
         'SERVICE_NAME': `${serviceConfig.service.name}`,
+        'SERVICE_BUCKET': `${serviceConfig.service.bucket.name}`,
         'MODEL_VERSION': `${serviceConfig.model.version}`,
         'MODEL_BUCKET': `${serviceConfig.model.bucket}`,
         'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`

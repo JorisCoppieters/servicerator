@@ -189,15 +189,15 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
 function createClusterService (in_clusterServiceConfig, in_options) {
     let clusterServiceConfig = in_clusterServiceConfig || {};
 
-    let clusterArn = clusterServiceConfig.clusterArn;
-    let clusterServiceName = clusterServiceConfig.clusterServiceName;
+    let clusterArn = clusterServiceConfig.name;
+    let clusterServiceName = clusterServiceConfig.serviceName;
     let taskDefinitionArn = clusterServiceConfig.taskDefinitionArn;
     let loadBalancers = JSON.stringify(clusterServiceConfig.loadBalancers || []);
     let desiredCount = clusterServiceConfig.desiredCount || 0;
     let role = clusterServiceConfig.role;
     let healthCheckGracePeriod = clusterServiceConfig.healthCheckGracePeriod;
-    let maximumPercent = clusterServiceConfig.maximumPercent || 50;
-    let minimumHealthyPercent = clusterServiceConfig.minimumHealthyPercent || 100;
+    let maximumPercent = clusterServiceConfig.maximumPercent || 100;
+    let minimumHealthyPercent = clusterServiceConfig.minimumHealthyPercent || 50;
 
     cprint.cyan('Creating AWS Cluster Service in AWS Cluster "' + awsArnToTitle(clusterArn) +'" for AWS Cluster Service "' + clusterServiceName + '"...');
 
