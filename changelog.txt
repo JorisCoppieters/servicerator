@@ -1,3 +1,11 @@
+0.12.0
+- Cluster service creation now sets min and max health 
+- Added attached mode for docker starting
+- Added VSCode as an editor
+- Added bucket and bucket user support
+- Made servicerator set schemas on config
+- Various fixes and clean up
+
 0.11.0
 - Using JsonSchema for json config, using version servicerator-schema-v3.json
 
