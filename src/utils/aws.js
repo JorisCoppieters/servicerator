@@ -196,7 +196,7 @@ function createClusterService (in_clusterServiceConfig, in_options) {
     let desiredCount = clusterServiceConfig.desiredCount || 0;
     let role = clusterServiceConfig.role;
     let healthCheckGracePeriod = clusterServiceConfig.healthCheckGracePeriod;
-    let maximumPercent = clusterServiceConfig.maximumPercent || 100;
+    let maximumPercent = clusterServiceConfig.maximumPercent || 200;
     let minimumHealthyPercent = clusterServiceConfig.minimumHealthyPercent || 50;
 
     cprint.cyan('Creating AWS Cluster Service in AWS Cluster "' + awsArnToTitle(clusterArn) +'" for AWS Cluster Service "' + clusterServiceName + '"...');

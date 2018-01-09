@@ -876,7 +876,7 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
                 let configSubObjectArray = configSubObject[keyPathPart] || [];
                 keyValue = configSubObjectArray[keyPathPartArrayIndex];
             } else {
-                keyValue = configSubObject[keyPathPart];            
+                keyValue = configSubObject[keyPathPart];
             }
             break;
         }

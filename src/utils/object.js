@@ -7,7 +7,7 @@
 function unsetMaskOnObject (in_mask, in_destinationObject) {
     let destinationObject = in_destinationObject;
 
-    if (isObjectOrArray(in_mask)) { // If mask is an Object or Array 
+    if (isObjectOrArray(in_mask)) { // If mask is an Object or Array
 
         if (isArray(in_mask)) { // If mask is an Array
             if (!isArray(destinationObject)) { // If destinationObject isn't an Array, we should leave it
@@ -52,7 +52,7 @@ function unsetMaskOnObject (in_mask, in_destinationObject) {
 function setMaskOnObject (in_mask, in_destinationObject) {
     let destinationObject = in_destinationObject;
 
-    if (isObjectOrArray(in_mask)) { // If mask is an Object or Array 
+    if (isObjectOrArray(in_mask)) { // If mask is an Object or Array
 
         if (isArray(in_mask)) { // If mask is an Array
             if (!isArray(destinationObject)) { // If destinationObject isn't an Array, make it one

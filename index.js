@@ -60,7 +60,7 @@ if (g_ARGV['help']) {
         } else {
             serviceConfig = service.createConfig('.');
         }
-    
+
         plugins.forEach(p => {
             if (!serviceConfig && !p.noConfigRequired) {
                 return;
@@ -69,7 +69,7 @@ if (g_ARGV['help']) {
                 p.onOpen(serviceConfig);
             }
         });
-    
+
         let pluginHandled = false;
         plugins.forEach(p => {
             if (!serviceConfig && !p.noConfigRequired) {
@@ -85,7 +85,7 @@ if (g_ARGV['help']) {
                     pluginHandled = true;
                     return;
                 }
-    
+
                 try {
                     let clone = require('clone');
                     if (p.handleCommand(clone(g_ARGV), clone(params), serviceConfig)) {
@@ -94,7 +94,7 @@ if (g_ARGV['help']) {
                     }
                 } catch (e) {
                     let stack = e.stack.replace(/[\\]/g, '\\$&');
-    
+
                     let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
                     print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
                     print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow('  ' + errorTitle + '  ', true), true)) + '\n');
@@ -109,7 +109,7 @@ if (g_ARGV['help']) {
                 }
             }
         });
-    
+
         plugins.forEach(p => {
             if (!serviceConfig && !p.noConfigRequired) {
                 return;
@@ -118,9 +118,11 @@ if (g_ARGV['help']) {
                 p.onClose(serviceConfig);
             }
         });
-    
+
         if (!pluginHandled && serviceConfig) {
             cprint.yellow('Unknown command: ' + command + ' ' + params);
+        } else {
+            cprint.yellow('Could not find service.json file in this folder');
         }
     }
 }

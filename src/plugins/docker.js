@@ -1429,8 +1429,8 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
             cprint.yellow('AWS-CLI isn\'t installed');
             return false;
         }
-    
-        let awsDockerCredentials = _getAwsDockerCredentials(in_serviceConfig);    
+
+        let awsDockerCredentials = _getAwsDockerCredentials(in_serviceConfig);
 
         dockerUsername = awsDockerCredentials.username;
         dockerPassword = awsDockerCredentials.password;
