@@ -119,10 +119,12 @@ if (g_ARGV['help']) {
             }
         });
 
-        if (!pluginHandled && serviceConfig) {
-            cprint.yellow('Unknown command: ' + command + ' ' + params);
-        } else {
-            cprint.yellow('Could not find service.json file in this folder');
+        if (!pluginHandled) {
+            if (serviceConfig) {
+                cprint.yellow('Unknown command: ' + command + ' ' + params);
+            } else {
+                cprint.yellow('Could not find service.json file in this folder');
+            }
         }
     }
 }
