@@ -2141,7 +2141,7 @@ function awsCreateEC2AccessECSRole (in_serviceConfig) {
         return false;
     }
 
-    let awsRoleName = 'ec2-access-ecs';
+    let awsRoleName = 'ecsInstanceRole';
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -2158,7 +2158,7 @@ function awsCreateEC2AccessECSRole (in_serviceConfig) {
         return true;
     }
 
-    let awsRoleDescription = 'Allow EC2 instances to access ECS';
+    let awsRoleDescription = 'Allows EC2 instances to call AWS services on your behalf.';
     let awsRolePolicyDocument = {
         Version: '2012-10-17',
         Statement: [
@@ -2231,7 +2231,7 @@ function awsCreateECSAccessELBRole (in_serviceConfig) {
         return false;
     }
 
-    let awsRoleName = 'ecs-access-elb';
+    let awsRoleName = 'ecsServiceRole';
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -2248,7 +2248,7 @@ function awsCreateECSAccessELBRole (in_serviceConfig) {
         return true;
     }
 
-    let awsRoleDescription = 'Allow ECS cluster services to access ELB';
+    let awsRoleDescription = 'Allows ECS to create and manage AWS resources on your behalf.';
     let awsRolePolicyDocument = {
         Version: '2012-10-17',
         Statement: [

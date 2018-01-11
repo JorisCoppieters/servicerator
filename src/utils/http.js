@@ -19,7 +19,7 @@ function getRequest (in_url, in_requestData, in_onSuccess, in_onError) {
     let requestOptions = {
         uri: url,
         method: 'GET',
-        timeout: 5000,
+        timeout: 30000,
         json: true,
         headers: [],
         rejectUnauthorized: false,
@@ -52,7 +52,7 @@ function postRequest (in_url, in_requestData, in_onSuccess, in_onError) {
         uri: in_url,
         method: 'POST',
         json: requestData,
-        timeout: 5000,
+        timeout: 30000,
         headers: [],
         rejectUnauthorized: false,
         requestCert: true,

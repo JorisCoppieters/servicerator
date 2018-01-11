@@ -1048,13 +1048,15 @@ function _upgradeServiceConfigFrom2To3 (in_serviceConfig) {
 function _upgradeServiceConfigFrom3To3_3 (in_serviceConfig) {
     let hasBeenUpdated = false;
 
-    if (in_serviceConfig.service.clusters) {
-        in_serviceConfig.service.clusters.forEach(cluster => {
-            if (!cluster.role) {
-                cluster.role = 'ecsServiceRole';
-                hasBeenUpdated = true;
-            }
-        });
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.clusters) {
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                if (!cluster.role) {
+                    cluster.role = 'ecsServiceRole';
+                    hasBeenUpdated = true;
+                }
+            });
+        }
     }
 
     return hasBeenUpdated ? in_serviceConfig : false;
