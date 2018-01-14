@@ -298,14 +298,13 @@ function maskServiceConfig (in_source, in_mask) {
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         service: {
-            name: 'STRING',
-            bucket: {
-                name: 'STRING'
-            }
+            name: 'STRING'
         },
         model: {
             version: 'STRING',
-            bucket: 'STRING'
+            bucket: {
+                name: 'STRING'
+            }
         },
         docker: {
             image: {
@@ -327,9 +326,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         'BASE_DIR': `${sourceFolder}`,
         'WORKING_DIR': `${sourceFolder}`,
         'SERVICE_NAME': `${serviceConfig.service.name}`,
-        'SERVICE_BUCKET': `${serviceConfig.service.bucket.name}`,
         'MODEL_VERSION': `${serviceConfig.model.version}`,
-        'MODEL_BUCKET': `${serviceConfig.model.bucket}`,
+        'MODEL_BUCKET': `${serviceConfig.model.bucket.name}`,
         'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`
     };
 
@@ -945,6 +943,14 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 3.4) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_3To3_4(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
@@ -1056,6 +1062,61 @@ function _upgradeServiceConfigFrom3To3_3 (in_serviceConfig) {
                     hasBeenUpdated = true;
                 }
             });
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _upgradeServiceConfigFrom3_3To3_4 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.model) {
+        if (in_serviceConfig.model.bucket && !object.isObject(in_serviceConfig.model.bucket)) {
+            let bucketName = in_serviceConfig.model.bucket;
+            in_serviceConfig.model.bucket = {};
+            in_serviceConfig.model.bucket.name = bucketName;
+            hasBeenUpdated = true;
+        }
+
+        if (in_serviceConfig.model.source) {
+            delete in_serviceConfig.model.source;
+            hasBeenUpdated = true;
+        }
+
+        if (in_serviceConfig.model.type) {
+            delete in_serviceConfig.model.type;
+            hasBeenUpdated = true;
+        }
+    }
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.bucket) {
+            if (in_serviceConfig.service.bucket.name) {
+                in_serviceConfig.model = in_serviceConfig.model || {};
+                in_serviceConfig.model.bucket = in_serviceConfig.model.bucket || {};
+                in_serviceConfig.model.bucket.name = in_serviceConfig.service.bucket.name;
+                delete in_serviceConfig.service.bucket.name;
+            }
+
+            if (in_serviceConfig.service.bucket.username) {
+                in_serviceConfig.model = in_serviceConfig.model || {};
+                in_serviceConfig.model.bucket = in_serviceConfig.model.bucket || {};
+                in_serviceConfig.model.bucket.username = in_serviceConfig.service.bucket.username;
+                delete in_serviceConfig.service.bucket.username;
+            }
+
+            if (in_serviceConfig.service.bucket.region) {
+                in_serviceConfig.model = in_serviceConfig.model || {};
+                in_serviceConfig.model.bucket = in_serviceConfig.model.bucket || {};
+                in_serviceConfig.model.bucket.region = in_serviceConfig.service.bucket.region;
+                delete in_serviceConfig.service.bucket.region;
+            }
+
+            delete in_serviceConfig.service.bucket;
+            hasBeenUpdated = true;
         }
     }
 

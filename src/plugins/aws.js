@@ -1283,7 +1283,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
 function awsCreateBucket (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
-        service: {
+        model: {
             bucket: {
                 name: 'STRING'
             }
@@ -1294,7 +1294,7 @@ function awsCreateBucket (in_serviceConfig) {
         cwd: 'STRING'
     });
 
-    let awsBucketName = serviceConfig.service.bucket.name;
+    let awsBucketName = serviceConfig.model.bucket.name;
     if (!awsBucketName) {
         cprint.yellow('Service bucket name not set');
         return false;
@@ -1339,7 +1339,7 @@ function awsCreateBucket (in_serviceConfig) {
 
 function awsCreateBucketUser (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
-        service: {
+        model: {
             bucket: {
                 username: 'STRING',
                 name: 'STRING',
@@ -1354,13 +1354,13 @@ function awsCreateBucketUser (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
 
-    let awsBucketName = serviceConfig.service.bucket.name;
+    let awsBucketName = serviceConfig.model.bucket.name;
     if (!awsBucketName) {
         cprint.yellow('Service bucket name not set');
         return false;
     }
 
-    let awsBucketUsername = serviceConfig.service.bucket.username;
+    let awsBucketUsername = serviceConfig.model.bucket.username;
     if (!awsBucketUsername) {
         cprint.yellow('Service bucket username not set');
         return false;
@@ -1417,7 +1417,7 @@ function awsCreateBucketUser (in_serviceConfig) {
 
     let bucketUserAccessKey = userObject.AccessKey;
     let bucketUserSecretKey = userObject.SecretKey;
-    let bucketRegion = in_serviceConfig.service.bucket.region || awsRegion;
+    let bucketRegion = in_serviceConfig.model.bucket.region || awsRegion;
 
     print.keyVal('AWS Bucket User Access Key', bucketUserAccessKey);
     print.keyVal('AWS Bucket User Secrety Key', '*******');
@@ -3024,6 +3024,7 @@ function awsViewConsoleLogin (in_serviceConfig) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3033,6 +3034,7 @@ function awsViewAll (in_serviceConfig, in_environment) {
     awsViewDeliveryStructure(in_serviceConfig, in_environment);
     awsViewBucket(in_serviceConfig);
     awsViewBucketUser(in_serviceConfig);
+    awsViewEndpoint(in_serviceConfig, in_environment);
 }
 
 // ******************************
@@ -3096,6 +3098,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3149,6 +3152,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3202,6 +3206,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3255,6 +3260,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3306,6 +3312,7 @@ function awsViewRepository (in_serviceConfig) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3348,6 +3355,7 @@ function awsViewTaskDefinition (in_serviceConfig) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3394,6 +3402,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3442,13 +3451,14 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
 
 function awsViewBucket (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
-        service: {
+        model: {
             bucket: {
                 name: 'STRING'
             }
@@ -3459,7 +3469,7 @@ function awsViewBucket (in_serviceConfig) {
         cwd: 'STRING'
     });
 
-    let awsBucketName = serviceConfig.service.bucket.name;
+    let awsBucketName = serviceConfig.model.bucket.name;
     if (!awsBucketName) {
         cprint.yellow('Service bucket name not set');
         return false;
@@ -3469,13 +3479,14 @@ function awsViewBucket (in_serviceConfig) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
 }
 
 // ******************************
 
 function awsViewBucketUser (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
-        service: {
+        model: {
             bucket: {
                 username: 'STRING'
             }
@@ -3486,7 +3497,7 @@ function awsViewBucketUser (in_serviceConfig) {
         cwd: 'STRING'
     });
 
-    let awsBucketUsername = serviceConfig.service.bucket.username;
+    let awsBucketUsername = serviceConfig.model.bucket.username;
     if (!awsBucketUsername) {
         cprint.yellow('Service bucket username not set');
         return false;
@@ -3507,6 +3518,44 @@ function awsViewBucketUser (in_serviceConfig) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+    return true;
+}
+
+// ******************************
+
+function awsViewEndpoint (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    environment: 'STRING',
+                    default: 'BOOLEAN',
+                    url: 'STRING'
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let cluster = _getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    if (!cluster.url) {
+        cprint.yellow('No url defined for cluster');
+        return false;
+    }
+
+    let url = cluster.url + '/v1/status'; // TODO: Configurable endpoint
+    print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
+    _openUrl(url);
+    return true;
 }
 
 // ******************************
@@ -3739,6 +3788,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         awsViewBucketUser(in_serviceConfig);
         break;
 
+    case 'view-endpoint':
+        awsViewEndpoint(in_serviceConfig, env);
+        break;
+
     case 'deploy':
         awsDeploy(in_serviceConfig, stopTasks, env);
         break;
@@ -3834,8 +3887,10 @@ function getCommands () {
         { params: ['view-cluster', 'open-cluster'], description: 'View cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-cluster-service', 'open-cluster-service'], description: 'View cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
 
-        { params: ['view-bucket'], description: 'View bucket for the service model' },
-        { params: ['view-bucket-user'], description: 'View bucket user for the service' }
+        { params: ['view-bucket, open-bucket'], description: 'View bucket for the service model' },
+        { params: ['view-bucket-user', 'open-bucket-user'], description: 'View bucket user for the service' },
+
+        { params: ['view-endpoint', 'open-endpoint'], description: 'View the service endpoint' }
     ];
 }
 
