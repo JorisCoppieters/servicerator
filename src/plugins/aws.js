@@ -2879,6 +2879,7 @@ function awsDockerLogin (in_serviceConfig) {
 
     let success = docker.login(awsDockerCredentials.username, awsDockerCredentials.password, awsDockerRepositoryUrl);
     if (!success) {
+        cprint.yellow('Check your regions match in your .aws/config and service.json');
         return false;
     }
 
