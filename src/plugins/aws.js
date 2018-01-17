@@ -1343,7 +1343,10 @@ function awsCreateBucketUser (in_serviceConfig) {
             bucket: {
                 username: 'STRING',
                 name: 'STRING',
-                region: 'STRING'
+                region: 'STRING',
+                permissions: [
+                    'STRING'
+                ]
             }
         },
         aws: {
@@ -1365,6 +1368,8 @@ function awsCreateBucketUser (in_serviceConfig) {
         cprint.yellow('Service bucket username not set');
         return false;
     }
+
+    let awsBucketUsernamePermissions = serviceConfig.model.bucket.permissions || ['read'];
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1424,23 +1429,44 @@ function awsCreateBucketUser (in_serviceConfig) {
 
     cprint.cyan('Attaching inline policy to bucket user...');
 
-    let awsBucketUsernameInlinePolicyName = awsBucketUsername + '-read';
+    let awsBucketUsernameInlinePolicyName = awsBucketUsername + '-' + awsBucketUsernamePermissions.sort().join('-');
+
+    let allActions = [
+        's3:HeadBucket'
+    ];
+
+    let bucketActions = [
+        's3:ListBucket'
+    ];
+
+    let bucketContentActions = [];
+    if (awsBucketUsernamePermissions.indexOf('read') >= 0) {
+        bucketContentActions.push('s3:GetObject');
+    }
+
+    if (awsBucketUsernamePermissions.indexOf('write') >= 0) {
+        bucketContentActions.push('s3:PutObject');
+        bucketContentActions.push('s3:DeleteObject');
+    }
+
     let awsBucketUsernameInlinePolicy = {
         Statement: [
             {
-                Action: [
-                    's3:HeadBucket',
-                    's3:ListBucket'
-                ],
+                Action: allActions,
+                Effect: 'Allow',
+                Resource: [
+                    '*'
+                ]
+            },
+            {
+                Action: bucketActions,
                 Effect: 'Allow',
                 Resource: [
                     'arn:aws:s3:::' + awsBucketName
                 ]
             },
             {
-                Action: [
-                    's3:GetObject'
-                ],
+                Action: bucketContentActions,
                 Effect: 'Allow',
                 Resource: [
                     'arn:aws:s3:::' + awsBucketName + '/*'

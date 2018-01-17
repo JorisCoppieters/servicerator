@@ -210,8 +210,8 @@ function _printLogLine (in_line, in_indent, in_knownErrors) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/warning:[0-9]/i)) {
         print.out(cprint.toYellow(str.indentContents(line, indent) + '\n'));
-    } else if (line.match(/success[:=-]? /i)) {
 
+    } else if (line.match(/success[:=-]? /i)) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));
     } else if (line.match(/success:[0-9]/i)) {
         print.out(cprint.toGreen(str.indentContents(line, indent) + '\n'));

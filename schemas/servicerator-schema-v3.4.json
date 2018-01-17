@@ -565,6 +565,7 @@
             "additionalProperties": false,
             "properties": {
                 "bucket": {
+                    "additionalProperties": false,
                     "properties": {
                         "name": {
                             "description": "The bucket name, without the s3:// prefix",
@@ -591,11 +592,25 @@
                                 "eu-west-3",
                                 "sa-east-1"
                             ],
+                            "default": "ap-southeast-2",
                             "type": "string"
                         },
                         "username": {
                             "description": "The bucket user that has read access to the bucket",
                             "type": "string"
+                        },
+                        "permissions": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "read",
+                                    "write",
+                                    "list"
+                                ],
+                                "default": ["read"]
+                            },
+                            "description": "The permissions that should be associated with the username"
                         }
                     },
                     "required": [
@@ -666,6 +681,7 @@
                                 "properties": {
                                     "ami": {
                                         "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance",
+                                        "default": "ami-b88e7cda",
                                         "type": "string"
                                     },
                                     "count": {
