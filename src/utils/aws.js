@@ -192,7 +192,7 @@ function createClusterService (in_clusterServiceConfig, in_options) {
     let clusterArn = clusterServiceConfig.name;
     let clusterServiceName = clusterServiceConfig.serviceName;
     let taskDefinitionArn = clusterServiceConfig.taskDefinitionArn;
-    let loadBalancers = JSON.stringify(clusterServiceConfig.loadBalancers || []);
+    let loadBalancers = clusterServiceConfig.loadBalancers || [];
     let desiredCount = clusterServiceConfig.desiredCount || 0;
     let role = clusterServiceConfig.role;
     let healthCheckGracePeriod = clusterServiceConfig.healthCheckGracePeriod;
@@ -206,7 +206,6 @@ function createClusterService (in_clusterServiceConfig, in_options) {
         'create-service',
         '--cluster', clusterArn,
         '--task-definition', taskDefinitionArn,
-        '--health-check-grace-period-seconds', healthCheckGracePeriod,
         '--service-name', clusterServiceName,
         '--desired-count', desiredCount,
         '--deployment-configuration', JSON.stringify({
@@ -216,8 +215,10 @@ function createClusterService (in_clusterServiceConfig, in_options) {
     ];
 
     if (loadBalancers && loadBalancers.length) {
+        args.push('--health-check-grace-period-seconds');
+        args.push(healthCheckGracePeriod);
         args.push('--load-balancers');
-        args.push(loadBalancers);
+        args.push(JSON.stringify(loadBalancers));
         args.push('--role');
         args.push(role);
     }
@@ -1584,8 +1585,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
     let cmdResult = awsCmd([
         'ec2',
         'describe-vpcs',
-        '--filter',
-        `Name="tag-value",Values="${in_vpcName}"`
+        '--filter'
     ], {
         hide: !opt.verbose,
         profile: opt.profile
@@ -1597,17 +1597,31 @@ function getVpcIdForVpc (in_vpcName, in_options) {
     }
 
     let awsVpcId;
+    let firstVpc;
     let awsResult = parseAwsCmdResult(cmdResult);
     if (awsResult && awsResult.Vpcs) {
         awsVpcId = awsResult.Vpcs
             .sort()
             .reverse()
+            .filter(obj => obj.Tags
+                .find(tag => tag.Key === 'Name' && tag.Value === in_vpcName)
+            )
             .map(obj => obj.VpcId)
+            .find(() => true);
+
+        firstVpc = awsResult.Vpcs
+            .map(obj => obj.Tags)
+            .reduce((a, b) => b.concat(a), [])
+            .filter(tag => tag.Key === 'Name')
+            .map(tag => tag.Value)
             .find(() => true);
     }
 
     if (!awsVpcId) {
         cprint.yellow('Couldn\'t find AWS VPC ID for AWS VPC "' + in_vpcName + '"');
+        if (firstVpc) {
+            cprint.yellow('  Did you mean "' + firstVpc + '"?');
+        }
         return false;
     }
 
@@ -1747,8 +1761,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
         'ec2',
         'describe-subnets',
         '--filters',
-        `Name=vpc-id,Values="${in_vpcId}"`,
-        `Name=tag-value,Values="${in_vpcSubnetName}"`
+        `Name=vpc-id,Values="${in_vpcId}"`
     ], {
         hide: !opt.verbose,
         profile: opt.profile
@@ -1760,17 +1773,32 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
     }
 
     let awsVpcSubnetId;
+    let firstVpcSubnet;
+
     let awsResult = parseAwsCmdResult(cmdResult);
     if (awsResult && awsResult.Subnets) {
         awsVpcSubnetId = awsResult.Subnets
             .sort()
             .reverse()
+            .filter(obj => obj.Tags
+                .find(tag => tag.Key === 'Name' && tag.Value === in_vpcSubnetName)
+            )
             .map(obj => obj.SubnetId)
+            .find(() => true);
+
+        firstVpcSubnet = awsResult.Subnets
+            .map(obj => obj.Tags)
+            .reduce((a, b) => b.concat(a), [])
+            .filter(tag => tag.Key === 'Name')
+            .map(tag => tag.Value)
             .find(() => true);
     }
 
     if (!awsVpcSubnetId) {
         cprint.yellow('Couldn\'t find AWS VPC Subnet Id for AWS VPC Subnet "' + in_vpcSubnetName + '"');
+        if (firstVpcSubnet) {
+            cprint.yellow('  Did you mean "' + firstVpcSubnet + '"?');
+        }
         return false;
     }
 

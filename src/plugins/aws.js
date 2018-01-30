@@ -507,6 +507,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
                         type: 'STRING',
                         iam_role: 'STRING',
                         ami: 'STRING',
+                        assign_public_ip: 'BOOLEAN',
                         user_data: [
                             'STRING'
                         ],
@@ -572,6 +573,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     let awsIamRole = cluster.instance.iam_role;
     let awsAmi = cluster.instance.ami;
     let pemKeyName = cluster.identity_file;
+    let assignPublicIp = cluster.instance.assign_public_ip;
 
     if (!awsAmi) {
         cprint.yellow('AWS AMI not set');
@@ -681,6 +683,10 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         '--image-id',
         awsAmi
     ];
+
+    if (assignPublicIp) {
+        args.push('--associate-public-ip-address');
+    }
 
     if (awsIamRole) {
         args.push('--iam-instance-profile');
@@ -1369,7 +1375,10 @@ function awsCreateBucketUser (in_serviceConfig) {
         return false;
     }
 
-    let awsBucketUsernamePermissions = serviceConfig.model.bucket.permissions || ['read'];
+    let awsBucketUsernamePermissions = serviceConfig.model.bucket.permissions || false;
+    if (!awsBucketUsernamePermissions || !awsBucketUsernamePermissions.length) {
+        awsBucketUsernamePermissions = ['read'];
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');

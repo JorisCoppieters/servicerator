@@ -680,7 +680,7 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "ami": {
-                                        "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance",
+                                        "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance, check https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI_launch_latest.html",
                                         "default": "ami-b88e7cda",
                                         "type": "string"
                                     },
@@ -692,6 +692,11 @@
                                     "iam_role": {
                                         "description": "The IAM role for this instance",
                                         "type": "string"
+                                    },
+                                    "assign_public_ip": {
+                                        "description": "Assign a public IP address to this instance",
+                                        "default": false,
+                                        "type": "boolean"
                                     },
                                     "tags": {
                                         "description": "A list of tags against the instance",
