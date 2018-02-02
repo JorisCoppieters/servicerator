@@ -1603,14 +1603,14 @@ function getVpcIdForVpc (in_vpcName, in_options) {
         awsVpcId = awsResult.Vpcs
             .sort()
             .reverse()
-            .filter(obj => obj.Tags
+            .filter(obj => (obj.Tags || [])
                 .find(tag => tag.Key === 'Name' && tag.Value === in_vpcName)
             )
             .map(obj => obj.VpcId)
             .find(() => true);
 
         firstVpc = awsResult.Vpcs
-            .map(obj => obj.Tags)
+            .map(obj => obj.Tags || [])
             .reduce((a, b) => b.concat(a), [])
             .filter(tag => tag.Key === 'Name')
             .map(tag => tag.Value)
@@ -1780,14 +1780,14 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
         awsVpcSubnetId = awsResult.Subnets
             .sort()
             .reverse()
-            .filter(obj => obj.Tags
+            .filter(obj => (obj.Tags || [])
                 .find(tag => tag.Key === 'Name' && tag.Value === in_vpcSubnetName)
             )
             .map(obj => obj.SubnetId)
             .find(() => true);
 
         firstVpcSubnet = awsResult.Subnets
-            .map(obj => obj.Tags)
+            .map(obj => obj.Tags || [])
             .reduce((a, b) => b.concat(a), [])
             .filter(tag => tag.Key === 'Name')
             .map(tag => tag.Value)
