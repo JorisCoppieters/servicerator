@@ -608,7 +608,7 @@
                                     "write",
                                     "list"
                                 ],
-                                "default": ["read"]
+                                "default": "read"
                             },
                             "description": "The permissions that should be associated with the username"
                         }

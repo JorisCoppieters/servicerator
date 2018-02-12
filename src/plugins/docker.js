@@ -547,15 +547,16 @@ function purgeDockerImages (in_serviceConfig, in_force) {
 // ******************************
 
 function incrementalPushDockerImage (in_serviceConfig) {
-    if (!setDockerImageVersion(in_serviceConfig, 0, 0, 1)) {
+    let serviceConfig = setDockerImageVersion(in_serviceConfig, [], ['+b']);
+    if (!serviceConfig) {
         return;
     }
 
-    if (!buildDockerImage(in_serviceConfig)) {
+    if (!buildDockerImage(serviceConfig)) {
         return;
     }
 
-    if (!pushDockerImage(in_serviceConfig)) {
+    if (!pushDockerImage(serviceConfig)) {
         return;
     }
 }
@@ -609,14 +610,14 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
     });
 
     if (version) {
-        service.updateConfig(in_serviceConfig, {
+        let updatedServiceConfig = service.updateConfig(in_serviceConfig, {
             docker: {
                 image: {
                     version: version
                 }
             }
         });
-        return true;
+        return updatedServiceConfig;
     }
 
     let dockerImageVersion = serviceConfig.docker.image.version || false;
@@ -642,14 +643,15 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
         version = '0.0.1';
     }
 
-    service.updateConfig(in_serviceConfig, {
+    let updatedServiceConfig = service.updateConfig(in_serviceConfig, {
         docker: {
             image: {
                 version: version
             }
         }
     });
-    return true;
+
+    return updatedServiceConfig;
 }
 
 // ******************************
