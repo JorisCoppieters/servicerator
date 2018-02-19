@@ -1150,41 +1150,6 @@ function _saveServiceConfig (in_serviceConfig, in_options) {
 
 // ******************************
 
-function _checkObjectAgainstSchema (in_path, in_obj, in_schema, in_checkValueAsType, in_fullPath) {
-    let fullPath = in_fullPath || '';
-
-    if (!in_obj) {
-        cprint.yellow('Object isn\'t set for path "' + in_path + '"');
-        return;
-    }
-
-    if (!in_schema) {
-        cprint.yellow('Schema isn\'t set for path "' + in_path + '"');
-        return;
-    }
-
-    let objKeys = Object.keys(in_obj);
-    let schemaKeys = Object.keys(in_schema);
-
-    let nonSchemaKeys = objKeys.filter(k => schemaKeys.indexOf(k) < 0);
-    if (nonSchemaKeys.length) {
-        cprint.yellow('Found non-schema keys in path "' + in_path + '":');
-        nonSchemaKeys.forEach(k => {
-            let fullKeyPath = fullPath + '.' + k;
-            cprint.yellow('  - ' + fullKeyPath);
-        });
-        return;
-    }
-
-    objKeys.forEach(k => {
-        let objVal = in_obj[k];
-        let schemaVal = in_schema[k];
-        return _checkArrayElementAgainstSchema(in_path + ' > ' + k, objVal, schemaVal, in_checkValueAsType, fullPath ? fullPath + '.' + k : k);
-    });
-}
-
-// ******************************
-
 function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema, in_warning) {
     let validate = require('jsonschema').validate;
     let validationResult = validate(in_obj, in_schema);
@@ -1207,97 +1172,6 @@ function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema, in_warning) 
     }
 
     return true;
-}
-
-// ******************************
-
-function _checkArrayElementAgainstSchema (in_path, in_objVal, in_schemaVal, in_checkValueAsType, in_fullPath) {
-    if (in_objVal === undefined) {
-        cprint.yellow('Object value isn\'t set for path "' + in_path + '"');
-        return;
-    }
-
-    if (in_schemaVal === undefined) {
-        cprint.yellow('Schema value isn\'t set for path "' + in_path + '"');
-        return;
-    }
-
-    let objVal = in_objVal;
-    let objValType = typeof(objVal);
-    if (in_checkValueAsType && objValType !== 'object') {
-        objValType = objVal.toLowerCase();
-        objVal = undefined;
-        if (objValType === 'path') {
-            objValType = 'string';
-            objVal = 'path/';
-        }
-
-        if (objValType === 'url') {
-            objValType = 'string';
-            objVal = 'http://url';
-        }
-    }
-
-    let schemaVal = in_schemaVal;
-
-    if (schemaVal === 'ANY') {
-        return;
-    }
-
-    if (schemaVal === 'STRING' && objValType !== 'string') {
-        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
-        return;
-    }
-
-    if (schemaVal === 'PATH') {
-        if (objValType !== 'string') {
-            cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
-            return;
-        }
-
-        if (!objVal || !objVal.match(/^([A-Za-z0-9 _:$.*-]*[/\\]?)*$/)) {
-            cprint.yellow('Not a valid filesystem reference format (' + objVal + ') in path "' + in_path + '": ' + objVal);
-            return;
-        }
-    }
-
-    if (schemaVal === 'URL') {
-        if (objValType !== 'string') {
-            cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
-            return;
-        }
-
-        if (!objVal || !objVal.match(/^https?:\/\/([A-Za-z0-9 _:$.*-]*[/\\]?)*$/)) {
-            cprint.yellow('Not a valid url format (' + objVal + ') in path "' + in_path + '": ' + objVal);
-            return;
-        }
-    }
-
-    if (schemaVal === 'NUMBER' && objValType !== 'number') {
-        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
-        return;
-    }
-
-    if (schemaVal === 'BOOLEAN' && objValType !== 'boolean') {
-        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
-        return;
-    }
-
-    if (Array.isArray(schemaVal) && !Array.isArray(objVal)) {
-        cprint.yellow('Found incorrect type (' + objValType + ') in path "' + in_path + '":');
-        return;
-    }
-
-    if (Array.isArray(objVal)) {
-        objVal.forEach(elem => {
-            _checkArrayElementAgainstSchema(in_path + '[]', elem, schemaVal[0], in_checkValueAsType, in_fullPath);
-        });
-        return;
-    }
-
-    if (objValType === 'object') {
-        return _checkObjectAgainstSchema(in_path, objVal, schemaVal, in_checkValueAsType, in_fullPath);
-    }
 }
 
 // ******************************

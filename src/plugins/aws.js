@@ -3566,7 +3566,7 @@ function awsViewEndpoint (in_serviceConfig, in_environment) {
                 {
                     environment: 'STRING',
                     default: 'BOOLEAN',
-                    url: 'STRING'
+                    url: 'URL'
                 }
             ]
         },
