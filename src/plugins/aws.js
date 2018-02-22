@@ -2966,6 +2966,12 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             cache: awsCache,
             profile: serviceConfig.aws.profile
         });
+    } else if (autoScalingGroupInstanceCount != instanceCount) {
+        cprint.cyan('Updating AWS cluster...');
+        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, instanceCount, {
+            cache: awsCache,
+            profile: serviceConfig.aws.profile
+        });
     } else {
         cprint.green('AWS cluster already started');
     }

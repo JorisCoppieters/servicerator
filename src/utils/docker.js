@@ -29,6 +29,7 @@ const k_TEST_TYPE_URL = 'URL';
 
 const knownCmdErrors = [
     new RegExp(/WARNING: Error loading config file:.* - open .*: The process cannot access the file because it is being used by another process./),
+    new RegExp(/SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host\. All files and directories added to build context will have '-rwxr-xr-x' permissions\. It is recommended to double check and reset permissions for sensitive files and directories\./),
     new RegExp(/Error response from daemon: conflict: unable to delete .* \(cannot be forced\) - image has dependent child images/),
     new RegExp(/Error response from daemon: manifest for .* not found/),
     'Error response from daemon: invalid reference format'

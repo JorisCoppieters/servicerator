@@ -14,7 +14,7 @@ let env = require('./utils/env');
 // Constants:
 // ******************************
 
-let SPACING = 32;
+let SPACING = 40;
 
 // ******************************
 // Functions:
@@ -32,11 +32,11 @@ function printHelp (in_message) {
     print.out(cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.SCRIPT_NAME.length + 18), true)) + ' ' + cprint.toBackgroundMagenta(cprint.toWhite(' '.repeat(c.VERSION.length + 12), true)) + '\n');
     print.out('\n');
     _printHelpHeader('General Options');
-    print.out(cprint.toWhite('--help') + '\t\t\t\t' + cprint.toCyan('Show this menu') + '\n');
-    print.out(cprint.toWhite('--version') + '\t\t\t' + cprint.toCyan('Print the version') + '\n');
+    print.out(cprint.toWhite('--help') + '\t\t\t\t\t' + cprint.toCyan('Show this menu') + '\n');
+    print.out(cprint.toWhite('--version') + '\t\t\t\t' + cprint.toCyan('Print the version') + '\n');
     print.out('\n');
     _printHelpHeader('Init Commands');
-    print.out(cprint.toLightGreen('init') + ' ' + cprint.toLightGrey('FOLDER (Optional)') + '\t\t' + cprint.toCyan('Initialise the service.json file in this folder') + '\n');
+    print.out(cprint.toLightGreen('init') + ' ' + cprint.toLightGrey('FOLDER (Optional)') + '\t\t\t' + cprint.toCyan('Initialise the service.json file in this folder') + '\n');
     print.out('\n');
 
     let plugins = env.getPlugins();
