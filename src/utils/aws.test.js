@@ -50,7 +50,7 @@ let test = require('./test');
 
 function runTests () {
     cprint.magenta('Running aws util tests...');
-    test.assertMatch('aws basic command', '{[\\s\\S]+"clusterArns"[\\s\\S]+}', aws.cmd(['ecs', 'list-clusters']));
+    test.assertMatch('aws ecs list-clusters', '{[\\s\\S]+"clusterArns"[\\s\\S]+}', aws.cmd(['ecs', 'list-clusters']));
 }
 
 // ******************************

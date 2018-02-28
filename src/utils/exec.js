@@ -26,10 +26,6 @@ function execCmdSync (in_cmd, in_args, in_options) {
 
     let cmdOptions = {};
 
-    if (opt.useShell) {
-        cmdOptions.shell = true;
-    }
-
     if (opt.cwd) {
         cmdOptions.cwd = opt.cwd;
     }
@@ -62,6 +58,15 @@ function execCmdSync (in_cmd, in_args, in_options) {
         cmdResultObj = JSON.parse(cmdResult);
     } catch (e) {
         // Do Nothing
+    }
+
+    if (opt.printResults) {
+        if (cmdResult.trim()) {
+            cprint.white(indent + 'CMD RESULT: ' + cmdResult.trim());
+        }
+        if (cmdErrorResult.trim()) {
+            cprint.red(indent + 'CMD ERROR: ' + cmdErrorResult.trim());
+        }
     }
 
     return {

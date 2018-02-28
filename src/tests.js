@@ -19,15 +19,15 @@ let plugins = env.getPlugins();
 // ******************************
 
 function runAllTests () {
-    object_test.runTests();
-    // aws_test.runTests();
-    // docker_test.runTests();
-
     plugins.forEach(p => {
         if (p.runTests) {
             p.runTests();
         }
     });
+
+    object_test.runTests();
+    aws_test.runTests();
+    docker_test.runTests();
 }
 
 // ******************************

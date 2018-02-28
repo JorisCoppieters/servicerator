@@ -18,6 +18,7 @@ let service = require('./service');
 // ******************************
 
 let g_AWS_CLI_INSTALLED = undefined;
+let g_AWS_CMD = "aws";
 
 // ******************************
 // Cluster Functions:
@@ -2016,7 +2017,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
 
     if (awsCmdResult.hasError) {
         awsCmdResult.printError();
-        cprint.red('Check your ~/.aws/credentials file...');
+        cprint.red('\nCheck your ~/.aws/credentials file...');
         return false;
     }
 
@@ -2221,10 +2222,9 @@ function awsCmd (in_args, in_options) {
         args.push('default');
     }
 
-    return exec.cmdSync('aws', args, {
+    return exec.cmdSync(g_AWS_CMD, args, {
         indent: '  ',
-        hide: hide,
-        useShell: true
+        hide: hide
     });
 }
 
@@ -2235,11 +2235,16 @@ function parseAwsCmdResult (in_cmdResult) {
         in_cmdResult.printError('  ');
     }
 
+    if (! in_cmdResult.result) {
+        cprint.yellow('Failed to parse empty result...');
+        return false;
+    }
+
     let jsonObject;
     try {
         jsonObject = JSON.parse(in_cmdResult.result);
     } catch (e) {
-        cprint.red('Failed to parse "' + jsonObject.result + '":\n  ' + e.stack);
+        cprint.red('\nFailed to parse "' + in_cmdResult.result + '":\n' + e.stack);
         return false;
     }
 
@@ -2250,19 +2255,23 @@ function parseAwsCmdResult (in_cmdResult) {
 
 function awsInstalled () {
     if (g_AWS_CLI_INSTALLED === undefined) {
-        g_AWS_CLI_INSTALLED = !!awsVersion();
+        g_AWS_CLI_INSTALLED = !!awsVersion("aws");
+        if (!g_AWS_CLI_INSTALLED) {
+            g_AWS_CLI_INSTALLED = !!awsVersion("aws.cmd");
+        }
     }
     return g_AWS_CLI_INSTALLED;
 }
 
 // ******************************
 
-function awsVersion () {
-    let cmdResult = exec.cmdSync('aws', ['--version'], {
+function awsVersion (awsCmd) {
+    g_AWS_CMD = awsCmd
+
+    let cmdResult = exec.cmdSync(g_AWS_CMD, ['--version'], {
         indent: '',
         hide: true,
-        errToOut: true,
-        useShell: true
+        errToOut: true
     });
 
     if (cmdResult.hasError) {
