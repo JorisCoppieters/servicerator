@@ -2223,7 +2223,8 @@ function awsCmd (in_args, in_options) {
 
     return exec.cmdSync('aws', args, {
         indent: '  ',
-        hide: hide
+        hide: hide,
+        useShell: true
     });
 }
 
@@ -2260,7 +2261,8 @@ function awsVersion () {
     let cmdResult = exec.cmdSync('aws', ['--version'], {
         indent: '',
         hide: true,
-        errToOut: true
+        errToOut: true,
+        useShell: true
     });
 
     if (cmdResult.hasError) {

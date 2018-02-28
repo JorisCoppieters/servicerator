@@ -25,6 +25,11 @@ function execCmdSync (in_cmd, in_args, in_options) {
     }
 
     let cmdOptions = {};
+
+    if (opt.useShell) {
+        cmdOptions.shell = true;
+    }
+
     if (opt.cwd) {
         cmdOptions.cwd = opt.cwd;
     }
