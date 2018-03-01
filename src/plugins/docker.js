@@ -320,10 +320,51 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
 
     cprint.cyan('Building Docker image...');
     docker.cmd(args, {
-        async: true
+        async: true,
+        asyncCb: (result) => {
+            if (result) {
+                _printSuccessHeader('Docker build succeeded!', '  ');
+            } else {
+                _printErrorHeader('Docker build failed!', '  ');
+            }
+        }
     });
 
     return true;
+}
+
+// ******************************
+
+function _printSuccessHeader (in_title, in_indent) {
+    let backgroundFn = cprint.backgroundCyan;
+    let foregroundFn = cprint.toWhite;
+
+    in_indent = in_indent || '';
+    print.out('\n');
+    print.out(in_indent);
+    backgroundFn(foregroundFn(' '.repeat(in_title.length + 4), true));
+    print.out(in_indent);
+    backgroundFn(foregroundFn('  ' + in_title + '  ', true));
+    print.out(in_indent);
+    backgroundFn(foregroundFn(' '.repeat(in_title.length + 4), true));
+    print.out('\n');
+}
+
+// ******************************
+
+function _printErrorHeader (in_title, in_indent) {
+    let backgroundFn = cprint.backgroundYellow;
+    let foregroundFn = cprint.toBlack;
+
+    in_indent = in_indent || '';
+    print.out('\n');
+    print.out(in_indent);
+    backgroundFn(foregroundFn(' '.repeat(in_title.length + 4), true));
+    print.out(in_indent);
+    backgroundFn(foregroundFn('  ' + in_title + '  ', true));
+    print.out(in_indent);
+    backgroundFn(foregroundFn(' '.repeat(in_title.length + 4), true));
+    print.out('\n');
 }
 
 // ******************************

@@ -108,16 +108,16 @@ function execCmd (in_cmd, in_args, in_options) {
 
     child.stderr.on('data', chunk => {
         _printLogLine(chunk, indent, opt.knownErrors);
+        seenError = true;
         if (opt.errorCb) {
-            seenError = true;
             opt.errorCb(chunk.toString());
         }
     });
 
     child.on('error', error => {
         _printLogLine(error, indent, opt.knownErrors);
+        seenError = true;
         if (opt.errorCb) {
-            seenError = true;
             opt.errorCb(error);
         }
     });
