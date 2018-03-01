@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 
+let env = require('../utils/env');
 let aws = require('../utils/aws');
 let cache = require('../utils/cache');
 let date = require('../utils/date');
@@ -700,7 +701,11 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     if (userData) {
         args.push('--user-data');
-        args.push(userData);
+        let path = require('path');
+        let tempFolder = env.getTemp();
+        let tempUserDataFile = fs.writeFile(path.resolve(tempFolder, 'user-data'), userData);
+        tempUserDataFile = tempUserDataFile.replace(/\\/g, '/');
+        args.push('file://' + tempUserDataFile);
     }
 
     if (pemKeyName) {
