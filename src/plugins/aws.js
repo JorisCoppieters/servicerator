@@ -1331,18 +1331,18 @@ function awsCreateBucket (in_serviceConfig) {
         cwd: 'STRING'
     });
 
+    let awsBucketName = serviceConfig.model.bucket.name;
+    if (!awsBucketName) {
+        cprint.yellow('Model bucket name not set');
+        return false;
+    }
+
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
-    }    
+    }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
-    
-    let awsBucketName = serviceConfig.model.bucket.name;
-    if (!awsBucketName) {
-        cprint.yellow('model.bucket.name not set');
-        return false;
-    }
 
     cprint.magenta('-- Bucket --');
     print.keyVal('AWS Bucket Name', awsBucketName);
@@ -1351,7 +1351,6 @@ function awsCreateBucket (in_serviceConfig) {
         cache: awsCache,
         profile: serviceConfig.aws.profile
     });
-
     if (awsBucketPath) {
         cprint.green('AWS bucket already exists!');
         return true;
