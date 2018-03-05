@@ -41,7 +41,6 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
             bucket: {
                 name: 'STRING',
                 username: 'STRING',
-                name: 'STRING',
                 region: 'STRING',
                 permissions: [
                     'STRING'
@@ -254,21 +253,21 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     print.out('\n');
                 }
             }
+        }
 
-            let awsBucket = _awsGetBucket(serviceConfig, awsCache);
-            let prefixedEnvironmentTitleForBucket = prefixedEnvironmentTitle + ' Bucket State';
-            cprint.magenta('-- ' + prefixedEnvironmentTitleForBucket + ' --');
-            if(!awsBucket)
-            {
-                cprint.yellow('Error finding ' + prefixedEnvironmentTitleForBucket);                
-            } 
-            else if(awsBucket.error) {
-                cprint.yellow(prefixedEnvironmentTitleForBucket + ' ' + awsBucket.error);                
-            }
-            else {
-                print.keyVal(prefixedEnvironmentTitle + ' Bucket Name', awsBucket.name);
-                print.keyVal(prefixedEnvironmentTitle + ' Bucket Path', awsBucket.path ? awsBucket.path : cprint.toYellow('Does not exist!'));
-            }                                
+        if (serviceConfig.model.bucket.name) {
+            cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Bucket State' + ' --');
+
+            let awsBucketName = serviceConfig.model.bucket.name;
+            print.keyVal(prefixedEnvironmentTitle + ' Bucket Name', awsBucketName);
+
+            let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
+                cache: awsCache,
+                profile: serviceConfig.aws.profile
+            });
+            print.keyVal(prefixedEnvironmentTitle + ' Bucket Path', awsBucketPath ? awsBucketPath : cprint.toYellow('Does not exist!'));
+
+            print.out('\n');
         }
     }
 
@@ -730,7 +729,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         args.push('--user-data');
         let path = require('path');
         let tempFolder = env.getTemp();
-        let tempUserDataFile = fs.writeFile(path.resolve(tempFolder, 'user-data'), userData);
+        let tempUserDataFile = fs.writeFile(path.resolve(tempFolder, 'user-data'), userData, true);
         tempUserDataFile = tempUserDataFile.replace(/\\/g, '/');
         args.push('file://' + tempUserDataFile);
     }
@@ -1318,34 +1317,9 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 }
 
 // ******************************
-function _awsGetBucket(serviceConfig, awsCache) {         
-
-    let awsBucketName = serviceConfig.model.bucket.name;
-    let bucketResult = {"error": undefined, "name": undefined, "path": undefined};
-
-    if (!awsBucketName) {
-        bucketResult.error = new Error('model.bucket.name not set');        
-        return bucketResult;
-    }
-
-    if (!aws.installed()) {
-        bucketResult.error = new Error('AWS-CLI isn\'t installed');        
-        return bucketResult;
-    }    
-
-    let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
-        cache: awsCache,
-        profile: serviceConfig.aws.profile
-    });
-
-    bucketResult.name = awsBucketName;
-    bucketResult.path = awsBucketPath;
-
-    return bucketResult;
-}
 
 function awsCreateBucket (in_serviceConfig) {
-  let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         model: {
             bucket: {
                 name: 'STRING'
@@ -1357,25 +1331,35 @@ function awsCreateBucket (in_serviceConfig) {
         cwd: 'STRING'
     });
 
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }    
+
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
     
-    let awsBucket = _awsGetBucket(serviceConfig, awsCache);
-    if(awsBucket.error) {
-        cprint.yellow(awsBucket.error);
+    let awsBucketName = serviceConfig.model.bucket.name;
+    if (!awsBucketName) {
+        cprint.yellow('model.bucket.name not set');
         return false;
     }
 
     cprint.magenta('-- Bucket --');
-    print.keyVal('AWS Bucket Name', awsBucket.name);
+    print.keyVal('AWS Bucket Name', awsBucketName);
 
-    if (awsBucket.path) {
+    let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
+        cache: awsCache,
+        profile: serviceConfig.aws.profile
+    });
+
+    if (awsBucketPath) {
         cprint.green('AWS bucket already exists!');
         return true;
     }
 
     cprint.cyan('Creating bucket...');
 
-    if (!aws.createBucket(awsBucket.name, {
+    if (!aws.createBucket(awsBucketName, {
         profile: serviceConfig.aws.profile
     })) {
         return;

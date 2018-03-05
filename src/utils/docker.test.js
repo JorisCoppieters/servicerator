@@ -26,7 +26,6 @@ function runTests () {
     }
 
     let tempDockerFolder = fs.createFolder(path.resolve(env.getTemp(), 'docker.test'));
-    let tempDockerFile = fs.writeFile(path.resolve(tempDockerFolder, 'Dockerfile'), '');
 
     cprint.magenta('Running docker util tests...');
     test.assertMatch('docker folder', '.*docker.test', docker.getFolder(tempDockerFolder));

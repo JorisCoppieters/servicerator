@@ -18,7 +18,7 @@ let service = require('./service');
 // ******************************
 
 let g_AWS_CLI_INSTALLED = undefined;
-let g_AWS_CMD = "aws";
+let g_AWS_CMD = 'aws';
 
 // ******************************
 // Cluster Functions:
@@ -2255,9 +2255,9 @@ function parseAwsCmdResult (in_cmdResult) {
 
 function awsInstalled () {
     if (g_AWS_CLI_INSTALLED === undefined) {
-        g_AWS_CLI_INSTALLED = !!awsVersion("aws");
+        g_AWS_CLI_INSTALLED = !!awsVersion('aws');
         if (!g_AWS_CLI_INSTALLED) {
-            g_AWS_CLI_INSTALLED = !!awsVersion("aws.cmd");
+            g_AWS_CLI_INSTALLED = !!awsVersion('aws.cmd');
         }
     }
     return g_AWS_CLI_INSTALLED;
@@ -2266,7 +2266,7 @@ function awsInstalled () {
 // ******************************
 
 function awsVersion (awsCmd) {
-    g_AWS_CMD = awsCmd
+    g_AWS_CMD = awsCmd;
 
     let cmdResult = exec.cmdSync(g_AWS_CMD, ['--version'], {
         indent: '',
