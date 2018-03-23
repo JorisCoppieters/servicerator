@@ -2030,11 +2030,14 @@ function _configureMultiFactorAuth(in_opts) {
     }
 
     if (!awsCredentials[profile]) {
+        console.log("profile doesn't exist" + profile);
         isSessionRefreshRequired = true;
     }
-    else if (awsCredentials[profile]) {
+    else if (awsCredentials[profile]) {        
         isSessionRefreshRequired = !awsCredentials[profile].expiration  
-            || moment().isAfter(moment(awsCredentials[profile].expiration));
+            || moment().utc().isAfter(moment.utc(awsCredentials[profile].expiration));
+
+        console.log("isSessionRefreshRequired" + awsCredentials[profile].expiration);
     }
 
     if (isSessionRefreshRequired) {                
@@ -2051,7 +2054,7 @@ function _configureMultiFactorAuth(in_opts) {
         awsCredentials[profile].aws_secret_access_key = sessionToken.SecretAccessKey;
         awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
         awsCredentials[profile].aws_security_token = sessionToken.SessionToken;
-        awsCredentials[profile].expiration = moment(sessionToken.Expiration).format("YYYY-MM-DD HH:mm:ss");
+        awsCredentials[profile].expiration = moment.utc(sessionToken.Expiration).format("YYYY-MM-DD HH:mm:ss");
         ini.writeFile(opts.credentialsFile, awsCredentials);
     }             
 }
