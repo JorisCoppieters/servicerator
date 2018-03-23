@@ -2051,7 +2051,7 @@ function _configureMultiFactorAuth(in_opts) {
         awsCredentials[profile].aws_secret_access_key = sessionToken.SecretAccessKey;
         awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
         awsCredentials[profile].aws_security_token = sessionToken.SessionToken;
-        awsCredentials[profile].expiration = moment(sessionToken.Expiration).format();
+        awsCredentials[profile].expiration = moment(sessionToken.Expiration).format("YYYY-MM-DD HH:mm:ss");
         ini.writeFile(opts.credentialsFile, awsCredentials);
     }             
 }
