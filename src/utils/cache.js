@@ -10,10 +10,22 @@ let fs = require('./filesystem');
 let date = require('./date');
 
 // ******************************
+// Constants:
+// ******************************
+
+//A list of helper cache duration periods. Used for when a new cache item is added.
+const secondInMilis = 1000;
+const minuteInMilis = 60 * secondInMilis;
+const hourInMilis = 60 * minuteInMilis;
+const dayInMilis = 24 * hourInMilis;
+const weekInMilis = 7 * dayInMilis;
+
+
+// ******************************
 // Functions:
 // ******************************
 
-function loadCache (in_sourceFolder, in_cacheName) {
+function loadCache(in_sourceFolder, in_cacheName) {
     let path = require('path');
 
     let sourceFolder = path.resolve(in_sourceFolder);
@@ -51,7 +63,7 @@ function loadCache (in_sourceFolder, in_cacheName) {
 
 // ******************************
 
-function saveCache (in_sourceFolder, in_cacheName, in_cacheItems) {
+function saveCache(in_sourceFolder, in_cacheName, in_cacheItems) {
     let path = require('path');
 
     let sourceFolder = path.resolve(in_sourceFolder);
@@ -89,5 +101,12 @@ function saveCache (in_sourceFolder, in_cacheName, in_cacheItems) {
 
 module.exports['load'] = loadCache;
 module.exports['save'] = saveCache;
+module.exports['durations'] = { 
+    second: secondInMilis, 
+    minute: minuteInMilis, 
+    hour: hourInMilis, 
+    day: dayInMilis, 
+    week: weekInMilis    
+}
 
 // ******************************

@@ -12,6 +12,9 @@ let exec = require('./exec');
 let fs = require('./filesystem');
 let ini = require('./ini');
 let service = require('./service');
+const readlineSync = require('readline-sync');
+const moment = require('moment');
+const cache = require('./cache');
 
 // ******************************
 // Globals:
@@ -1905,8 +1908,9 @@ function getAwsServiceConfig (in_serviceConfig) {
         aws: {
             account_id: 'NUMBER',
             profile: 'STRING'
-        }
-    });
+        },
+        cwd: 'STRING'
+    });        
 
     let path = require('path');
 
@@ -1914,29 +1918,182 @@ function getAwsServiceConfig (in_serviceConfig) {
     if (!homeFolder || !fs.folderExists(homeFolder)) {
         cprint.yellow('Home folder doesn\'t exist');
         return;
-    }
+    }    
 
     let profile = serviceConfig.aws.profile || 'default';
     serviceConfig.aws.profile = profile;
 
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
-    if (awsConfig[profile] && awsConfig[profile].region) {
-        serviceConfig.aws.region = awsConfig[profile].region;
-    }
 
     let awsCredentialsFile = path.resolve(homeFolder, '.aws', 'credentials');
     let awsCredentials = ini.parseFile(awsCredentialsFile);
-    if (awsCredentials[profile] && awsCredentials[profile].aws_access_key_id) {
-        serviceConfig.aws.access_key = awsCredentials[profile].aws_access_key_id;
-        serviceConfig.aws.secret_key = awsCredentials[profile].aws_secret_access_key;
+
+    let mfaDevice = _getMultiFactorAuthDevice(profile, serviceConfig);        
+    if(mfaDevice && mfaDevice.SerialNumber) {
+        _configureMultiFactorAuth({
+            serialNumber: mfaDevice.SerialNumber,
+            profile: profile,            
+            credentialsFile: awsCredentialsFile,
+            awsServiceConfig: serviceConfig.aws
+        });            
+        
+        //Reload the ini files as they may have changed off the back of configuring an MFA device
+        awsConfig = ini.parseFile(awsConfigFile);
+        awsCredentials = ini.parseFile(awsCredentialsFile);
+    }
+    
+    if (awsConfig[profile] && awsConfig[profile].region) {        
+        serviceConfig.aws.region = awsConfig[profile].region;       
     }
 
+    if (awsCredentials[profile] && awsCredentials[profile].aws_access_key_id) {
+
+        serviceConfig.aws.access_key = awsCredentials[profile].aws_access_key_id;
+        serviceConfig.aws.secret_key = awsCredentials[profile].aws_secret_access_key;                                
+    }
+           
     service.checkConfigSchema(serviceConfig);
     return serviceConfig;
 }
 
 // ******************************
+function _getMultiFactorAuthDevice(in_profile, in_serviceConfig) {
+    
+    let cacheKey = in_profile + '-mfa-device';
+    let awsCache = cache.load(in_serviceConfig.cwd, 'aws') || {};    
+    
+    let longTermProfile = in_profile + '-long-term';
+
+    if(awsCache[cacheKey] && awsCache[cacheKey].val) {
+        return awsCache[cacheKey].val;
+    }
+
+    cprint.white('aws iam list-mfa-devices --max-items 1');
+
+    if (awsInstalled()) {
+        let awsCmdResult = awsCmd(
+            ['iam', 'list-mfa-devices', 
+            '--max-items', 1 ], 
+        {
+            hide: true,
+            profile: longTermProfile
+        });        
+
+        if (!awsCmdResult.hasError) {
+            let mfaDevicesResponse = JSON.parse(awsCmdResult.result);
+            if (mfaDevicesResponse && mfaDevicesResponse.MFADevices) {                
+                let mfaDevice = mfaDevicesResponse.MFADevices.shift();                                
+
+                awsCache[cacheKey] = {
+                    val: mfaDevice,
+                    expires: date.getTimestamp() + cache.durations.week
+                };
+
+                if (service.hasConfigFile(in_serviceConfig.cwd)) {
+                    cache.save(in_serviceConfig.cwd, 'aws', awsCache);
+                }
+
+                return mfaDevice;
+            }
+        }
+
+        awsCmdResult.printError('  ');                      
+    }
+
+    return null;  
+}
+
+function _configureMultiFactorAuth(in_opts) {
+    let opts = in_opts || {};
+
+    let profile = opts.profile;    
+
+    //Normalize the short term and long term profile values
+    let longTermPostfix = '-long-term';
+    if(profile.endsWith(longTermPostfix)) {        
+        profile = profile.substring(0, profile.indexOf(longTermPostfix));
+    }    
+
+    let longTermProfile = profile + longTermPostfix;
+
+    let isSessionRefreshRequired = false;
+    
+    let awsCredentials =  ini.parseFile(opts.credentialsFile);
+
+    if(!awsCredentials[longTermProfile]) {
+        cprint.yellow(`${longTermProfile} credentials do not exist. You need to configure these in ~/.aws/credentails!`);
+    }
+
+    if(!awsCredentials[longTermProfile].aws_mfa_device) {
+        awsCredentials[longTermProfile].aws_mfa_device = opts.serialNumber;
+    }
+
+    if (!awsCredentials[profile]) {
+        isSessionRefreshRequired = true;
+    }
+    else if (awsCredentials[profile]) {
+        isSessionRefreshRequired = !awsCredentials[profile].expiration  
+            || moment().isAfter(moment(awsCredentials[profile].expiration));
+    }
+
+    if (isSessionRefreshRequired) {                
+
+        let sessionToken = _getSessionToken(longTermProfile, opts.serialNumber);
+
+        if (!sessionToken) return;
+
+        awsCredentials[profile] = {};
+        let mfaCredentialsSection = awsCredentials[profile];
+
+        awsCredentials[profile].assumed_role = "False";
+        awsCredentials[profile].aws_access_key_id = sessionToken.AccessKeyId;
+        awsCredentials[profile].aws_secret_access_key = sessionToken.SecretAccessKey;
+        awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
+        awsCredentials[profile].aws_security_token = sessionToken.SessionToken;
+        awsCredentials[profile].expiration = moment(sessionToken.Expiration).format();
+        ini.writeFile(opts.credentialsFile, awsCredentials);
+    }             
+}
+
+function _getSessionToken(in_profile, in_mfaArn) {    
+
+    const secondsInHours = 3600;
+    let tokenDuration = parseInt(readlineSync.question(`You require a session token for ${in_profile} profile. Please enter a session duration in hours:[1-36, 36] `));   
+
+    if(!tokenDuration || !Number.isInteger(tokenDuration) || tokenDuration < 1 || tokenDuration > 36) {
+        tokenDuration = 36;
+    }        
+    
+    tokenDuration = tokenDuration * secondsInHours;    
+
+    let tokenCode = readlineSync.question(`Please enter the current MFA token: `);   
+
+    cprint.white(`aws sts get-session-token --duration-seconds ${tokenDuration} --serial-number ${in_mfaArn} --token-code ${tokenCode}`);
+
+    if (awsInstalled()) {
+        let awsCmdResult = awsCmd(
+            ['sts', 'get-session-token', 
+            '--duration-seconds', tokenDuration, 
+            '--serial-number', in_mfaArn,
+            '--token-code', tokenCode], {
+            hide: true,
+            profile: in_profile
+        });        
+
+        if (!awsCmdResult.hasError) {
+            let awsSessionToken = JSON.parse(awsCmdResult.result);
+            if (awsSessionToken && awsSessionToken.Credentials) {
+                return awsSessionToken.Credentials;
+            }
+        }
+
+        awsCmdResult.printError('  ');                      
+    }
+
+    return null;  
+
+}
 
 function getAwsRepositoryServiceConfig () {
     let serviceConfig = {

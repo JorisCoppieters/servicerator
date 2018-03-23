@@ -2715,7 +2715,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
     if (!awsAutoScalingGroupName) {
         cprint.yellow('Auto scaling group name not set');
-        return false;
+        return false;        
     }
 
     let awsVpcName = cluster.vpc_name;
