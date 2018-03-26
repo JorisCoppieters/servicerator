@@ -8,6 +8,7 @@ let cprint = require('color-print');
 
 let env = require('../utils/env');
 let aws = require('../utils/aws');
+let awsInstanceTypes = require('../utils/aws.instance.types');
 let cache = require('../utils/cache');
 let date = require('../utils/date');
 let docker = require('../utils/docker');
@@ -471,14 +472,6 @@ function awsCreateAll (in_serviceConfig, in_environment) {
     }
 
     if (!awsCreateDeliveryStructure(in_serviceConfig, in_environment)) {
-        return;
-    }
-
-    if (!awsCreateBucket(in_serviceConfig)) {
-        return;
-    }
-
-    if (!awsCreateBucketUser(in_serviceConfig)) {
         return;
     }
 
@@ -3084,6 +3077,142 @@ function awsStopCluster (in_serviceConfig, in_environment) {
 
 // ******************************
 
+function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    environment: 'STRING',
+                    instance: {
+                        count: 'NUMBER'
+                    }
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    if (!in_ami) {
+        cprint.yellow('Instance AMI not provided');
+        return false;
+    }
+
+    if (!in_ami.match(/ami-[a-f0-9]{8}/)) {
+        cprint.yellow('Instance AMI not valid a AMI id: ' + in_ami);
+        return false;
+    }
+
+    let clusters = serviceConfig.service.clusters || [];
+
+    if (in_environment) {
+        let environmentCluster = clusters.find(c => {
+            return c.environment === in_environment;
+        });
+        if (environmentCluster) {
+            environmentCluster.instance.ami = in_ami;
+        }
+        service.updateConfig(in_serviceConfig, serviceConfig);
+    } else {
+        clusters.forEach(c => {
+            c.instance.ami = in_ami;
+        });
+        service.updateConfig(in_serviceConfig, serviceConfig);
+    }
+}
+
+// ******************************
+
+function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    environment: 'STRING',
+                    instance: {
+                        count: 'NUMBER'
+                    }
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    if (!in_count) {
+        cprint.yellow('Instance count not provided');
+        return false;
+    }
+
+    let count = parseInt(in_count);
+    if (isNaN(count) || count < 0) {
+        cprint.yellow('Instance count not a valid positive number: ' + in_count);
+        return false;
+    }
+
+    let clusters = serviceConfig.service.clusters || [];
+
+    if (in_environment) {
+        let environmentCluster = clusters.find(c => {
+            return c.environment === in_environment;
+        });
+        if (environmentCluster) {
+            environmentCluster.instance.count = count;
+        }
+        service.updateConfig(in_serviceConfig, serviceConfig);
+    } else {
+        clusters.forEach(c => {
+            c.instance.count = count;
+        });
+        service.updateConfig(in_serviceConfig, serviceConfig);
+    }
+}
+
+// ******************************
+
+function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
+        service: {
+            clusters: [
+                {
+                    environment: 'STRING',
+                    instance: {
+                        count: 'NUMBER'
+                    }
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    if (!in_type) {
+        cprint.yellow('Instance type not provided');
+        return false;
+    }
+
+    if (awsInstanceTypes.ALL.indexOf(in_type) < 0) {
+        cprint.yellow('Instance type not valid: ' + in_type);
+        return false;
+    }
+
+    let clusters = serviceConfig.service.clusters || [];
+
+    if (in_environment) {
+        let environmentCluster = clusters.find(c => {
+            return c.environment === in_environment;
+        });
+        if (environmentCluster) {
+            environmentCluster.instance.type = in_type;
+        }
+        service.updateConfig(in_serviceConfig, serviceConfig);
+    } else {
+        clusters.forEach(c => {
+            c.instance.type = in_type;
+        });
+        service.updateConfig(in_serviceConfig, serviceConfig);
+    }
+}
+
+// ******************************
+
 function awsViewConsoleLogin (in_serviceConfig) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         aws: {
@@ -3677,6 +3806,8 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let extra = in_args['extra'];
     let stopTasks = in_args['stop-tasks'];
 
+    let firstParam = in_params.shift();
+
     let serviceConfig = in_serviceConfig || {};
     let serviceConfigAws = serviceConfig.aws || {};
 
@@ -3877,6 +4008,18 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         awsDeployNewTaskDefinition(in_serviceConfig, stopTasks, env);
         break;
 
+    case 'set-instance-ami':
+        awsSetInstanceAmi(in_serviceConfig, env, firstParam);
+        break;
+
+    case 'set-instance-count':
+        awsSetInstanceCount(in_serviceConfig, env, firstParam);
+        break;
+
+    case 'set-instance-type':
+        awsSetInstanceType(in_serviceConfig, env, firstParam);
+        break;
+
     case 'start-cluster':
     case 'start':
         awsStartCluster(in_serviceConfig, env);
@@ -3944,6 +4087,10 @@ function getCommands () {
 
         { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'environment', description:'Environment'}] },
         { params: ['stop-cluster', 'stop'], description: 'Stop AWS cluster', options: [{param:'environment', description:'Environment'}] },
+
+        { params: ['set-instance-ami'], description: 'Set instance AMI for cluster', options: [{param:'environment', description:'Environment'}] },
+        { params: ['set-instance-count'], description: 'Set instance count for cluster', options: [{param:'environment', description:'Environment'}] },
+        { params: ['set-instance-type'], description: 'Set instance type for cluster', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['view-console-login', 'view-console', 'view-login', 'open-console-login', 'open-console', 'open-login'], description: 'View console login screen', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-all', 'open-all', 'view', 'open'], description: 'View all infrastructure and delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
