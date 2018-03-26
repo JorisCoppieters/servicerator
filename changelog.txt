@@ -1,3 +1,10 @@
+0.13.0
+- Removed _env.sh support
+- Added set-instance-ami command
+- Added set-instance-count command
+- Added set-instance-type command
+- Various fixes and clean up
+
 0.12.0
 - Cluster service creation now sets min and max health
 - Added attached mode for docker starting

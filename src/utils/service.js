@@ -6,7 +6,6 @@
 
 let cprint = require('color-print');
 
-let bash = require('./bash');
 let docker = require('./docker');
 let env = require('./env');
 let fs = require('./filesystem');
@@ -55,14 +54,6 @@ function createServiceConfig (in_folderName, in_initialise) {
     if (!serviceConfig.schema_version) {
         serviceConfig.schema_version = scriptSchemaVersion;
         serviceConfig.$schema = scriptSchema;
-    }
-
-    let bashEnvFile = path.resolve(sourceFolder, '_env.sh');
-    if (bashEnvFile && fs.fileExists(bashEnvFile)) {
-        let bashServiceConfig = bash.parseEnvFile(bashEnvFile);
-        if (bashServiceConfig) {
-            serviceConfig = object.setMask(bashServiceConfig, serviceConfig);
-        }
     }
 
     let dockerfile = docker.getDockerfile(in_folderName);
