@@ -2071,7 +2071,7 @@ function configureMultiFactorAuth(in_opts) {
     }
     else if (awsCredentials[profile]) {
         isSessionRefreshRequired = !awsCredentials[profile].expiration
-            || require('moment')().utc().isAfter(require('moment').utc(awsCredentials[profile].expiration));
+            || new Date() > new Date(awsCredentials[profile].expiration + 'Z');
     }
 
     if (!isSessionRefreshRequired) {
@@ -2089,9 +2089,18 @@ function configureMultiFactorAuth(in_opts) {
     awsCredentials[profile].aws_secret_access_key = sessionToken.SecretAccessKey;
     awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
     awsCredentials[profile].aws_security_token = sessionToken.SessionToken;
-    awsCredentials[profile].expiration = require('moment').utc(sessionToken.Expiration).format('YYYY-MM-DD HH:mm:ss');
+    awsCredentials[profile].expiration = formatSessionExpiration(sessionToken.Expiration);
     ini.writeFile(opts.credentialsFile, awsCredentials);
     return true;
+}
+
+// ******************************
+function formatSessionExpiration(in_expiration) {
+    // Returns an ISO 8601 formatted date string sans the time zone Z and T date and time separator
+
+    let isoFormattedExpiration = new Date(in_expiration).toISOString();
+
+    return isoFormattedExpiration.replace('T', ' ').replace('.000Z', '');
 }
 
 // ******************************
