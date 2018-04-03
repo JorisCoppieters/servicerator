@@ -776,6 +776,10 @@ function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_op
             keyValue = parseFloat(keyValue);
         } else if (keyValue.trim().match(/^-?[0-9]+$/)) {
             keyValue = parseInt(keyValue);
+        } else if (keyValue.trim().toLowerCase() === 's:true') {
+            keyValue = keyValue.trim().replace(/s:/,'');
+        } else if (keyValue.trim().toLowerCase() === 's:false') {
+            keyValue = keyValue.trim().replace(/s:/,'');
         }
     }
 

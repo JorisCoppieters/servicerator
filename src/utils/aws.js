@@ -1919,6 +1919,10 @@ function getAwsServiceConfig (in_serviceConfig) {
         return;
     }
 
+    if (!awsInstalled()) {
+        return;
+    }
+
     let profile = serviceConfig.aws.profile || 'default';
     profile = profile.replace(/-long-term$/,''); // Remove postfixed -long-term if present
 
@@ -1987,10 +1991,6 @@ function getMultiFactorAuthDevice (in_opts, in_awsCache) {
     let cacheKey = profile + '-mfa-device';
     if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
         return awsCache[cacheKey].val;
-    }
-
-    if (!awsInstalled()) {
-        return;
     }
 
     // First try with long term profile if present
@@ -2095,6 +2095,7 @@ function configureMultiFactorAuth(in_opts) {
 }
 
 // ******************************
+
 function formatSessionExpiration(in_expiration) {
     // Returns an ISO 8601 formatted date string sans the time zone Z and T date and time separator
 
@@ -2152,17 +2153,19 @@ function getAwsRepositoryServiceConfig () {
     let profile = serviceConfig.aws.profile || 'default';
     serviceConfig.aws.profile = profile;
 
-    if (awsInstalled()) {
-        let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], {
-            hide: true,
-            profile: profile
-        });
+    if (!awsInstalled()) {
+        return;
+    }
 
-        if (!awsCmdResult.hasError) {
-            let awsStats = JSON.parse(awsCmdResult.result);
-            if (awsStats && awsStats.Account) {
-                serviceConfig.aws.account_id = parseInt(awsStats.Account);
-            }
+    let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], {
+        hide: true,
+        profile: profile
+    });
+
+    if (!awsCmdResult.hasError) {
+        let awsStats = JSON.parse(awsCmdResult.result);
+        if (awsStats && awsStats.Account) {
+            serviceConfig.aws.account_id = parseInt(awsStats.Account);
         }
     }
 
