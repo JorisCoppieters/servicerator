@@ -65,32 +65,6 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         dockerFolder = sourceFolder;
     }
 
-    if (serviceConfig.docker.image.base) {
-        let dockerFileContents = docker.getDockerfileContents(in_serviceConfig);
-        if (dockerFileContents) {
-            fs.setupFile('Dockerfile', path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, {
-                overwrite: in_overwrite
-            });
-        }
-
-        let dockerIgnoreFileContents = docker.getIgnoreDockerContents(in_serviceConfig);
-        if (dockerIgnoreFileContents) {
-            fs.setupFile('.dockerignore', path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, {
-                overwrite: in_overwrite
-            });
-        }
-    }
-
-    if (serviceConfig.docker.image.nginx && !object.isEmpty(serviceConfig.docker.image.nginx)) {
-        let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-        if (serviceConfig.docker.image.nginx.servers.length) {
-            let nginxFileContents = nginx.getFileContents(in_serviceConfig);
-            fs.setupFile('nginx.conf', nginxFile, nginxFileContents, {
-                overwrite: in_overwrite
-            });
-        }
-    }
-
     let repositoryFolder = serviceConfig.version_control.root_folder;
     repositoryFolder = service.replaceConfigReferences(in_serviceConfig, repositoryFolder);
     repositoryFolder = path.resolve(repositoryFolder);
@@ -119,17 +93,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     _createFilesystem(in_serviceConfig, 'on_setup', in_overwrite);
 
     // TODO: Shift to global setup file
-    if (serviceConfig.docker.image.log) {
-        fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
-    }
-
-    // TODO: Shift to global setup file
-    if (serviceConfig.docker.image.language === 'python') {
-        fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
-    }
-
-    // TODO: Shift to global setup file
-    if (serviceConfig.auth && !object.isEmpty(serviceConfig.auth)) {
+    if (in_serviceConfig.auth) {
         fs.setupFolder('docker auth', path.resolve(dockerFolder, 'auth'));
     }
 
@@ -149,24 +113,22 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 
 function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        service: {
-            fileSystem: [
-                {
-                    on_open: 'BOOLEAN',
-                    on_close: 'BOOLEAN',
-                    on_setup: 'BOOLEAN',
-                    source: 'PATH',
-                    destination: 'PATH',
-                    path: 'PATH',
-                    overwrite: 'BOOLEAN',
-                    type: 'STRING',
-                    contents: [
-                        'STRING'
-                    ]
-                }
+        fileSystem: [
+            {
+                on_open: 'BOOLEAN',
+                on_close: 'BOOLEAN',
+                on_setup: 'BOOLEAN',
+                source: 'PATH',
+                destination: 'PATH',
+                path: 'PATH',
+                overwrite: 'BOOLEAN',
+                type: 'STRING',
+                contents: [
+                    'STRING'
+                ]
+            }
 
-            ]
-        },
+        ],
         cwd: 'STRING'
     });
 

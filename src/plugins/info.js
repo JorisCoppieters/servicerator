@@ -17,13 +17,12 @@ let service = require('../utils/service');
 
 function printServiceInfo (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
+        image: {
+            name: 'STRING',
+            version: 'STRING'
+        },
         docker: {
             username: 'STRING',
-            image: {
-                name: 'STRING',
-                version: 'STRING',
-                language: 'STRING'
-            }
         },
         service: {
             name: 'STRING'
@@ -37,9 +36,8 @@ function printServiceInfo (in_serviceConfig) {
 
     let serviceName = serviceConfig.service.name || false;
     let dockerUsername = serviceConfig.docker.username || false;
-    let dockerImageName = serviceConfig.docker.image.name || false;
-    let dockerImageVersion = serviceConfig.docker.image.version || false;
-    let dockerImageLanguage = serviceConfig.docker.image.language || false;
+    let dockerImageName = serviceConfig.image.name || false;
+    let dockerImageVersion = serviceConfig.image.version || false;
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
     let dockerfile = docker.getDockerfile(sourceFolder);
 
@@ -52,7 +50,6 @@ function printServiceInfo (in_serviceConfig) {
     print.keyVal('Service Name', serviceName || '(Not Set)');
     print.keyVal('Docker File', dockerfile || '(Not Set)');
     print.keyVal('Docker Image Name', dockerImageName || '(Not Set)');
-    print.keyVal('Docker Image Language', dockerImageLanguage || '(Not Set)');
     print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
     if (dockerImagePath) {
         dockerImageTags.slice(0,1).forEach((t) => {

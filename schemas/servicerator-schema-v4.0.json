@@ -287,9 +287,10 @@
                                                     "description": "Indicates whether the volume is encrypted. Encrypted Amazon EBS volumes can only be attached to instance types that support Amazon EBS encryption. ",
                                                     "type": "boolean"
                                                 },
-                                                "SnapshotId": {
-                                                    "description": "The snapshot ID of the volume to use to create a block device",
-                                                    "type": "string"
+                                                "VolumeSize": {
+                                                    "default": 8,
+                                                    "description": "The volume size in GBs",
+                                                    "type": "number"
                                                 },
                                                 "VolumeType": {
                                                     "default": "standard",
@@ -301,9 +302,6 @@
                                                     "type": "string"
                                                 }
                                             },
-                                            "required": [
-                                                "SnapshotId"
-                                            ],
                                             "type": "object"
                                         }
                                     },
@@ -658,6 +656,7 @@
                         "additionalProperties": false,
                         "properties": {
                             "type": {
+                                "default": "DockerHub",
                                 "description": "The type of docker repository",
                                 "enum": [
                                     "AWS",
@@ -671,7 +670,6 @@
                             }
                         },
                         "required": [
-                            "url",
                             "type"
                         ],
                         "type": "object"
@@ -751,9 +749,6 @@
                 "name": {
                     "type": "string"
                 },
-                "required": [
-                    "name"
-                ],
                 "tag_with_date": {
                     "type": "boolean"
                 },
@@ -767,6 +762,9 @@
                     "type": "array"
                 }
             },
+            "required": [
+                "name"
+            ],
             "type": "object"
         },
         "model": {

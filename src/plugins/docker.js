@@ -29,22 +29,23 @@ let g_AWS_DOCKER_CREDENTIALS = [];
 
 function printDockerInfo (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                name: 'STRING',
-                version: 'STRING'
-            },
-            container: {
+        image: {
+            name: 'STRING',
+            version: 'STRING'
+        },
+        containers: [
+            {
+                image: 'STRING'
             }
-        }
+        ]
     });
 
     cprint.magenta('-- Docker --');
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
-    let dockerPassword = docker.getPassword(in_serviceConfig) || false;
-    let dockerImageName = serviceConfig.docker.image.name || false;
-    let dockerImageVersion = serviceConfig.docker.image.version || false;
+    let dockerPassword = docker.getPassword(in_serviceConfig);
+    let dockerImageName = serviceConfig.image.name;
+    let dockerImageVersion = serviceConfig.image.version;
 
     print.keyVal('Docker Username', dockerUsername || '(Not Set)');
     print.keyVal('Docker Password', dockerPassword ? '*******' : '(Not Set)');
@@ -61,11 +62,11 @@ function printDockerInfo (in_serviceConfig) {
     }
 
     if (dockerInstalled && dockerRunning) {
-        let containerName = getDockerContainerName(in_serviceConfig);
+        let containerNames = getDockerContainerNames(in_serviceConfig);
         let containerState = getDockerContainerState(in_serviceConfig, true);
 
         cprint.magenta('-- Docker Container --');
-        print.keyVal('Container Name', containerName);
+        print.keyVal('Container Name', containerNames.join(' ,'));
         print.keyVal('Container State', containerState);
         cprint.magenta('----');
         print.out('\n');
@@ -140,12 +141,12 @@ function printDockerInfo (in_serviceConfig) {
 
 function pullDockerImage (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
+        image: {
+            name: 'STRING'
+        },
         docker: {
-            image: {
-                name: 'STRING'
-            },
             organization: 'STRING',
-            other_repositories: [
+            repositories: [
                 {
                     type: 'STRING'
                 }
@@ -163,7 +164,7 @@ function pullDockerImage (in_serviceConfig) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -180,16 +181,16 @@ function pullDockerImage (in_serviceConfig) {
 
     let repos = [
         {
-            type: docker.k_REPO_TYPE_DEFAULT,
+            type: docker.k_REPO_TYPE_DOCKER_HUB,
             username: dockerUsername,
             organization: serviceConfig.docker.organization
         }
-    ].concat(serviceConfig.docker.other_repositories || []);
+    ].concat(serviceConfig.docker.repositories || []);
 
     let tasks = [];
 
     repos.forEach(repo => {
-        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name);
+        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.image.name);
         if (!details) {
             return;
         }
@@ -212,18 +213,17 @@ function pullDockerImage (in_serviceConfig) {
 
 function buildDockerImage (in_serviceConfig, in_noCache) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
+        image: {
+            name: 'STRING'
+        },
         docker: {
-            image: {
-                name: 'STRING'
-            },
             args: [
                 {
                     key: 'STRING',
                     val: 'STRING',
                     type: 'STRING'
                 }
-            ],
-            build_folder: 'STRING'
+            ]
         },
         cwd: 'STRING'
     });
@@ -240,7 +240,7 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -371,13 +371,13 @@ function _printErrorHeader (in_title, in_indent) {
 
 function pushDockerImage (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
+        image: {
+            name: 'STRING'
+        },
         docker: {
             password: 'STRING',
-            image: {
-                name: 'STRING'
-            },
             organization: 'STRING',
-            other_repositories: [
+            repositories: [
                 {
                     type: 'STRING'
                 }
@@ -395,7 +395,7 @@ function pushDockerImage (in_serviceConfig) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -408,17 +408,17 @@ function pushDockerImage (in_serviceConfig) {
 
     let repos = [
         {
-            type: docker.k_REPO_TYPE_DEFAULT,
+            type: docker.k_REPO_TYPE_DOCKER_HUB,
             username: dockerUsername,
             password: serviceConfig.docker.password,
             organization: serviceConfig.docker.organization
         }
-    ].concat(serviceConfig.docker.other_repositories || []);
+    ].concat(serviceConfig.docker.repositories || []);
 
     let tasks = [];
 
     repos.forEach(repo => {
-        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name);
+        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.image.name);
         if (!details) {
             return;
         }
@@ -437,10 +437,8 @@ function pushDockerImage (in_serviceConfig) {
 
 function cleanDockerImages (in_serviceConfig, in_force) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         }
     });
 
@@ -454,7 +452,7 @@ function cleanDockerImages (in_serviceConfig, in_force) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -517,10 +515,8 @@ function cleanDockerImages (in_serviceConfig, in_force) {
 
 function purgeDockerImages (in_serviceConfig, in_force) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         }
     });
 
@@ -534,7 +530,7 @@ function purgeDockerImages (in_serviceConfig, in_force) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -608,14 +604,12 @@ function incrementalPushDockerImage (in_serviceConfig) {
 
 function printDockerImageVersion (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                version: 'STRING'
-            }
+        image: {
+            version: 'STRING'
         }
     });
 
-    let dockerImageVersion = serviceConfig.docker.image.version || false;
+    let dockerImageVersion = serviceConfig.image.version || false;
     cprint.green(dockerImageVersion);
 }
 
@@ -643,25 +637,21 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
     }
 
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                version: 'STRING'
-            }
+        image: {
+            version: 'STRING'
         }
     });
 
     if (version) {
         let updatedServiceConfig = service.updateConfig(in_serviceConfig, {
-            docker: {
-                image: {
-                    version: version
-                }
+            image: {
+                version: version
             }
         });
         return updatedServiceConfig;
     }
 
-    let dockerImageVersion = serviceConfig.docker.image.version || false;
+    let dockerImageVersion = serviceConfig.image.version || false;
     if (!dockerImageVersion || !dockerImageVersion.match(/[0-9]+\.[0-9]+\.[0-9]+/)) {
         cprint.yellow('Docker image version cannot be incremented');
         return false;
@@ -685,10 +675,8 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
     }
 
     let updatedServiceConfig = service.updateConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                version: version
-            }
+        image: {
+            version: version
         }
     });
 
@@ -701,10 +689,8 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
 
 function dockerLogin (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         }
     });
 
@@ -728,10 +714,10 @@ function dockerLogin (in_serviceConfig) {
 
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
-        docker.k_REPO_TYPE_DEFAULT,
+        docker.k_REPO_TYPE_DOCKER_HUB,
         dockerUsername,
         dockerOrganization,
-        serviceConfig.docker.image.name);
+        serviceConfig.image.name);
 
     docker.login(dockerImageDetails.username, dockerImageDetails.password, dockerImageDetails.repositoryStore);
 }
@@ -777,7 +763,8 @@ function enterDockerContainer (in_serviceConfig) {
         return;
     }
 
-    let containerName = getDockerContainerName(in_serviceConfig);
+    let containerNames = getDockerContainerNames(in_serviceConfig);
+    let firstContainerName = containerNames[0]; // TODO
 
     let args = [
         'docker',
@@ -788,7 +775,7 @@ function enterDockerContainer (in_serviceConfig) {
         'bash'
     ];
 
-    cprint.cyan('Entering Docker container "' + containerName + '"...');
+    cprint.cyan('Entering Docker container "' + firstContainerName + '"...');
     let cmdResult = shell.cmd(args);
     if (!cmdResult) {
         return;
@@ -818,13 +805,14 @@ function stopDockerContainer (in_serviceConfig) {
         return;
     }
 
-    let containerName = getDockerContainerName(in_serviceConfig);
+    let containerNames = getDockerContainerNames(in_serviceConfig);
+    let firstContainerName = containerNames[0]; // TODO
 
     let args = [];
     args.push('stop');
-    args.push(containerName);
+    args.push(firstContainerName);
 
-    cprint.cyan('Stopping Docker container "' + containerName + '"...');
+    cprint.cyan('Stopping Docker container "' + firstContainerName + '"...');
     let cmdResult = docker.cmd(args);
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -859,13 +847,14 @@ function removeDockerContainer (in_serviceConfig) {
     let dockerImageIds = _getDockerImageIds(in_serviceConfig);
     dockerImageIds.forEach(id => removeDockerImageIdContainer(id));
 
-    let containerName = getDockerContainerName(in_serviceConfig);
+    let containerNames = getDockerContainerNames(in_serviceConfig);
+    let firstContainerName = containerNames[0]; // TODO
 
     let args = [];
     args.push('rm');
-    args.push(containerName);
+    args.push(firstContainerName);
 
-    cprint.cyan('Removing Docker container "' + containerName + '"...');
+    cprint.cyan('Removing Docker container "' + firstContainerName + '"...');
     let cmdResult = docker.cmd(args);
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -907,19 +896,17 @@ function removeDockerImageIdContainer (in_dockerImageId) {
 
 function verifyDockerContainer (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                tests: [
-                    {
-                        name: 'STRING',
-                        type: 'STRING',
-                        method: 'STRING',
-                        url: 'URL',
-                        request_data: 'ANY',
-                        expected: 'STRING'
-                    }
-                ]
-            }
+        image: {
+            tests: [
+                {
+                    name: 'STRING',
+                    type: 'STRING',
+                    method: 'STRING',
+                    url: 'URL',
+                    request_data: 'ANY',
+                    expected: 'STRING'
+                }
+            ]
         }
     });
 
@@ -938,7 +925,7 @@ function verifyDockerContainer (in_serviceConfig) {
         return;
     }
 
-    let tests = serviceConfig.docker.image.tests || [];
+    let tests = serviceConfig.image.tests || [];
     if (!tests.length) {
         cprint.yellow('No tests have been setup');
         return;
@@ -975,20 +962,21 @@ function verifyDockerContainer (in_serviceConfig) {
 
 // ******************************
 
-function getDockerContainerName (in_serviceConfig) {
+function getDockerContainerNames (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                name: 'STRING'
-            },
-            container: {
-                name: 'STRING'
+        image: {
+            name: 'STRING'
+        },
+        containers: [
+            {
+                image: 'STRING'
             }
-        }
+        ]
     });
 
-    let containerName = serviceConfig.docker.container.name || serviceConfig.docker.image.name || 'container';
-    return containerName;
+    let containers = serviceConfig.containers || [];
+    let containerNames = containers.map(container => container.name);
+    return containerNames;
 }
 
 // ******************************
@@ -1004,7 +992,7 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
         return false;
     }
 
-    let containerName = getDockerContainerName(in_serviceConfig);
+    let containerNames = getDockerContainerNames(in_serviceConfig);
 
     let args = ['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'];
     let cmdResult = docker.cmd(args, {
@@ -1012,7 +1000,8 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
     });
 
     let processes = cmdResult.rows
-        .filter(p => p.match(new RegExp(containerName)));
+        .filter(p => containerNames
+            .filter(containerName => p.match(new RegExp(containerName))).length);
 
     let processUp = processes.find(p => p.match(/Up /));
     let processFailed = processes.find(p => p.match(/Created /));
@@ -1045,14 +1034,15 @@ function getRunningDockerContainerId (in_serviceConfig) {
         return false;
     }
 
-    let containerName = getDockerContainerName(in_serviceConfig);
+    let containerNames = getDockerContainerNames(in_serviceConfig);
 
     let args = ['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'];
     let cmdResult = docker.cmd(args, {
         hide: true
     });
     let processUp = cmdResult.rows
-        .filter(p => p.match(new RegExp(containerName)))
+        .filter(p => containerNames
+            .filter(containerName => p.match(new RegExp(containerName))).length)
         .find(p => p.match(/Up /));
 
     if (!processUp) {
@@ -1107,11 +1097,10 @@ function printDockerContainerStats (in_serviceConfig) {
         return false;
     }
 
-    let containerName = getDockerContainerName(in_serviceConfig);
     let containerState = getDockerContainerState(in_serviceConfig, true);
 
     cprint.magenta('-- Docker Container --');
-    print.keyVal('Container Name', containerName);
+    print.keyVal('Container Names', containerNames.join(' ,'));
     print.keyVal('Container State', containerState);
     cprint.magenta('----');
 
@@ -1152,12 +1141,11 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let attach = opt.attach;
 
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                name: 'STRING'
-            },
-            organization: 'STRING',
-            container: {
+        image: {
+            name: 'STRING'
+        },
+        containers: [
+            {
                 memory_limit: 'NUMBER',
                 ports: [
                     {
@@ -1185,7 +1173,10 @@ function _startDockerContainer (in_serviceConfig, in_options) {
                         value: 'STRING'
                     }
                 ]
-            },
+            }
+        ],
+        docker: {
+            organization: 'STRING',
             build_folder: 'STRING'
         },
         service: {
@@ -1196,7 +1187,17 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
     let path = require('path');
 
-    let memoryLimit = serviceConfig.docker.container.memory_limit || false;
+    let serviceName = serviceConfig.service.name || 'service';
+
+    let containers = serviceConfig.containers || [];
+    let firstContainer = containers[0]; // TODO
+    if (!firstContainer) {
+        cprint.yellow('No container specified');
+        return;
+    }
+
+    let containerNames = getDockerContainerNames(in_serviceConfig);
+    let firstContainerName = containerNames[0]; // TODO
 
     let sourceFolder = serviceConfig.cwd || false;
 
@@ -1218,20 +1219,23 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
+    let dockerImageName = serviceConfig.image.name;
+    let dockerImageTags = docker.getImageTags(in_serviceConfig) || [];
+    let dockerImageTag = dockerImageTags[0] || 'latest';
 
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
-        docker.k_REPO_TYPE_DEFAULT,
+        docker.k_REPO_TYPE_DOCKER_HUB,
         dockerUsername,
         serviceConfig.docker.organization,
-        serviceConfig.docker.image.name);
+        serviceConfig.image.name);
 
     let dockerImagePath = dockerImageDetails.shortImagePath;
 
     let testDockerImageStartCommand = false;
     let dockerImageStartCommand = false;
 
-    serviceConfig.docker.container.commands.forEach(command => {
+    firstContainer.commands.forEach(command => {
         if (command.test) {
             testDockerImageStartCommand = command.val;
         } else {
@@ -1250,13 +1254,11 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         runWithBash = true;
     }
 
-    let containerName = getDockerContainerName(in_serviceConfig);
-
     let args = [];
     args.push('run');
     args.push('--rm');
     args.push('--name');
-    args.push(containerName);
+    args.push(firstContainerName);
 
     if (runWithBash) {
         args.push('--interactive');
@@ -1265,6 +1267,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         args.push('--detach');
     }
 
+    let memoryLimit = firstContainer.memory_limit;
     if (memoryLimit) {
         args.push('--memory');
         args.push(parseInt(memoryLimit) + 'm');
@@ -1273,7 +1276,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let testPortArgs = {};
     let portArgs = {};
 
-    serviceConfig.docker.container.ports.forEach(port => {
+    firstContainer.ports.forEach(port => {
         if (!port.host || !port.container) {
             return;
         }
@@ -1296,7 +1299,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let testVolumeArgs = {};
     let volumeArgs = {};
 
-    serviceConfig.docker.container.volumes.forEach(volume => {
+    firstContainer.volumes.forEach(volume => {
         if (!volume.host || !volume.container) {
             return;
         }
@@ -1336,7 +1339,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     });
 
 
-    serviceConfig.docker.container.environment_variables.forEach(environment_variable => {
+    firstContainer.environment_variables.forEach(environment_variable => {
         if (!environment_variable.key || !environment_variable.value) {
             return;
         }
@@ -1356,10 +1359,10 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     if (runWithBash) {
         if (dockerImageStartCommand && !useBash) {
             args.push(dockerImageStartCommand);
-            cprint.cyan('Starting Docker container "' + containerName + '" via external console with start command...');
+            cprint.cyan('Starting Docker container "' + firstContainerName + '" via external console with start command...');
         } else {
             args.push('bash');
-            cprint.cyan('Starting Docker container "' + containerName + '" via external console with bash...');
+            cprint.cyan('Starting Docker container "' + firstContainerName + '" via external console with bash...');
         }
         let cmdResult = shell.cmd(['docker'].concat(args));
         if (!cmdResult) {
@@ -1373,7 +1376,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         }
     } else {
         args.push(dockerImageStartCommand);
-        cprint.cyan('Starting Docker container "' + containerName + '" in detached mode with start command...');
+        cprint.cyan('Starting Docker container "' + firstContainerName + '" in detached mode with start command...');
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
@@ -1460,27 +1463,29 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
     let dockerImagePath;
     let shortDockerImagePath;
 
-    if (in_repositoryType === docker.k_REPO_TYPE_DEFAULT) {
+    switch (in_repositoryType)
+    {
+    case docker.k_REPO_TYPE_DOCKER_HUB:
         dockerUsername = in_dockerUsername;
         dockerPassword = docker.getPassword(in_serviceConfig);
         dockerRepository = in_dockerRepository || in_dockerUsername;
         dockerRepositoryStore = in_dockerRepositoryStore || docker.getDefaultRepositoryStore();
         dockerImagePath = dockerRepositoryStore + '/' + dockerRepository + '/' + in_dockerImageName;
         shortDockerImagePath = dockerRepository + '/' + in_dockerImageName;
-    } else if (in_repositoryType === docker.k_REPO_TYPE_AWS) {
+        break;
+    case docker.k_REPO_TYPE_AWS:
         if (!aws.installed()) {
             cprint.yellow('AWS-CLI isn\'t installed');
             return false;
         }
-
         let awsDockerCredentials = _getAwsDockerCredentials(in_serviceConfig);
-
         dockerUsername = awsDockerCredentials.username;
         dockerPassword = awsDockerCredentials.password;
         dockerRepository = awsDockerCredentials.username;
         dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
         dockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
         shortDockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
+        break;
     }
 
     let details = {
@@ -1499,12 +1504,12 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
 
 function _getDockerImagePaths (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
+        image: {
+            name: 'STRING'
+        },
         docker: {
-            image: {
-                name: 'STRING'
-            },
             organization: 'STRING',
-            other_repositories: [
+            repositories: [
                 {
                     type: 'STRING'
                 }
@@ -1512,7 +1517,7 @@ function _getDockerImagePaths (in_serviceConfig) {
         }
     });
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -1523,16 +1528,23 @@ function _getDockerImagePaths (in_serviceConfig) {
         return;
     }
 
-    let repos = [
-        {
-            type: docker.k_REPO_TYPE_DEFAULT,
-            username: dockerUsername,
-            organization: serviceConfig.docker.organization
+    let repos = serviceConfig.docker.repositories || [];
+    if (!repos.find(repo => repo.type === docker.k_REPO_TYPE_DOCKER_HUB))
+    {
+        repos.push({
+            type: docker.k_REPO_TYPE_DOCKER_HUB
+        });
+    }
+
+    repos.forEach(repo => {
+        if (repo.type === docker.k_REPO_TYPE_DOCKER_HUB) {
+            repo.username = repo.username || dockerUsername;
+            repo.organization = repo.organization || serviceConfig.docker.organization;
         }
-    ].concat(serviceConfig.docker.other_repositories || []);
+    });
 
     return repos
-        .map(repo => _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name))
+        .map(repo => _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.image.name))
         .filter(details => !!details)
         .map(details => details.shortImagePath);
 }

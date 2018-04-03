@@ -15,12 +15,10 @@ let service = require('../utils/service');
 
 function showAllWizard (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        docker: {
-            image: {
-                base: 'STRING',
-                name: 'STRING',
-                version: 'STRING'
-            }
+        image: {
+            base: 'STRING',
+            name: 'STRING',
+            version: 'STRING'
         },
         service: {
             name: 'STRING'
@@ -30,14 +28,9 @@ function showAllWizard (in_serviceConfig) {
 
     let questions = [
         {
-            prompt: 'What is your docker base image',
-            currentValue: serviceConfig.docker.image.base,
-            path: 'docker.image.base'
-        },
-        {
             prompt: 'What is your docker image name',
-            currentValue: serviceConfig.docker.image.name,
-            path: 'docker.image.name'
+            currentValue: serviceConfig.image.name,
+            path: 'image.name'
         },
         {
             prompt: 'What is your service name',
