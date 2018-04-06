@@ -1163,26 +1163,27 @@ function _startDockerContainer (in_serviceConfig, in_options) {
                     {
                         host: 'NUMBER',
                         container: 'NUMBER',
-                        test: 'BOOLEAN'
+                        local: 'BOOLEAN'
                     }
                 ],
                 volumes: [
                     {
                         host: 'STRING',
                         container: 'STRING',
-                        test: 'BOOLEAN'
+                        local: 'BOOLEAN'
                     }
                 ],
                 commands: [
                     {
-                        test: 'BOOLEAN',
+                        local: 'BOOLEAN',
                         val: 'STRING'
                     }
                 ],
                 environment_variables: [
                     {
                         key: 'STRING',
-                        value: 'STRING'
+                        value: 'STRING',
+                        local: 'BOOLEAN'
                     }
                 ]
             },
@@ -1228,18 +1229,18 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
     let dockerImagePath = dockerImageDetails.shortImagePath;
 
-    let testDockerImageStartCommand = false;
+    let localDockerImageStartCommand = false;
     let dockerImageStartCommand = false;
 
     serviceConfig.docker.container.commands.forEach(command => {
-        if (command.test) {
-            testDockerImageStartCommand = command.val;
+        if (command.local) {
+            localDockerImageStartCommand = command.val;
         } else {
             dockerImageStartCommand = command.val;
         }
     });
 
-    dockerImageStartCommand = testDockerImageStartCommand || dockerImageStartCommand;
+    dockerImageStartCommand = localDockerImageStartCommand || dockerImageStartCommand;
 
     let runWithBash = false;
     if (!dockerImageStartCommand || useBash) {
@@ -1270,7 +1271,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         args.push(parseInt(memoryLimit) + 'm');
     }
 
-    let testPortArgs = {};
+    let localPortArgs = {};
     let portArgs = {};
 
     serviceConfig.docker.container.ports.forEach(port => {
@@ -1278,14 +1279,14 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             return;
         }
 
-        if (port.test) {
-            testPortArgs[port.container] = port.host;
+        if (port.local) {
+            localPortArgs[port.container] = port.host;
         } else {
             portArgs[port.container] = port.host;
         }
     });
 
-    Object.assign(portArgs, testPortArgs);
+    Object.assign(portArgs, localPortArgs);
 
     Object.keys(portArgs).forEach(containerPort => {
         let hostPort = portArgs[containerPort];
@@ -1293,7 +1294,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         args.push(hostPort + ':' + containerPort);
     });
 
-    let testVolumeArgs = {};
+    let localVolumeArgs = {};
     let volumeArgs = {};
 
     serviceConfig.docker.container.volumes.forEach(volume => {
@@ -1301,14 +1302,14 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             return;
         }
 
-        if (volume.test) {
-            testVolumeArgs[volume.container] = volume.host;
+        if (volume.local) {
+            localVolumeArgs[volume.container] = volume.host;
         } else {
             volumeArgs[volume.container] = volume.host;
         }
     });
 
-    Object.assign(volumeArgs, testVolumeArgs);
+    Object.assign(volumeArgs, localVolumeArgs);
 
     Object.keys(volumeArgs).forEach(volumeContainer => {
         let volumeHost = volumeArgs[volumeContainer];
@@ -1335,14 +1336,25 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         args.push(volumeHost + ':' + volumeContainer);
     });
 
+    let localEnvironmentVariableArgs = {};
+    let environmentVariableArgs = {};
 
     serviceConfig.docker.container.environment_variables.forEach(environment_variable => {
         if (!environment_variable.key || !environment_variable.value) {
             return;
         }
 
-        let key = environment_variable.key;
-        let value = environment_variable.value;
+        if (environment_variable.local) {
+            localEnvironmentVariableArgs[environment_variable.key] = environment_variable.value;
+        } else {
+            environmentVariableArgs[environment_variable.key] = environment_variable.value;
+        }
+    });
+
+    Object.assign(environmentVariableArgs, localEnvironmentVariableArgs);
+
+    Object.keys(environmentVariableArgs).forEach(key => {
+        let value = environmentVariableArgs[key];
 
         key = service.replaceConfigReferences(in_serviceConfig, key);
         value = service.replaceConfigReferences(in_serviceConfig, value);

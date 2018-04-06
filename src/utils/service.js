@@ -946,6 +946,14 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 3.5) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_4To3_5(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
@@ -976,6 +984,8 @@ function _checkSchemaVersion (in_configSchemaVersion) {
         cprint.yellow('You are running a minorly out of date servicerator, please update it with: npm install -g servicerator');
     }
 }
+
+// ******************************
 
 function _upgradeServiceConfigFrom0To1 (in_serviceConfig) {
     let hasBeenUpdated = false;
@@ -1114,6 +1124,55 @@ function _upgradeServiceConfigFrom3_3To3_4 (in_serviceConfig) {
             hasBeenUpdated = true;
         }
     }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _upgradeServiceConfigFrom3_4To3_5 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.docker) {
+        if (in_serviceConfig.docker.container) {
+            if (in_serviceConfig.docker.container.ports) {
+                in_serviceConfig.docker.container.ports.forEach(port => {
+                    if (port.test) {
+                        port.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+
+            if (in_serviceConfig.docker.container.volumes) {
+                in_serviceConfig.docker.container.volumes.forEach(volume => {
+                    if (volume.test) {
+                        volume.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+
+            if (in_serviceConfig.docker.container.commands) {
+                in_serviceConfig.docker.container.commands.forEach(command => {
+                    if (command.test) {
+                        command.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+
+            if (in_serviceConfig.docker.container.environment_variables) {
+                in_serviceConfig.docker.container.environment_variables.forEach(environment_variable => {
+                    if (['PY_DEBUG_IS_REMOTE', 'PY_DEBUG_SECRET', 'PY_DEBUG_ENABLED'].indexOf(environment_variable.key) >= 0) {
+                        environment_variable.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+        }
+    }
+
 
     return hasBeenUpdated ? in_serviceConfig : false;
 }

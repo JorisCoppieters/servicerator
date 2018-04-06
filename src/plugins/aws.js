@@ -1646,9 +1646,9 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                 logging_support: 'BOOLEAN',
                 ports: [
                     {
-                        test: 'BOOLEAN',
                         host: 'NUMBER',
-                        container: 'NUMBER'
+                        container: 'NUMBER',
+                        local: 'BOOLEAN'
                     }
                 ],
                 volumes: [
@@ -1656,19 +1656,20 @@ function awsCreateTaskDefinition (in_serviceConfig) {
                         container: 'STRING',
                         host: 'STRING',
                         name: 'STRING',
-                        test: 'BOOLEAN'
+                        local: 'BOOLEAN'
                     }
                 ],
                 commands: [
                     {
-                        test: 'BOOLEAN',
+                        local: 'BOOLEAN',
                         val: 'STRING'
                     }
                 ],
                 environment_variables: [
                     {
                         key: 'STRING',
-                        value: 'STRING'
+                        value: 'STRING',
+                        local: 'BOOLEAN'
                     }
                 ]
             }
@@ -1754,6 +1755,10 @@ function awsCreateTaskDefinition (in_serviceConfig) {
 
     let serviceContainerEnvironmentVariables = [];
     awsTaskDefinitionEnvironmentVariables.forEach(awsTaskDefinitionEnvironmentVariable => {
+        if (awsTaskDefinitionEnvironmentVariable.local) {
+            return;
+        }
+
         let key = awsTaskDefinitionEnvironmentVariable.key;
         let value = awsTaskDefinitionEnvironmentVariable.value;
 
@@ -1777,7 +1782,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     };
 
     serviceConfig.docker.container.commands.forEach(command => {
-        if (command.test) {
+        if (command.local) {
             return;
         }
 
@@ -1791,7 +1796,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        if (port.test) {
+        if (port.local) {
             return;
         }
 
@@ -1808,7 +1813,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
             return;
         }
 
-        if (volume.test) {
+        if (volume.local) {
             return;
         }
 
@@ -1871,7 +1876,7 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     let uniqueHosts = {};
     containerVolumes
         .forEach(volume => {
-            if (volume.test) {
+            if (volume.local) {
                 return;
             }
             let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
@@ -2017,7 +2022,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                     {
                         container: 'NUMBER',
                         host: 'NUMBER',
-                        test: 'BOOLEAN'
+                        local: 'BOOLEAN'
                     }
                 ]
             }
@@ -2111,7 +2116,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                 return;
             }
 
-            if (port.test) {
+            if (port.local) {
                 return;
             }
 
@@ -2707,7 +2712,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
     if (!awsAutoScalingGroupName) {
         cprint.yellow('Auto scaling group name not set');
-        return false;        
+        return false;
     }
 
     let awsVpcName = cluster.vpc_name;
