@@ -1706,8 +1706,6 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         return false;
     }
 
-    let awsTaskDefinitionEnvironmentVariables = serviceConfig.docker.container.environment_variables || [];
-
     let dockerImageName = serviceConfig.docker.image.name;
     if (!dockerImageName) {
         cprint.yellow('Docker image name not set');
@@ -1731,49 +1729,8 @@ function awsCreateTaskDefinition (in_serviceConfig) {
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
     print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
 
-    // TODO - remove TM specific filebeat
-    let awsTaskDefinitionFilebeatImagePath = awsDockerRepositoryUrl + '/' + 'filebeat-tm-services' + ':' + 'latest';
-    let awsTaskDefinitionFilebeatMemoryLimit = 200;
-    let awsTaskDefinitionFilebeatVolumes = [
-        {
-            'container': '/var/lib/filebeat',
-            'host': '/var/lib/filebeat',
-            'name': 'filebeat-tm-services-state'
-        },
-        {
-            'container': '/var/log/tm-services/$SERVICE_NAME',
-            'host': '/volumes/logs',
-            'name': '$SERVICE_NAME-logs'
-        },
-        {
-            'container': '/etc/tm-services',
-            'host': '/etc/tm-services',
-            'readOnly': true,
-            'name': 'tm-services-scripts'
-        }
-    ];
-
-    let serviceContainerEnvironmentVariables = [];
-    awsTaskDefinitionEnvironmentVariables.forEach(awsTaskDefinitionEnvironmentVariable => {
-        if (awsTaskDefinitionEnvironmentVariable.local) {
-            return;
-        }
-
-        let key = awsTaskDefinitionEnvironmentVariable.key;
-        let value = awsTaskDefinitionEnvironmentVariable.value;
-
-        key = service.replaceConfigReferences(in_serviceConfig, key);
-        value = service.replaceConfigReferences(in_serviceConfig, value);
-
-        serviceContainerEnvironmentVariables.push({
-            name: key,
-            value: value
-        });
-    });
-
     let serviceContainerDefinition = {
         'cpu': 0,
-        'environment': serviceContainerEnvironmentVariables,
         'essential': true,
         'image': awsTaskDefinitionImagePath,
         'memoryReservation': awsTaskDefinitionMemoryLimit,
@@ -1791,74 +1748,120 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         return;
     });
 
-    serviceConfig.docker.container.ports.forEach(port => {
-        if (!port.host || !port.container) {
-            return;
-        }
-
-        if (port.local) {
-            return;
-        }
-
-        serviceContainerDefinition.portMappings = serviceContainerDefinition.portMappings || [];
-        serviceContainerDefinition.portMappings.push({
-            'containerPort': port.container,
-            'hostPort': port.host,
-            'protocol': 'tcp'
+    serviceContainerDefinition.environment = Object.entries(
+        serviceConfig.docker.container.environment_variables
+            .filter(environmentVariable => !environmentVariable.local && environmentVariable.key && environmentVariable.value)
+            .map(environmentVariable => {
+                return {
+                    key: service.replaceConfigReferences(in_serviceConfig, environmentVariable.key),
+                    value: service.replaceConfigReferences(in_serviceConfig, environmentVariable.value)
+                };
+            })
+            .reduce((arr, environmentVariable) => { arr[environmentVariable.key] = environmentVariable.value; return arr; }, {})
+    ) // First filter and reduce to a set of environmentVariables unique by key, then map
+        .map(([key, value]) => {
+            return {
+                'name': key,
+                'value': value
+            };
         });
-    });
 
-    serviceConfig.docker.container.volumes.forEach(volume => {
-        if (!volume.container) {
-            return;
-        }
-
-        if (volume.local) {
-            return;
-        }
-
-        let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
-        let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
-
-        serviceContainerDefinition.mountPoints = serviceContainerDefinition.mountPoints || [];
-        serviceContainerDefinition.mountPoints.push({
-            'containerPath': volumeContainer,
-            'sourceVolume': volumeName,
-            'readOnly': !!volume.readOnly
+    serviceContainerDefinition.portMappings = Object.entries(
+        serviceConfig.docker.container.ports
+            .filter(port => !port.local && port.host && port.container)
+            .reduce((arr, port) => { arr[port.container] = port.host; return arr; }, {})
+    ) // First filter and reduce to a set of ports unique by container port, then map
+        .map(([container, host]) => {
+            return {
+                'containerPort': parseInt(container),
+                'hostPort': parseInt(host),
+                'protocol': 'tcp'
+            };
         });
-    });
 
-    // TODO - remove TM specific filebeat
-    let filebeatContainerDefinition = {
-        'cpu': 0,
-        'environment': [],
-        'essential': true,
-        'image': awsTaskDefinitionFilebeatImagePath,
-        'memoryReservation': awsTaskDefinitionFilebeatMemoryLimit,
-        'name': 'filebeat-tm-services',
-        'portMappings': [],
-        'volumesFrom': []
-    };
-
-    awsTaskDefinitionFilebeatVolumes.forEach(volume => {
-        if (!volume.container) {
-            return;
-        }
-
-        let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
-        let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
-
-        filebeatContainerDefinition.mountPoints = filebeatContainerDefinition.mountPoints || [];
-        filebeatContainerDefinition.mountPoints.push({
-            'containerPath': volumeContainer,
-            'sourceVolume': volumeName,
-            'readOnly': !!volume.readOnly
+    serviceContainerDefinition.mountPoints = Object.entries(
+        serviceConfig.docker.container.volumes
+            .filter(volume => !volume.local && volume.container && (volume.name || volume.host))
+            .map(volume => {
+                return {
+                    name: service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host),
+                    value: {
+                        readOnly: !!volume.readOnly,
+                        container: service.replaceConfigReferences(in_serviceConfig, volume.container)
+                    }
+                };
+            })
+            .reduce((arr, volume) => { arr[volume.name] = volume.value; return arr; }, {})
+    ) // First filter and reduce to a set of volumes unique by volume name, then map
+        .map(([name, value]) => {
+            return {
+                'sourceVolume': name,
+                'containerPath': value.container,
+                'readOnly': value.readOnly
+            };
         });
-    });
+
+    let containerVolumes = serviceConfig.docker.container.volumes;
 
     let containerDefinitions = [serviceContainerDefinition];
     if (loggingSupport) {
+        // TODO - remove TM specific filebeat
+        let awsTaskDefinitionFilebeatImagePath = awsDockerRepositoryUrl + '/' + 'filebeat-tm-services' + ':' + 'latest';
+        let awsTaskDefinitionFilebeatMemoryLimit = 200;
+        let awsTaskDefinitionFilebeatVolumes = [
+            {
+                'container': '/var/lib/filebeat',
+                'host': '/var/lib/filebeat',
+                'name': 'filebeat-tm-services-state'
+            },
+            {
+                'container': '/var/log/tm-services/$SERVICE_NAME',
+                'host': '/volumes/logs',
+                'name': '$SERVICE_NAME-logs'
+            },
+            {
+                'container': '/etc/tm-services',
+                'host': '/etc/tm-services',
+                'readOnly': true,
+                'name': 'tm-services-scripts'
+            }
+        ];
+
+        let filebeatContainerDefinition = {
+            'cpu': 0,
+            'environment': [],
+            'essential': true,
+            'image': awsTaskDefinitionFilebeatImagePath,
+            'memoryReservation': awsTaskDefinitionFilebeatMemoryLimit,
+            'name': 'filebeat-tm-services',
+            'portMappings': [],
+            'volumesFrom': []
+        };
+
+        filebeatContainerDefinition.mountPoints = Object.entries(
+            awsTaskDefinitionFilebeatVolumes
+                .filter(volume => !volume.local && volume.container && (volume.name || volume.host))
+                .map(volume => {
+                    return {
+                        name: service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host),
+                        value: {
+                            readOnly: !!volume.readOnly,
+                            container: service.replaceConfigReferences(in_serviceConfig, volume.container)
+                        }
+                    };
+                })
+                .reduce((arr, volume) => { arr[volume.name] = volume.value; return arr; }, {})
+        ) // First filter and reduce to a set of volumes unique by volume name, then map
+            .map(([name, value]) => {
+                return {
+                    'sourceVolume': name,
+                    'containerPath': value.container,
+                    'readOnly': value.readOnly
+                };
+            });
+
         containerDefinitions.push(filebeatContainerDefinition);
+        containerVolumes = containerVolumes.concat(awsTaskDefinitionFilebeatVolumes);
     }
 
     let awsTaskDefinitionStructure = {
@@ -1868,35 +1871,24 @@ function awsCreateTaskDefinition (in_serviceConfig) {
         'placementConstraints': []
     };
 
-    let containerVolumes = serviceConfig.docker.container.volumes;
-    if (loggingSupport) {
-        containerVolumes = containerVolumes.concat(awsTaskDefinitionFilebeatVolumes);
-    }
-
-    let uniqueHosts = {};
-    containerVolumes
-        .forEach(volume => {
-            if (volume.local) {
-                return;
-            }
-            let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
-            uniqueHosts[volumeName] = volume;
-        });
-
-    Object.keys(uniqueHosts)
-        .forEach(host => {
-            let volume = uniqueHosts[host];
-            // let volumeContainer = service.replaceConfigReferences(in_serviceConfig, volume.container);
-            let sourcePath = service.replaceConfigReferences(in_serviceConfig, volume.host);
-            let volumeName = service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host);
-
-            awsTaskDefinitionStructure.volumes = awsTaskDefinitionStructure.volumes || [];
-            awsTaskDefinitionStructure.volumes.push({
+    awsTaskDefinitionStructure.volumes = Object.entries(
+        containerVolumes
+            .filter(volume => !volume.local && volume.container && (volume.name || volume.host))
+            .map(volume => {
+                return {
+                    name: service.replaceConfigReferences(in_serviceConfig, volume.name || volume.host),
+                    path: service.replaceConfigReferences(in_serviceConfig, volume.host)
+                };
+            })
+            .reduce((arr, volume) => { arr[volume.name] = volume.path; return arr; }, {})
+    ) // First filter and reduce to a set of volumes unique by volume name, then map
+        .map(([name, path]) => {
+            return {
                 'host': {
-                    'sourcePath': sourcePath
+                    'sourcePath': path
                 },
-                'name': volumeName
-            });
+                'name': name
+            };
         });
 
     cprint.cyan('Creating task definition...');
