@@ -2203,6 +2203,8 @@ function getAwsDockerRepositoryUrl (in_serviceConfig) {
 // ******************************
 
 function getAwsDockerCredentials (in_serviceConfig, in_options) {
+    getMergedAwsServiceConfig(in_serviceConfig);
+
     let opt = in_options || {};
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
