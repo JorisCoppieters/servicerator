@@ -88,6 +88,7 @@ function setupFileLink (in_fileTitle, in_source, in_destination, in_options) {
         linkFile(in_source, in_destination);
     }
 }
+
 // ******************************
 
 function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
@@ -244,6 +245,16 @@ function isFolder (in_folderName) {
 
 // ******************************
 
+function isFile (in_fileName) {
+    let fs = require('fs');
+    let path = require('path');
+
+    let file = path.resolve(cwd(), in_fileName);
+    return fs.lstatSync(file).isFile();
+}
+
+// ******************************
+
 function cwd () {
     if (!_cwd) {
         let process = require('process');
@@ -303,6 +314,7 @@ module.exports['files'] = files;
 module.exports['folderExists'] = fileExists;
 module.exports['folders'] = files;
 module.exports['isFolder'] = isFolder;
+module.exports['isFile'] = isFile;
 module.exports['readFile'] = readFile;
 module.exports['copyFile'] = copyFile;
 module.exports['writeFile'] = writeFile;

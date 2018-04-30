@@ -521,7 +521,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
     if (awsResult && awsResult.services) {
         awsTaskDefinitionArn = awsResult.services
             .map(obj => obj.deployments || [])
-            .reduce((a,b) => a.concat(b), [])
+            .reduce((a, b) => a.concat(b), [])
             .map(obj => obj.taskDefinition)
             .find(() => true);
     }
@@ -1614,7 +1614,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
 
         firstVpc = awsResult.Vpcs
             .map(obj => obj.Tags || [])
-            .reduce((a, b) => b.concat(a), [])
+            .reduce((a, b) => a.concat(b), [])
             .filter(tag => tag.Key === 'Name')
             .map(tag => tag.Value)
             .find(() => true);
@@ -1791,7 +1791,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
 
         firstVpcSubnet = awsResult.Subnets
             .map(obj => obj.Tags || [])
-            .reduce((a, b) => b.concat(a), [])
+            .reduce((a, b) => a.concat(b), [])
             .filter(tag => tag.Key === 'Name')
             .map(tag => tag.Value)
             .find(() => true);
@@ -1862,7 +1862,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
     if (awsResult && awsResult.Reservations) {
         awsInstanceIds = awsResult.Reservations
             .map(obj => obj.Instances)
-            .reduce((a,b) => a.concat(b), [])
+            .reduce((a, b) => a.concat(b), [])
             .filter(obj => {
                 if (!obj.State || obj.State.Code !== 16) {
                     return false;
