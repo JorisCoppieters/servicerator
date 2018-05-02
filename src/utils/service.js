@@ -954,13 +954,21 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 3.6) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_5To3_6(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            // requiresSave = true;
+        }
+    }
+
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
     if (!schemaVersion || schemaVersion < scriptSchemaVersion) {
         newServiceConfig.schema_version = scriptSchemaVersion;
         newServiceConfig.$schema = scriptSchema;
-        requiresSave = true;
+        // requiresSave = true;
     }
 
     if (requiresSave) {
@@ -1179,6 +1187,54 @@ function _upgradeServiceConfigFrom3_4To3_5 (in_serviceConfig) {
 
 // ******************************
 
+function _upgradeServiceConfigFrom3_5To3_6 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.aws) {
+        in_serviceConfig.service = in_serviceConfig.service || {};
+        in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+        in_serviceConfig.service.clusters.forEach(cluster => {
+            cluster.aws = Object.assign({}, in_serviceConfig.aws);
+        });
+        delete in_serviceConfig.aws;
+        hasBeenUpdated = true;
+    }
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.task_definition) {
+            in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                cluster.task_definition = Object.assign({}, in_serviceConfig.service.task_definition);
+            });
+            delete in_serviceConfig.service.task_definition;
+        }
+    }
+
+    if (in_serviceConfig.model) {
+        if (in_serviceConfig.model.bucket) {
+            in_serviceConfig.service = in_serviceConfig.service || {};
+            in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                cluster.aws = cluster.aws || {};
+                cluster.aws.bucket = Object.assign({}, in_serviceConfig.model.bucket);
+            });
+            delete in_serviceConfig.model.bucket;
+            hasBeenUpdated = true;
+        }
+    }
+
+    if (in_serviceConfig.docker) {
+        if (in_serviceConfig.docker.other_repositories) {
+            delete in_serviceConfig.docker.other_repositories;
+            hasBeenUpdated = true;
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
 function _saveServiceConfig (in_serviceConfig, in_options) {
     let path = require('path');
 
@@ -1212,9 +1268,9 @@ function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema, in_warning) 
     if (errors && errors.length) {
         errors.forEach((error) => {
             if (in_warning) {
-                cprint.yellow(in_path + ' > ' + error);
+                cprint.yellow(in_path + ' > ' + error.message);
             } else {
-                cprint.red(in_path + ' > ' + error);
+                cprint.red(in_path + ' > ' + error.message);
             }
         });
         if (in_warning) {
