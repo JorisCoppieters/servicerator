@@ -140,7 +140,7 @@ function createNotebookCLIFile (in_sourceFolder) {
 
                 return [
                     `print ${codeBlocks.meta.activateFn}(`,
-                    `    service_data=${codeBlocks.meta.loadFn}(),`,
+                    `    model_data=${codeBlocks.meta.loadFn}(),`,
                     '    request={',
                     inputs.map(input =>
                         `        "${input}": ${codeBlocks.meta.inputFn + '("' + input + '")'}`
