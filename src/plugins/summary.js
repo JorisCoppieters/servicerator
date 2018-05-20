@@ -24,6 +24,9 @@ function printServiceSummary (in_serviceConfig) {
         },
         service: {
             name: 'STRING'
+        },
+        model: {
+            version: 'STRING'
         }
     });
 
@@ -46,6 +49,11 @@ function printServiceSummary (in_serviceConfig) {
         let tag = dockerImageTags[0];
 
         output += cprint.toLightBlue('[image - ' + serviceConfig.docker.image.name + ':' + tag + ']');
+    }
+
+    if (serviceConfig.model.version) {
+        if (output) { output += ' '; }
+        output += cprint.toLightMagenta('[model - ' + serviceConfig.model.version + ']');
     }
 
     print.out(output);
