@@ -107,6 +107,6 @@ module.exports['durations'] = {
     hour: hourInMilis,
     day: dayInMilis,
     week: weekInMilis
-}
+};
 
 // ******************************
