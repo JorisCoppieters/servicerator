@@ -101,12 +101,12 @@ function saveCache(in_sourceFolder, in_cacheName, in_cacheItems) {
 
 module.exports['load'] = loadCache;
 module.exports['save'] = saveCache;
-module.exports['durations'] = { 
-    second: secondInMilis, 
-    minute: minuteInMilis, 
-    hour: hourInMilis, 
-    day: dayInMilis, 
-    week: weekInMilis    
+module.exports['durations'] = {
+    second: secondInMilis,
+    minute: minuteInMilis,
+    hour: hourInMilis,
+    day: dayInMilis,
+    week: weekInMilis
 }
 
 // ******************************

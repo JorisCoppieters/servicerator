@@ -1944,7 +1944,7 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'getAwsServiceConfig');
 
     let path = require('path');
 
@@ -2197,7 +2197,7 @@ function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'getAwsDockerRepositoryUrl');
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -2232,7 +2232,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
                 }
             ]
         }
-    });
+    }, 'getAwsDockerCredentials');
 
     let opt = in_options || {};
     let environment = opt.environment;
@@ -2304,7 +2304,7 @@ function getAwsSecretKey (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'getAwsSecretKey');
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -2349,7 +2349,7 @@ function awsLogin (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsLogin');
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');

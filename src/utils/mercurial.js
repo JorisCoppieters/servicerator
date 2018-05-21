@@ -87,7 +87,7 @@ function getIgnoreFileContents (in_serviceConfig) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'getIgnoreFileContents');
 
     let path = require('path');
 
@@ -135,7 +135,7 @@ function getRootFolder (in_serviceConfig) {
             type: 'STRING',
             root_folder: 'STRING'
         },
-    });
+    }, 'getRootFolder');
 
     let mercurialRootFolder = serviceConfig.version_control.root_folder || false;
     if (!mercurialRootFolder) {

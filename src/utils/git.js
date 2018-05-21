@@ -28,7 +28,7 @@ function getIgnoreFileContents (in_serviceConfig) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'getIgnoreFileContents');
 
     let path = require('path');
 

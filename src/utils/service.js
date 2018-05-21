@@ -169,9 +169,9 @@ function checkServiceConfigSchema (in_serviceConfig) {
 
 // ******************************
 
-function accessServiceConfig (in_serviceConfig, in_accessConfig) {
+function accessServiceConfig (in_serviceConfig, in_accessConfig, in_functionName) {
     let accessConfig = _convertToJSONSchema(in_accessConfig);
-    _checkObjectAgainstJSONSchema('ACCESS', in_serviceConfig, accessConfig);
+    _checkObjectAgainstJSONSchema(`${in_functionName || 'unknown'} access`, in_serviceConfig, accessConfig);
 
     return maskServiceConfig(in_serviceConfig, in_accessConfig);
 }
@@ -289,13 +289,21 @@ function maskServiceConfig (in_source, in_mask) {
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         service: {
+            clusters: [
+                {
+                    aws: {
+                        bucket: {
+                            name: 'STRING'
+                        }
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ],
             name: 'STRING'
         },
         model: {
-            version: 'STRING',
-            bucket: {
-                name: 'STRING'
-            }
+            version: 'STRING'
         },
         docker: {
             image: {
@@ -303,7 +311,7 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
             }
         },
         cwd: 'STRING'
-    });
+    }, 'replaceServiceConfigReferences');
 
     let fsCore = require('fs');
 
@@ -344,7 +352,7 @@ function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'createServiceFolder');
 
     let path = require('path');
 
@@ -376,7 +384,7 @@ function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'linkServiceFolder');
 
     let path = require('path');
 
@@ -416,7 +424,7 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'createServiceFile');
 
     let path = require('path');
 
@@ -473,7 +481,7 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'linkServiceFile');
 
     let path = require('path');
 
@@ -529,7 +537,7 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'copyServiceFile');
 
     let path = require('path');
 
@@ -637,7 +645,7 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options)
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'updateServiceConfig');
 
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
@@ -668,7 +676,7 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'removeServiceConfig');
 
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
@@ -896,7 +904,7 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
 function _upgradeServiceConfig (in_serviceConfig) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         schema_version: 'NUMBER'
-    });
+    }, '_upgradeServiceConfig');
 
     let serviceConfigChanged;
     let newServiceConfig = in_serviceConfig;
@@ -1241,7 +1249,7 @@ function _saveServiceConfig (in_serviceConfig, in_options) {
     let opt = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, '_saveServiceConfig');
 
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
@@ -1316,15 +1324,17 @@ function _convertToJSONSchema (in_value) {
 
     } else if (typeof(in_value) === 'object') {
         let properties = {};
-        for (let k in in_value) {
-            let v = in_value[k];
-
-            properties[k] = _convertToJSONSchema(v);
+        for (let key in in_value) {
+            properties[key.replace(/^\?/, '')] = _convertToJSONSchema(in_value[key]);
         }
+
+        let required = Object.keys(in_value)
+            .filter(k => !k.match(/^\?/));
 
         return {
             'type': 'object',
-            'properties': properties
+            'properties': properties,
+            'required': required
         };
     } else {
         cprint.red('Unknown value type:' + in_value);

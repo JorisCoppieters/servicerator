@@ -28,7 +28,7 @@ function printServiceSummary (in_serviceConfig) {
         model: {
             version: 'STRING'
         }
-    });
+    }, 'printServiceSummary');
 
     let output = '';
     if (env.isDevelopment()) {

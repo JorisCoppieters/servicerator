@@ -26,7 +26,7 @@ function showAllWizard (in_serviceConfig) {
             name: 'STRING'
         },
         cwd: 'STRING'
-    });
+    }, 'showAllWizard');
 
     let questions = [
         {

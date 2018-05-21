@@ -34,7 +34,7 @@ function editServiceConfigFile () {
 function editServiceDockerfile (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'editServiceDockerfile');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
@@ -56,7 +56,7 @@ function editServiceDockerfile (in_serviceConfig) {
 function editServiceFolder (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'editServiceFolder');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {

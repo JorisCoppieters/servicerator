@@ -29,7 +29,7 @@ function printServiceInfo (in_serviceConfig) {
             name: 'STRING'
         },
         cwd: 'STRING'
-    });
+    }, 'printServiceInfo');
 
     let sourceFolder = serviceConfig.cwd || false;
 

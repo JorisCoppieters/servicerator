@@ -25,7 +25,7 @@ function runService (in_serviceConfig) {
             }
         },
         cwd: 'STRING'
-    });
+    }, 'runService');
 
     let path = require('path');
 

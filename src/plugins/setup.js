@@ -48,7 +48,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'setupFolder');
 
     let path = require('path');
 
@@ -152,15 +152,15 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
         service: {
             fileSystem: [
                 {
-                    on_open: 'BOOLEAN',
-                    on_close: 'BOOLEAN',
-                    on_setup: 'BOOLEAN',
-                    source: 'PATH',
-                    destination: 'PATH',
-                    path: 'PATH',
-                    overwrite: 'BOOLEAN',
-                    type: 'STRING',
-                    contents: [
+                    '?on_open': 'BOOLEAN',
+                    '?on_close': 'BOOLEAN',
+                    '?on_setup': 'BOOLEAN',
+                    '?source': 'PATH',
+                    '?destination': 'PATH',
+                    '?path': 'PATH',
+                    '?overwrite': 'BOOLEAN',
+                    '?type': 'STRING',
+                    '?contents': [
                         'STRING'
                     ]
                 }
@@ -168,7 +168,7 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, '_createFilesystem');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {

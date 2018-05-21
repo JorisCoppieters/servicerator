@@ -24,7 +24,7 @@ function printAuthInfo (in_serviceConfig) {
             rootCACertificate: 'PATH'
         },
         cwd: 'STRING'
-    });
+    }, 'printAuthInfo');
 
     let path = require('path');
 
@@ -97,7 +97,7 @@ function generateAuthFiles (in_serviceConfig) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'generateAuthFiles');
 
     let path = require('path');
 

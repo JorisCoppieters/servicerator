@@ -69,11 +69,17 @@ function execCmdSync (in_cmd, in_args, in_options) {
         }
     }
 
+    cmdErrorResult = cmdErrorResult
+        .split(/(\r\n?|\n)/)
+        .filter(errorLine => !(opt.knownErrors || []).find(e => errorLine.match(e)))
+        .join('\n')
+        .trim();
+
     return {
         error: cmdErrorResult,
         result: cmdResult,
         resultObj: cmdResultObj,
-        printError: (in_indent) => _printLogLines(cmdErrorResult, _defaultIndent(in_indent, indent)),
+        printError: (in_indent) => _printLogLines(cmdErrorResult, _defaultIndent(in_indent, indent), opt.knownErrors),
         printResult: (in_indent) => _printLogLines(cmdResult, _defaultIndent(in_indent, indent), opt.knownErrors),
         rows: rows,
         hasError: !!cmdErrorResult.trim(),

@@ -6,16 +6,17 @@
 
 let cprint = require('color-print');
 
-let env = require('../utils/env');
 let aws = require('../utils/aws');
 let awsInstanceTypes = require('../utils/aws.instance.types');
 let cache = require('../utils/cache');
 let date = require('../utils/date');
 let docker = require('../utils/docker');
+let env = require('../utils/env');
 let fs = require('../utils/filesystem');
 let print = require('../utils/print');
 let service = require('../utils/service');
 let str = require('../utils/string');
+let sync = require('../utils/sync');
 
 // ******************************
 // Functions:
@@ -24,6 +25,12 @@ let str = require('../utils/string');
 function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
+        docker: {
+            image: {
+                name: 'STRING',
+                version: 'STRING'
+            }
+        },
         service: {
             clusters: [
                 {
@@ -52,7 +59,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'printAwsServiceInfo');
 
     let awsInstalled = aws.installed();
     if (!awsInstalled) {
@@ -94,6 +101,16 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
     let prefixedEnvironmentTitle = 'AWS ' + environmentTitle;
+
+    cprint.magenta('-- AWS Docker --');
+
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
+    let dockerImagePath = dockerRepositoryStore + '/' + dockerImageName + ':' + dockerImageVersion;
+
+    print.keyVal('AWS Docker Image Path', dockerImagePath);
+    print.out('\n');
 
     if (awsInstalled) {
         if (serviceName) {
@@ -280,6 +297,153 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
 // ******************************
 
+function awsTagDockerImage(in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        docker: {
+            image: {
+                name: 'STRING'
+            },
+            organization: 'STRING'
+        }
+    }, 'awsTagDockerImage');
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    if (!docker.running()) {
+        cprint.yellow('Docker isn\'t running');
+        return false;
+    }
+
+    if (!serviceConfig.docker.image.name) {
+        cprint.yellow('Docker Image name not set');
+        return;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
+        environment: in_environment
+    });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImagePath = dockerRepositoryStore + '/' + dockerImageName;
+
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
+        cprint.yellow('Docker Image username not set');
+        return;
+    }
+
+    let dockerRepository = serviceConfig.docker.organization || dockerUsername;
+    let dockerFullImagePath = dockerRepository + '/' + dockerImageName;
+
+    let dockerImageTags = docker.getImageTags(in_serviceConfig, {
+        includeVersionControlTags: true
+    });
+
+    let dockerImageTaggedPaths = [];
+    dockerImageTags.forEach(t => {
+        dockerImageTaggedPaths.push(dockerImagePath + ':' + t);
+    });
+
+    let noErrors = true;
+
+    dockerImageTaggedPaths
+        .forEach(tag => {
+            let args = ['tag', dockerFullImagePath, tag];
+            cprint.cyan('Tagging Docker image...');
+            let cmdResult = docker.cmd(args);
+            if (cmdResult.hasError) {
+                cmdResult.printError();
+                noErrors = false;
+            }
+        });
+
+    return noErrors;
+}
+
+// ******************************
+
+function awsPushDockerImage(in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        }
+    }, 'awsPushDockerImage');
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    if (!docker.installed()) {
+        cprint.yellow('Docker isn\'t installed');
+        return false;
+    }
+
+    if (!docker.running()) {
+        cprint.yellow('Docker isn\'t running');
+        return false;
+    }
+
+    if (!awsTagDockerImage(in_serviceConfig, in_environment)) {
+        return false;
+    }
+
+    if (!awsDockerLogin(in_serviceConfig, in_environment)) {
+        return false;
+    }
+
+    if (!serviceConfig.docker.image.name) {
+        cprint.yellow('Docker Image name not set');
+        return;
+    }
+
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
+        environment: in_environment
+    });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImagePath = dockerRepositoryStore + '/' + dockerImageName;
+
+    let tasks = [
+        docker.getImageExecTask(
+            awsDockerCredentials.username,
+            awsDockerCredentials.password,
+            dockerImagePath,
+            dockerRepositoryStore, {
+                value: 'push',
+                displayName: 'Pushing'
+            }
+        )
+    ];
+
+    sync.runTasks(tasks);
+    return true;
+}
+
+// ******************************
+
 function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
@@ -310,7 +474,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsDeploy');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -357,6 +521,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     }
 
     let awsTaskDefinitionImagePath = awsDockerRepositoryUrl + '/' + dockerImageName + ':' + dockerImageVersion;
+
     let awsClusterName = cluster.name;
     let awsClusterServiceName = cluster.service_name;
     let awsClusterServiceInstanceCount = cluster.instance.count || 1;
@@ -429,6 +594,10 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 // ******************************
 
 function awsDeployNewTaskDefinition (in_serviceConfig, in_stopTasks, in_environment) {
+    if (!awsPushDockerImage(in_serviceConfig, in_environment)) {
+        return false;
+    }
+
     if (!awsCreateTaskDefinition(in_serviceConfig, in_environment)) {
         return;
     }
@@ -549,7 +718,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsCreateLaunchConfiguration');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -802,7 +971,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsCreateLoadBalancer');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1090,7 +1259,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsCreateAutoScalingGroup');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1326,7 +1495,7 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsCreateBucket');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1403,7 +1572,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsCreateBucketUser');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1620,7 +1789,7 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsCreateRepository');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1739,7 +1908,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsCreateTaskDefinition');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2003,7 +2172,7 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsCreateCluster');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2111,7 +2280,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsCreateClusterService');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2262,7 +2431,7 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsCreateEC2AccessECSRole');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2370,7 +2539,7 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsCreateECSAccessELBRole');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2504,7 +2673,7 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsCleanLaunchConfigurations');
 
     cprint.cyan('Cleaning launch configurations...');
 
@@ -2602,7 +2771,7 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsCleanRepository');
 
     cprint.cyan('Cleaning repositories...');
 
@@ -2698,7 +2867,7 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsCleanTaskDefinitions');
 
     cprint.cyan('Cleaning task definitions...');
 
@@ -2801,7 +2970,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsUpdateAutoScalingGroup');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3022,7 +3191,7 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsDockerLogin');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3077,6 +3246,8 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
             ]
         }
     });
+
+    return true;
 }
 
 // ******************************
@@ -3102,7 +3273,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsStartCluster');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3180,7 +3351,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsStopCluster');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3245,7 +3416,7 @@ function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsSetInstanceAmi');
 
     if (!in_ami) {
         cprint.yellow('Instance AMI not provided');
@@ -3290,7 +3461,7 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsSetInstanceCount');
 
     if (!in_count) {
         cprint.yellow('Instance count not provided');
@@ -3336,7 +3507,7 @@ function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsSetInstanceType');
 
     if (!in_type) {
         cprint.yellow('Instance type not provided');
@@ -3381,7 +3552,7 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewConsoleLogin');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3434,7 +3605,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
             ],
             name: 'STRING'
         }
-    });
+    }, 'awsViewInstances');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3488,7 +3659,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewLoadBalancer');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3539,7 +3710,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewLaunchConfiguration');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3590,7 +3761,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewAutoScalingGroup');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3652,7 +3823,7 @@ function awsViewRepository (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewRepository');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3708,7 +3879,7 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewTaskDefinition');
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3762,7 +3933,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewCluster');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3807,7 +3978,7 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewClusterService');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3857,7 +4028,7 @@ function awsViewBucket (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewBucket');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3900,7 +4071,7 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
                 }
             ]
         }
-    });
+    }, 'awsViewBucketUser');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3950,7 +4121,7 @@ function awsViewEndpoint (in_serviceConfig, in_environment) {
             ]
         },
         cwd: 'STRING'
-    });
+    }, 'awsViewEndpoint');
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4005,6 +4176,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
 
     case 'docker-login':
         awsDockerLogin(in_serviceConfig, env);
+        break;
+
+    case 'docker-push':
+        awsPushDockerImage(in_serviceConfig, env);
         break;
 
     case 'create':
@@ -4226,6 +4401,7 @@ function getCommands () {
             {param:'extra', description:'Include extra information'}
         ] },
         { params: ['docker-login'], description: 'Log into AWS docker repository', options: [{param:'environment', description:'Environment'}] },
+        { params: ['docker-push'], description: 'Push Docker image to the AWS docker repository', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['create-all', 'create'], description: 'Create all infrastructure and delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
 
@@ -4282,7 +4458,7 @@ function getCommands () {
         { params: ['view-cluster', 'open-cluster'], description: 'View cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-cluster-service', 'open-cluster-service'], description: 'View cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
 
-        { params: ['view-bucket, open-bucket'], description: 'View bucket for the service model', options: [{param:'environment', description:'Environment'}] },
+        { params: ['view-bucket', 'open-bucket'], description: 'View bucket for the service model', options: [{param:'environment', description:'Environment'}] },
         { params: ['view-bucket-user', 'open-bucket-user'], description: 'View bucket user for the service', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['view-endpoint', 'open-endpoint'], description: 'View the service endpoint', options: [{param:'environment', description:'Environment'}] }

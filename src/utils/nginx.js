@@ -42,7 +42,7 @@ function getNginxFileContents (in_serviceConfig) {
             },
             container: {}
         }
-    });
+    }, 'getNginxFileContents');
 
     let workdir = serviceConfig.docker.image.working_directory || '.';
 

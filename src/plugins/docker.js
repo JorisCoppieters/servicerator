@@ -16,12 +16,6 @@ let shell = require('../utils/shell');
 let sync = require('../utils/sync');
 
 // ******************************
-// Globals:
-// ******************************
-
-let g_CURRENT_DOCKER_USERNAME = null;
-
-// ******************************
 // Image Functions:
 // ******************************
 
@@ -35,7 +29,7 @@ function printDockerInfo (in_serviceConfig) {
             container: {
             }
         }
-    });
+    }, 'printDockerInfo');
 
     cprint.magenta('-- Docker --');
 
@@ -147,7 +141,7 @@ function pullDockerImage (in_serviceConfig) {
             },
             organization: 'STRING'
         }
-    });
+    }, 'pullDockerImage');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -186,7 +180,7 @@ function pullDockerImage (in_serviceConfig) {
     let tasks = dockerImageTags
         .filter(tag => tag !== 'latest')
         .concat(['latest'])
-        .map(tag => _getExecTaskOnDockerImageForRepository(
+        .map(tag => docker.getImageExecTask(
             dockerUsername,
             dockerImageDetails.password,
             dockerImageDetails.imagePath + ':' + tag,
@@ -218,7 +212,7 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
             build_folder: 'STRING'
         },
         cwd: 'STRING'
-    });
+    }, 'buildDockerImage');
 
     let path = require('path');
 
@@ -368,7 +362,7 @@ function pushDockerImage (in_serviceConfig) {
             },
             organization: 'STRING'
         }
-    });
+    }, 'pushDockerImage');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -401,7 +395,7 @@ function pushDockerImage (in_serviceConfig) {
     }
 
     let tasks = [
-        _getExecTaskOnDockerImageForRepository(
+        docker.getImageExecTask(
             dockerImageDetails.username,
             dockerImageDetails.password,
             dockerImageDetails.imagePath,
@@ -425,7 +419,7 @@ function cleanDockerImages (in_serviceConfig, in_force) {
                 name: 'STRING'
             }
         }
-    });
+    }, 'cleanDockerImages');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -503,7 +497,7 @@ function purgeDockerImages (in_serviceConfig, in_force) {
                 name: 'STRING'
             }
         }
-    });
+    }, 'purgeDockerImages');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -594,7 +588,7 @@ function printDockerImageVersion (in_serviceConfig) {
                 version: 'STRING'
             }
         }
-    });
+    }, 'printDockerImageVersion');
 
     let dockerImageVersion = serviceConfig.docker.image.version || false;
     cprint.green(dockerImageVersion);
@@ -629,7 +623,7 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
                 version: 'STRING'
             }
         }
-    });
+    }, 'setDockerImageVersion');
 
     if (version) {
         let updatedServiceConfig = service.updateConfig(in_serviceConfig, {
@@ -687,7 +681,7 @@ function dockerLogin (in_serviceConfig) {
                 name: 'STRING'
             }
         }
-    });
+    }, 'dockerLogin');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -904,7 +898,7 @@ function verifyDockerContainer (in_serviceConfig) {
                 ]
             }
         }
-    });
+    }, 'verifyDockerContainer');
 
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
@@ -962,13 +956,13 @@ function getDockerContainerName (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
-                name: 'STRING'
+                '?name': 'STRING'
             },
             container: {
-                name: 'STRING'
+                '?name': 'STRING'
             }
         }
-    });
+    }, 'getDockerContainerName');
 
     let containerName = serviceConfig.docker.container.name || serviceConfig.docker.image.name || 'container';
     return containerName;
@@ -1107,7 +1101,7 @@ function printDockerContainerStats (in_serviceConfig) {
 function editServiceDockerfile (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         cwd: 'STRING'
-    });
+    }, 'editServiceDockerfile');
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
@@ -1146,19 +1140,19 @@ function _startDockerContainer (in_serviceConfig, in_options) {
                     {
                         host: 'NUMBER',
                         container: 'NUMBER',
-                        local: 'BOOLEAN'
+                        '?local': 'BOOLEAN'
                     }
                 ],
                 volumes: [
                     {
                         host: 'STRING',
                         container: 'STRING',
-                        local: 'BOOLEAN'
+                        '?local': 'BOOLEAN'
                     }
                 ],
                 commands: [
                     {
-                        local: 'BOOLEAN',
+                        '?local': 'BOOLEAN',
                         val: 'STRING'
                     }
                 ],
@@ -1166,17 +1160,17 @@ function _startDockerContainer (in_serviceConfig, in_options) {
                     {
                         key: 'STRING',
                         value: 'STRING',
-                        local: 'BOOLEAN'
+                        '?local': 'BOOLEAN'
                     }
                 ]
             },
-            build_folder: 'STRING'
+            '?build_folder': 'STRING'
         },
         service: {
             name: 'STRING'
         },
         cwd: 'STRING'
-    });
+    }, '_startDockerContainer');
 
     let path = require('path');
 
@@ -1380,73 +1374,6 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
 // ******************************
 
-function _getExecTaskOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
-    return (in_onSuccess, in_onError) => {
-        if (!in_dockerUsername) {
-            cprint.yellow('Docker repository username not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        if (!in_dockerPassword) {
-            cprint.yellow('Docker repository password not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin);
-
-        if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
-            cprint.yellow('Invalid command: ' + in_cmd);
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
-        let args = [in_cmd.value];
-        args = args.concat(in_dockerImagePath);
-        docker.cmd(args, {
-            async: true,
-            asyncCb: (success) => {
-                if (success) {
-                    if (in_onSuccess) {
-                        in_onSuccess();
-                    }
-                    return;
-                }
-            },
-            asyncErrorCb: (error) => {
-                if (in_forceLogin) {
-                    if (in_onSuccess) {
-                        in_onSuccess();
-                    }
-                    return;
-                }
-
-                if (error && error.match(/denied:.*/)) {
-                    cprint.yellow('Docker push denied, trying again with logging in first');
-                    let task = _getExecTaskOnDockerImageForRepository(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true);
-                    task();
-                    return;
-                }
-
-                if (in_onSuccess) {
-                    in_onSuccess();
-                }
-                return;
-            }
-        });
-    };
-}
-
-// ******************************
-
 function _getDockerImageDetails (in_serviceConfig, in_dockerRepository, in_dockerImageName, in_dockerRepositoryStore) {
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
@@ -1482,7 +1409,7 @@ function _getDockerImagePath (in_serviceConfig) {
             },
             organization: 'STRING'
         }
-    });
+    }, '_getDockerImagePath');
 
     if (!serviceConfig.docker.image.name) {
         cprint.yellow('Docker Image name not set');
@@ -1543,19 +1470,6 @@ function _getZombieDockerImageIds () {
         .filter((elem, pos, self) => { return self.indexOf(elem) === pos; });
 
     return dockerImageIds;
-}
-
-// ******************************
-
-function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin) {
-    if (docker.isLoggedIn(in_dockerRepositoryStore) && !in_forceLogin) {
-        return;
-    }
-
-    if (g_CURRENT_DOCKER_USERNAME !== in_dockerUsername) {
-        docker.login(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
-        g_CURRENT_DOCKER_USERNAME = in_dockerUsername;
-    }
 }
 
 // ******************************

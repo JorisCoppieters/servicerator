@@ -17,9 +17,6 @@ let service = require('./service');
 // Constants:
 // ******************************
 
-const k_REPO_TYPE_AWS = 'AWS';
-const k_REPO_TYPE_DEFAULT = 'DEFAULT';
-
 const k_STATE_UNKNOWN = 0;
 const k_STATE_EXITED = 1;
 const k_STATE_FAILED = 5;
@@ -28,7 +25,8 @@ const k_STATE_RUNNING = 10;
 const k_TEST_TYPE_URL = 'URL';
 
 const knownCmdErrors = [
-    new RegExp(/WARNING: Error loading config file:.* - open .*: The process cannot access the file because it is being used by another process./),
+    new RegExp(/WARNING: Error loading config file:.* - open .*: The process cannot access the file because it is being used by another process\./),
+    new RegExp(/WARNING! Using --password via the CLI is insecure\. Use --password-stdin\./),
     new RegExp(/SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host\. All files and directories added to build context will have '-rwxr-xr-x' permissions\. It is recommended to double check and reset permissions for sensitive files and directories\./),
     new RegExp(/Error response from daemon: conflict: unable to delete .* \(cannot be forced\) - image has dependent child images/),
     new RegExp(/Error response from daemon: manifest for .* not found/),
@@ -119,7 +117,7 @@ function getDockerfileContents (in_serviceConfig) {
         service: {
             name: 'STRING'
         }
-    });
+    }, 'getDockerfileContents');
 
     let baseImage = serviceConfig.docker.image.base || 'ubuntu:trusty';
     let envVariables = serviceConfig.docker.image.env_variables || [];
@@ -435,7 +433,7 @@ function getIgnoreDockerContents (in_serviceConfig) {
                 log: 'BOOLEAN'
             }
         }
-    });
+    }, 'getIgnoreDockerContents');
 
     let ignoreFiles = [];
 
@@ -471,9 +469,9 @@ function getDefaultDockerRepositoryStore () {
 function getDockerPassword (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            password: 'STRING'
+            '?password': 'STRING'
         }
-    });
+    }, 'getDockerPassword');
 
     let dockerUsername = getDockerUsername(in_serviceConfig);
     if (!dockerUsername) {
@@ -481,13 +479,12 @@ function getDockerPassword (in_serviceConfig) {
         return;
     }
 
-    let dockerPassword = serviceConfig.docker.password;
-
     if (!dockerUsername) {
         cprint.yellow('Docker username not set');
         return false;
     }
 
+    let dockerPassword = serviceConfig.docker.password;
     if (!dockerPassword) {
         dockerPassword = env.getStoredPassword('docker', dockerUsername);
     }
@@ -500,9 +497,9 @@ function getDockerPassword (in_serviceConfig) {
 function getDockerUsername (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
-            username: 'STRING'
+            '?username': 'STRING'
         }
-    });
+    }, 'getDockerUsername');
 
     let dockerUsername = serviceConfig.docker.username;
     if (!dockerUsername) {
@@ -531,7 +528,7 @@ function getDockerImageTags (in_serviceConfig, in_options) {
                 tag_with_date: 'BOOLEAN'
             }
         }
-    });
+    }, 'getDockerImageTags');
 
     let opts = in_options || {};
 
@@ -605,6 +602,75 @@ function getDockerLoggedInRepositoryStores () {
 
 // ******************************
 
+function getDockerImageExecTask (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
+    return (in_onSuccess, in_onError) => {
+        if (!in_dockerUsername) {
+            cprint.yellow('Docker repository username not set');
+            if (in_onError) {
+                in_onError();
+            }
+            return;
+        }
+
+        if (!in_dockerPassword) {
+            cprint.yellow('Docker repository password not set');
+            if (in_onError) {
+                in_onError();
+            }
+            return;
+        }
+
+        if (!isDockerLoggedIn(in_dockerRepositoryStore) && !in_forceLogin) {
+            dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
+        }
+
+        if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
+            cprint.yellow('Invalid command: ' + in_cmd);
+            if (in_onError) {
+                in_onError();
+            }
+            return;
+        }
+
+        cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
+        let args = [in_cmd.value];
+        args = args.concat(in_dockerImagePath);
+        dockerCmd(args, {
+            async: true,
+            asyncCb: (success) => {
+                if (success) {
+                    if (in_onSuccess) {
+                        in_onSuccess();
+                    }
+                    return;
+                }
+            },
+            asyncErrorCb: (error) => {
+                if (in_forceLogin) {
+                    if (in_onSuccess) {
+                        in_onSuccess();
+                    }
+                    return;
+                }
+
+                if (error && error.match(/denied:.*/)) {
+                    cprint.yellow('Docker push denied, trying again with logging in first');
+                    let task = getDockerImageExecTask(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true);
+                    task();
+                    return;
+                }
+
+                if (in_onSuccess) {
+                    in_onSuccess();
+                }
+                return;
+            }
+        });
+    };
+}
+
+// ******************************
+
 function isDockerLoggedIn (in_repositoryStore) {
     let repositoryStores = getDockerLoggedInRepositoryStores() || [];
     return repositoryStores.indexOf(in_repositoryStore) >= 0;
@@ -632,6 +698,7 @@ function dockerLogin (in_username, in_password, in_repositoryStore) {
     let args = ['login', '-u', in_username, '-p', in_password, repositoryStore];
     cprint.cyan('Logging into docker...');
     let cmdResult = dockerCmd(args);
+
     if (cmdResult.hasError) {
         cmdResult.printError();
     } else {
@@ -675,7 +742,6 @@ function dockerCmd (in_args, in_options) {
     }
 
     let args = in_args;
-
     if (!args) {
         return false;
     }
@@ -684,12 +750,8 @@ function dockerCmd (in_args, in_options) {
         args = [args];
     }
 
-    let command = 'docker';
-
-    let errToOut = false;
-
     if (async) {
-        return exec.cmd(command, args, {
+        return exec.cmd('docker', args, {
             indent: '  ',
             hide: hide,
             knownErrors: knownCmdErrors,
@@ -698,10 +760,10 @@ function dockerCmd (in_args, in_options) {
         });
     }
 
-    return exec.cmdSync(command, args, {
+    return exec.cmdSync('docker', args, {
         indent: '  ',
         hide: hide,
-        errToOut: errToOut,
+        errToOut: false,
         knownErrors: knownCmdErrors
     });
 }
@@ -770,7 +832,7 @@ function _getDockerImageVersionControlTags (in_serviceConfig) {
             type: 'STRING',
             root_folder: 'STRING'
         }
-    });
+    }, '_getDockerImageVersionControlTags');
 
     let dockerImageTags = [];
 
@@ -808,9 +870,6 @@ function _getDockerImageVersionControlTags (in_serviceConfig) {
 // Exports:
 // ******************************
 
-module.exports['k_REPO_TYPE_AWS'] = k_REPO_TYPE_AWS;
-module.exports['k_REPO_TYPE_DEFAULT'] = k_REPO_TYPE_DEFAULT;
-
 module.exports['k_STATE_UNKNOWN'] = k_STATE_UNKNOWN;
 module.exports['k_STATE_RUNNING'] = k_STATE_RUNNING;
 module.exports['k_STATE_FAILED'] = k_STATE_FAILED;
@@ -818,21 +877,22 @@ module.exports['k_STATE_EXITED'] = k_STATE_EXITED;
 
 module.exports['k_TEST_TYPE_URL'] = k_TEST_TYPE_URL;
 
-module.exports['login'] = dockerLogin;
-module.exports['isLoggedIn'] = isDockerLoggedIn;
-module.exports['installed'] = dockerInstalled;
-module.exports['running'] = dockerRunning;
-module.exports['version'] = dockerVersion;
-module.exports['info'] = dockerInfo;
 module.exports['cmd'] = dockerCmd;
-module.exports['getFolder'] = getDockerFolder;
+module.exports['getDefaultRepositoryStore'] = getDefaultDockerRepositoryStore;
 module.exports['getDockerfile'] = getDockerfile;
-module.exports['getPassword'] = getDockerPassword;
-module.exports['getUsername'] = getDockerUsername;
+module.exports['getDockerfileContents'] = getDockerfileContents;
+module.exports['getFolder'] = getDockerFolder;
+module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;
+module.exports['getImageExecTask'] = getDockerImageExecTask;
 module.exports['getImageTags'] = getDockerImageTags;
 module.exports['getLoggedInRepositoryStores'] = getDockerLoggedInRepositoryStores;
-module.exports['getDefaultRepositoryStore'] = getDefaultDockerRepositoryStore;
-module.exports['getDockerfileContents'] = getDockerfileContents;
-module.exports['getIgnoreDockerContents'] = getIgnoreDockerContents;
+module.exports['getPassword'] = getDockerPassword;
+module.exports['getUsername'] = getDockerUsername;
+module.exports['info'] = dockerInfo;
+module.exports['installed'] = dockerInstalled;
+module.exports['isLoggedIn'] = isDockerLoggedIn;
+module.exports['login'] = dockerLogin;
+module.exports['running'] = dockerRunning;
+module.exports['version'] = dockerVersion;
 
 // ******************************
