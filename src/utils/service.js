@@ -289,13 +289,21 @@ function maskServiceConfig (in_source, in_mask) {
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         service: {
+            clusters: [
+                {
+                    aws: {
+                        bucket: {
+                            name: 'STRING'
+                        }
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ],
             name: 'STRING'
         },
         model: {
-            version: 'STRING',
-            bucket: {
-                name: 'STRING'
-            }
+            version: 'STRING'
         },
         docker: {
             image: {

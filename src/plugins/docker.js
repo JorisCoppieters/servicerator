@@ -16,12 +16,6 @@ let shell = require('../utils/shell');
 let sync = require('../utils/sync');
 
 // ******************************
-// Globals:
-// ******************************
-
-let g_CURRENT_DOCKER_USERNAME = null;
-
-// ******************************
 // Image Functions:
 // ******************************
 
@@ -186,7 +180,7 @@ function pullDockerImage (in_serviceConfig) {
     let tasks = dockerImageTags
         .filter(tag => tag !== 'latest')
         .concat(['latest'])
-        .map(tag => _getExecTaskOnDockerImageForRepository(
+        .map(tag => docker.getImageExecTask(
             dockerUsername,
             dockerImageDetails.password,
             dockerImageDetails.imagePath + ':' + tag,
@@ -401,7 +395,7 @@ function pushDockerImage (in_serviceConfig) {
     }
 
     let tasks = [
-        _getExecTaskOnDockerImageForRepository(
+        docker.getImageExecTask(
             dockerImageDetails.username,
             dockerImageDetails.password,
             dockerImageDetails.imagePath,
@@ -1380,73 +1374,6 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
 // ******************************
 
-function _getExecTaskOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
-    return (in_onSuccess, in_onError) => {
-        if (!in_dockerUsername) {
-            cprint.yellow('Docker repository username not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        if (!in_dockerPassword) {
-            cprint.yellow('Docker repository password not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin);
-
-        if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
-            cprint.yellow('Invalid command: ' + in_cmd);
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
-        let args = [in_cmd.value];
-        args = args.concat(in_dockerImagePath);
-        docker.cmd(args, {
-            async: true,
-            asyncCb: (success) => {
-                if (success) {
-                    if (in_onSuccess) {
-                        in_onSuccess();
-                    }
-                    return;
-                }
-            },
-            asyncErrorCb: (error) => {
-                if (in_forceLogin) {
-                    if (in_onSuccess) {
-                        in_onSuccess();
-                    }
-                    return;
-                }
-
-                if (error && error.match(/denied:.*/)) {
-                    cprint.yellow('Docker push denied, trying again with logging in first');
-                    let task = _getExecTaskOnDockerImageForRepository(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true);
-                    task();
-                    return;
-                }
-
-                if (in_onSuccess) {
-                    in_onSuccess();
-                }
-                return;
-            }
-        });
-    };
-}
-
-// ******************************
-
 function _getDockerImageDetails (in_serviceConfig, in_dockerRepository, in_dockerImageName, in_dockerRepositoryStore) {
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
@@ -1543,19 +1470,6 @@ function _getZombieDockerImageIds () {
         .filter((elem, pos, self) => { return self.indexOf(elem) === pos; });
 
     return dockerImageIds;
-}
-
-// ******************************
-
-function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin) {
-    if (docker.isLoggedIn(in_dockerRepositoryStore) && !in_forceLogin) {
-        return;
-    }
-
-    if (g_CURRENT_DOCKER_USERNAME !== in_dockerUsername) {
-        docker.login(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
-        g_CURRENT_DOCKER_USERNAME = in_dockerUsername;
-    }
 }
 
 // ******************************
