@@ -6,7 +6,6 @@
 
 let cprint = require('color-print');
 
-let aws = require('../utils/aws');
 let docker = require('../utils/docker');
 let edit = require('../utils/edit');
 let fs = require('../utils/filesystem');
@@ -15,13 +14,6 @@ let print = require('../utils/print');
 let service = require('../utils/service');
 let shell = require('../utils/shell');
 let sync = require('../utils/sync');
-
-// ******************************
-// Globals:
-// ******************************
-
-let g_CURRENT_DOCKER_USERNAME = null;
-let g_AWS_DOCKER_CREDENTIALS = [];
 
 // ******************************
 // Image Functions:
@@ -41,13 +33,20 @@ function printDockerInfo (in_serviceConfig) {
 
     cprint.magenta('-- Docker --');
 
-    let dockerUsername = docker.getUsername(in_serviceConfig);
-    let dockerPassword = docker.getPassword(in_serviceConfig) || false;
+    let dockerImageDetails = _getDockerImageDetails(
+        in_serviceConfig,
+        serviceConfig.docker.organization,
+        serviceConfig.docker.image.name
+    );
+    if (!dockerImageDetails) {
+        return;
+    }
+
     let dockerImageName = serviceConfig.docker.image.name || false;
     let dockerImageVersion = serviceConfig.docker.image.version || false;
 
-    print.keyVal('Docker Username', dockerUsername || '(Not Set)');
-    print.keyVal('Docker Password', dockerPassword ? '*******' : '(Not Set)');
+    print.keyVal('Docker Username', dockerImageDetails.username || '(Not Set)');
+    print.keyVal('Docker Password', dockerImageDetails.password ? '*******' : '(Not Set)');
     print.out('\n');
 
     let dockerInstalled = docker.installed();
@@ -75,23 +74,19 @@ function printDockerInfo (in_serviceConfig) {
         print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
         print.out('\n');
 
-        if (dockerImageName && dockerUsername && docker.installed()) {
+        if (dockerImageName && dockerImageDetails.username && docker.installed()) {
             let dockerImageTags = docker.getImageTags(in_serviceConfig, {
                 includeVersionControlTags: true
             });
-            let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
+            let dockerImagePath = _getDockerImagePath(in_serviceConfig);
 
             let dockerImageTaggedPaths = [];
-            dockerImagePaths.forEach(p => {
-                dockerImageTags.forEach(t => {
-                    dockerImageTaggedPaths.push(p + ':' + t);
-                });
+            dockerImageTags.forEach(t => {
+                dockerImageTaggedPaths.push(dockerImagePath + ':' + t);
             });
 
             cprint.magenta('-- Docker Image Paths --');
-            dockerImagePaths.forEach(p => {
-                print.keyVal('Docker Image Path', p);
-            });
+            print.keyVal('Docker Image Path', dockerImagePath);
             print.out('\n');
 
             cprint.magenta('-- Docker Image Tags --');
@@ -109,7 +104,7 @@ function printDockerInfo (in_serviceConfig) {
             let imageTagLines = [];
 
             cmdResult.rows
-                .filter(r => dockerImagePaths.find(p => r.match(new RegExp('^' + p + ':'))))
+                .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
                 .forEach(r => {
                     let c = r.split(/\t/);
                     let dockerImage = c[0];
@@ -144,12 +139,7 @@ function pullDockerImage (in_serviceConfig) {
             image: {
                 name: 'STRING'
             },
-            organization: 'STRING',
-            other_repositories: [
-                {
-                    type: 'STRING'
-                }
-            ]
+            organization: 'STRING'
         }
     });
 
@@ -178,32 +168,28 @@ function pullDockerImage (in_serviceConfig) {
         includeVersionControlTags: true
     });
 
-    let repos = [
-        {
-            type: docker.k_REPO_TYPE_DEFAULT,
-            username: dockerUsername,
-            organization: serviceConfig.docker.organization
-        }
-    ].concat(serviceConfig.docker.other_repositories || []);
+    let dockerImageDetails = _getDockerImageDetails(
+        in_serviceConfig,
+        serviceConfig.docker.organization,
+        serviceConfig.docker.image.name
+    );
+    if (!dockerImageDetails) {
+        return;
+    }
 
-    let tasks = [];
-
-    repos.forEach(repo => {
-        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name);
-        if (!details) {
-            return;
-        }
-        let tags = dockerImageTags;
-        if (tags.indexOf('latest') < 0) {
-            tags.push('latest');
-        }
-        tags.forEach(tag => {
-            tasks.push(_getExecTaskOnDockerImageForRepository(details.username, details.password, details.imagePath + ':' + tag, details.repositoryStore, {
+    let tasks = dockerImageTags
+        .filter(tag => tag !== 'latest')
+        .concat(['latest'])
+        .map(tag => docker.getImageExecTask(
+            dockerUsername,
+            dockerImageDetails.password,
+            dockerImageDetails.imagePath + ':' + tag,
+            dockerImageDetails.repositoryStore,
+            {
                 value: 'pull',
                 displayName: 'Pulling'
-            }));
-        });
-    });
+            }
+        ));
 
     sync.runTasks(tasks);
 }
@@ -275,13 +261,11 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     let dockerImageTags = docker.getImageTags(in_serviceConfig, {
         includeVersionControlTags: true
     });
-    let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
+    let dockerImagePath = _getDockerImagePath(in_serviceConfig);
 
     let dockerImageTaggedPaths = [];
-    dockerImagePaths.forEach(p => {
-        dockerImageTags.forEach(t => {
-            dockerImageTaggedPaths.push(p + ':' + t);
-        });
+    dockerImageTags.forEach(t => {
+        dockerImageTaggedPaths.push(dockerImagePath + ':' + t);
     });
 
     let args = ['build'];
@@ -376,12 +360,7 @@ function pushDockerImage (in_serviceConfig) {
             image: {
                 name: 'STRING'
             },
-            organization: 'STRING',
-            other_repositories: [
-                {
-                    type: 'STRING'
-                }
-            ]
+            organization: 'STRING'
         }
     });
 
@@ -406,30 +385,28 @@ function pushDockerImage (in_serviceConfig) {
         return;
     }
 
-    let repos = [
-        {
-            type: docker.k_REPO_TYPE_DEFAULT,
-            username: dockerUsername,
-            password: serviceConfig.docker.password,
-            organization: serviceConfig.docker.organization
-        }
-    ].concat(serviceConfig.docker.other_repositories || []);
+    let dockerImageDetails = _getDockerImageDetails(
+        in_serviceConfig,
+        serviceConfig.docker.organization,
+        serviceConfig.docker.image.name
+    );
+    if (!dockerImageDetails) {
+        return;
+    }
 
-    let tasks = [];
-
-    repos.forEach(repo => {
-        let details = _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name);
-        if (!details) {
-            return;
-        }
-        tasks.push(_getExecTaskOnDockerImageForRepository(details.username, details.password, details.imagePath, details.repositoryStore, {
-            value: 'push',
-            displayName: 'Pushing'
-        }));
-    });
+    let tasks = [
+        docker.getImageExecTask(
+            dockerImageDetails.username,
+            dockerImageDetails.password,
+            dockerImageDetails.imagePath,
+            dockerImageDetails.repositoryStore, {
+                value: 'push',
+                displayName: 'Pushing'
+            }
+        )
+    ];
 
     sync.runTasks(tasks);
-
     return true;
 }
 
@@ -468,13 +445,11 @@ function cleanDockerImages (in_serviceConfig, in_force) {
     let dockerImageTags = docker.getImageTags(in_serviceConfig, {
         includeVersionControlTags: true
     });
-    let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
+    let dockerImagePath = _getDockerImagePath(in_serviceConfig);
 
     let dockerImageTaggedPaths = [];
-    dockerImagePaths.forEach(p => {
-        dockerImageTags.forEach(t => {
-            dockerImageTaggedPaths.push(p + ':' + t);
-        });
+    dockerImageTags.forEach(t => {
+        dockerImageTaggedPaths.push(dockerImagePath + ':' + t);
     });
 
     let zombieDockerImageIds = _getZombieDockerImageIds();
@@ -488,7 +463,7 @@ function cleanDockerImages (in_serviceConfig, in_force) {
     }
 
     let nonLatestImageTags = cmdResult.rows
-        .filter(r => dockerImagePaths.find(p => r.match(new RegExp('^' + p + ':'))))
+        .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
         .filter(r => !r.match(/<none>/))
         .filter(r => dockerImageTaggedPaths.indexOf(r.split(/\t/)[0]) < 0)
         .map(r => r.split(/\t/)[0]);
@@ -557,10 +532,10 @@ function purgeDockerImages (in_serviceConfig, in_force) {
         return;
     }
 
-    let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
+    let dockerImagePath = _getDockerImagePath(in_serviceConfig);
 
     let purgeImageTags = cmdResult.rows
-        .filter(r => dockerImagePaths.find(p => r.match(new RegExp('^' + p + ':'))))
+        .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
         .filter(r => !r.match(/<none>/))
         .map(r => r.split(/\t/)[0])
         .filter((elem, pos, self) => { return self.indexOf(elem) === pos; });
@@ -728,10 +703,12 @@ function dockerLogin (in_serviceConfig) {
 
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
-        docker.k_REPO_TYPE_DEFAULT,
-        dockerUsername,
         dockerOrganization,
-        serviceConfig.docker.image.name);
+        serviceConfig.docker.image.name
+    );
+    if (!dockerImageDetails) {
+        return;
+    }
 
     docker.login(dockerImageDetails.username, dockerImageDetails.password, dockerImageDetails.repositoryStore);
 }
@@ -1218,14 +1195,14 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         removeDockerContainer(in_serviceConfig);
     }
 
-    let dockerUsername = docker.getUsername(in_serviceConfig);
-
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
-        docker.k_REPO_TYPE_DEFAULT,
-        dockerUsername,
         serviceConfig.docker.organization,
-        serviceConfig.docker.image.name);
+        serviceConfig.docker.image.name
+    );
+    if (!dockerImageDetails) {
+        return;
+    }
 
     let dockerImagePath = dockerImageDetails.shortImagePath;
 
@@ -1397,103 +1374,18 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
 // ******************************
 
-function _getExecTaskOnDockerImageForRepository (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
-    return (in_onSuccess, in_onError) => {
-        if (!in_dockerUsername) {
-            cprint.yellow('Docker repository username not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        if (!in_dockerPassword) {
-            cprint.yellow('Docker repository password not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        _dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin);
-
-        if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
-            cprint.yellow('Invalid command: ' + in_cmd);
-            if (in_onError) {
-                in_onError();
-            }
-            return;
-        }
-
-        cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
-        let args = [in_cmd.value];
-        args = args.concat(in_dockerImagePath);
-        docker.cmd(args, {
-            async: true,
-            asyncCb: (success) => {
-                if (success) {
-                    if (in_onSuccess) {
-                        in_onSuccess();
-                    }
-                    return;
-                }
-            },
-            asyncErrorCb: (error) => {
-                if (in_forceLogin) {
-                    if (in_onSuccess) {
-                        in_onSuccess();
-                    }
-                    return;
-                }
-
-                if (error && error.match(/denied:.*/)) {
-                    cprint.yellow('Docker push denied, trying again with logging in first');
-                    let task = _getExecTaskOnDockerImageForRepository(in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, true);
-                    task();
-                    return;
-                }
-
-                if (in_onSuccess) {
-                    in_onSuccess();
-                }
-                return;
-            }
-        });
-    };
-}
-
-// ******************************
-
-function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerUsername, in_dockerRepository, in_dockerImageName, in_dockerRepositoryStore) {
-    let dockerUsername;
-    let dockerPassword;
-    let dockerRepository;
-    let dockerRepositoryStore;
-    let dockerImagePath;
-    let shortDockerImagePath;
-
-    if (in_repositoryType === docker.k_REPO_TYPE_DEFAULT) {
-        dockerUsername = in_dockerUsername;
-        dockerPassword = docker.getPassword(in_serviceConfig);
-        dockerRepository = in_dockerRepository || in_dockerUsername;
-        dockerRepositoryStore = in_dockerRepositoryStore || docker.getDefaultRepositoryStore();
-        dockerImagePath = dockerRepositoryStore + '/' + dockerRepository + '/' + in_dockerImageName;
-        shortDockerImagePath = dockerRepository + '/' + in_dockerImageName;
-    } else if (in_repositoryType === docker.k_REPO_TYPE_AWS) {
-        if (!aws.installed()) {
-            cprint.yellow('AWS-CLI isn\'t installed');
-            return false;
-        }
-
-        let awsDockerCredentials = _getAwsDockerCredentials(in_serviceConfig);
-
-        dockerUsername = awsDockerCredentials.username;
-        dockerPassword = awsDockerCredentials.password;
-        dockerRepository = awsDockerCredentials.username;
-        dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
-        dockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
-        shortDockerImagePath = dockerRepositoryStore + '/' + in_dockerImageName;
+function _getDockerImageDetails (in_serviceConfig, in_dockerRepository, in_dockerImageName, in_dockerRepositoryStore) {
+    let dockerUsername = docker.getUsername(in_serviceConfig);
+    if (!dockerUsername) {
+        cprint.yellow('Docker Image username not set');
+        return;
     }
+
+    let dockerPassword = docker.getPassword(in_serviceConfig);
+    let dockerRepository = in_dockerRepository || dockerUsername;
+    let dockerRepositoryStore = in_dockerRepositoryStore || docker.getDefaultRepositoryStore();
+    let dockerImagePath = dockerRepositoryStore + '/' + dockerRepository + '/' + in_dockerImageName;
+    let shortDockerImagePath = dockerRepository + '/' + in_dockerImageName;
 
     let details = {
         username: dockerUsername,
@@ -1509,18 +1401,13 @@ function _getDockerImageDetails (in_serviceConfig, in_repositoryType, in_dockerU
 
 // ******************************
 
-function _getDockerImagePaths (in_serviceConfig) {
+function _getDockerImagePath (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
                 name: 'STRING'
             },
-            organization: 'STRING',
-            other_repositories: [
-                {
-                    type: 'STRING'
-                }
-            ]
+            organization: 'STRING'
         }
     });
 
@@ -1529,30 +1416,22 @@ function _getDockerImagePaths (in_serviceConfig) {
         return;
     }
 
-    let dockerUsername = docker.getUsername(in_serviceConfig);
-    if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
+    let dockerImageDetails = _getDockerImageDetails(
+        in_serviceConfig,
+        serviceConfig.docker.organization,
+        serviceConfig.docker.image.name
+    );
+    if (!dockerImageDetails) {
         return;
     }
 
-    let repos = [
-        {
-            type: docker.k_REPO_TYPE_DEFAULT,
-            username: dockerUsername,
-            organization: serviceConfig.docker.organization
-        }
-    ].concat(serviceConfig.docker.other_repositories || []);
-
-    return repos
-        .map(repo => _getDockerImageDetails(in_serviceConfig, repo.type, repo.username, repo.organization, serviceConfig.docker.image.name))
-        .filter(details => !!details)
-        .map(details => details.shortImagePath);
+    return dockerImageDetails.shortImagePath;
 }
 
 // ******************************
 
 function _getDockerImageIds (in_serviceConfig) {
-    let dockerImagePaths = _getDockerImagePaths(in_serviceConfig);
+    let dockerImagePath = _getDockerImagePath(in_serviceConfig);
 
     let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
     let cmdResult = docker.cmd(args, {
@@ -1565,7 +1444,7 @@ function _getDockerImageIds (in_serviceConfig) {
     }
 
     let dockerImageIds = cmdResult.rows
-        .filter(r => dockerImagePaths.find(p => r.match(new RegExp('^' + p + ':'))))
+        .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
         .map(r => r.split(/\t/)[1])
         .filter((elem, pos, self) => { return self.indexOf(elem) === pos; });
 
@@ -1591,28 +1470,6 @@ function _getZombieDockerImageIds () {
         .filter((elem, pos, self) => { return self.indexOf(elem) === pos; });
 
     return dockerImageIds;
-}
-
-// ******************************
-
-function _getAwsDockerCredentials (in_serviceConfig) {
-    if (!g_AWS_DOCKER_CREDENTIALS[in_serviceConfig]) {
-        g_AWS_DOCKER_CREDENTIALS[in_serviceConfig] = aws.getDockerCredentials(in_serviceConfig);
-    }
-    return g_AWS_DOCKER_CREDENTIALS[in_serviceConfig];
-}
-
-// ******************************
-
-function _dockerLogin (in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore, in_forceLogin) {
-    if (docker.isLoggedIn(in_dockerRepositoryStore) && !in_forceLogin) {
-        return;
-    }
-
-    if (g_CURRENT_DOCKER_USERNAME !== in_dockerUsername) {
-        docker.login(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
-        g_CURRENT_DOCKER_USERNAME = in_dockerUsername;
-    }
 }
 
 // ******************************
