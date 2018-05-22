@@ -2,6 +2,7 @@
 - Split AWS config into service clusters
 - Shifted bucket config into service cluster
 - Decoupled Docker and AWS
+- Updated dependencies
 
 0.13.0
 - Removed _env.sh support

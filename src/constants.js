@@ -9,7 +9,7 @@
 // ******************************
 
 const c_SCRIPT_NAME = 'Servicerator';
-const c_VERSION = '0.14.1';
+const c_VERSION = '0.14.2';
 
 const c_MODE_HELP = '[HELP]';
 const c_MODE_VERSION = '[VERSION]';
