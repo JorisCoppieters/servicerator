@@ -130,6 +130,33 @@ function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDe
 // Cluster Service Functions:
 // ******************************
 
+function getEnvironmentCluster (in_clusters, in_environment) {
+    let clusters = in_clusters || [];
+
+    if (in_environment) {
+        let environmentCluster = clusters.find(c => {
+            return c.environment === in_environment;
+        });
+
+        return environmentCluster;
+    }
+
+    if (clusters.length === 1 && clusters[0].environment) {
+        return clusters[0];
+    }
+
+    let defaultCluster = clusters
+        .find(c => c.default && c.environment);
+
+    if (defaultCluster) {
+        return defaultCluster;
+    }
+
+    return false;
+}
+
+// ******************************
+
 function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceName, in_options) {
     let opt = in_options || {};
 
@@ -1902,11 +1929,19 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 // Config Functions:
 // ******************************
 
-function getAwsServiceConfig (in_serviceConfig) {
+function getAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        aws: {
-            account_id: 'NUMBER',
-            profile: 'STRING'
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        account_id: 'NUMBER',
+                        profile: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
         },
         cwd: 'STRING'
     });
@@ -1919,16 +1954,21 @@ function getAwsServiceConfig (in_serviceConfig) {
         return;
     }
 
+    let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        return false;
+    }
+
     if (!awsInstalled()) {
         return;
     }
 
-    let profile = serviceConfig.aws.profile || 'default';
+    let profile = cluster.aws.profile || 'default';
     profile = profile.replace(/-long-term$/,''); // Remove postfixed -long-term if present
 
     let longTermProfile = profile + '-long-term';
 
-    serviceConfig.aws.profile = profile;
+    cluster.aws.profile = profile;
 
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
@@ -1951,7 +1991,7 @@ function getAwsServiceConfig (in_serviceConfig) {
         let configured = configureMultiFactorAuth({
             serialNumber: mfaDevice.SerialNumber,
             profile: profile,
-            accountId: serviceConfig.aws.account_id,
+            accountId: cluster.aws.account_id,
             longTermProfile: longTermProfile,
             credentialsFile: awsCredentialsFile
         });
@@ -1966,13 +2006,12 @@ function getAwsServiceConfig (in_serviceConfig) {
     }
 
     if (awsConfig[profile] && awsConfig[profile].region) {
-        serviceConfig.aws.region = awsConfig[profile].region;
+        cluster.aws.region = awsConfig[profile].region;
     }
 
     if (awsCredentials[profile] && awsCredentials[profile].aws_access_key_id) {
-
-        serviceConfig.aws.access_key = awsCredentials[profile].aws_access_key_id;
-        serviceConfig.aws.secret_key = awsCredentials[profile].aws_secret_access_key;
+        cluster.aws.access_key = awsCredentials[profile].aws_access_key_id;
+        cluster.aws.secret_key = awsCredentials[profile].aws_secret_access_key;
     }
 
     service.checkConfigSchema(serviceConfig);
@@ -2135,83 +2174,87 @@ function getSessionToken (in_profile, in_accountId, in_mfaArn) {
 
 // ******************************
 
-function getAwsRepositoryServiceConfig () {
-    let serviceConfig = {
-        docker: {
-            other_repositories: []
-        },
-        aws: {
-            account_id: 'NUMBER',
-            profile: 'STRING'
-        }
-    };
-
-    serviceConfig.docker.other_repositories.push({
-        'type': 'AWS'
-    });
-
-    let profile = serviceConfig.aws.profile || 'default';
-    serviceConfig.aws.profile = profile;
-
-    if (!awsInstalled()) {
-        return;
-    }
-
-    let awsCmdResult = awsCmd(['sts', 'get-caller-identity'], {
-        hide: true,
-        profile: profile
-    });
-
-    if (!awsCmdResult.hasError) {
-        let awsStats = JSON.parse(awsCmdResult.result);
-        if (awsStats && awsStats.Account) {
-            serviceConfig.aws.account_id = parseInt(awsStats.Account);
-        }
-    }
-
-    service.checkConfigSchema(serviceConfig);
-    return serviceConfig;
-}
-
-// ******************************
-
-function getMergedAwsServiceConfig (in_serviceConfig) {
+function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = in_serviceConfig || {};
-    let awsServiceConfig = getAwsServiceConfig(in_serviceConfig);
+    let awsServiceConfig = getAwsServiceConfig(in_serviceConfig, in_environment);
     service.combineConfig(awsServiceConfig, serviceConfig);
     return serviceConfig;
 }
 
 // ******************************
 
-function getAwsDockerRepositoryUrl (in_serviceConfig) {
+function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        aws: {
-            account_id: 'NUMBER',
-            region: 'STRING'
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        account_id: 'NUMBER',
+                        region: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
         }
     });
 
-    if (!serviceConfig.aws.account_id) {
+    let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    if (!cluster.aws.account_id) {
         cprint.yellow('AWS account id not set');
         return false;
     }
 
-    return serviceConfig.aws.account_id + '.dkr.ecr.' + (serviceConfig.aws.region || 'ap-southeast-2') + '.amazonaws.com';
+    return cluster.aws.account_id + '.dkr.ecr.' + (cluster.aws.region || 'ap-southeast-2') + '.amazonaws.com';
 }
 
 // ******************************
 
 function getAwsDockerCredentials (in_serviceConfig, in_options) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        profile: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
+        }
+    });
+
     let opt = in_options || {};
+    let environment = opt.environment;
+
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
 
+    let cluster = getEnvironmentCluster(serviceConfig.service.clusters, environment);
+    if (!cluster) {
+        if (environment) {
+            cprint.yellow('No cluster set for "' + environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
     let awsCmdResult = awsCmd(['ecr', 'get-login'], {
         hide: !opt.verbose,
-        profile: opt.profile
+        profile: cluster.aws.profile
     });
 
     if (awsCmdResult.hasError) {
@@ -2247,19 +2290,37 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
 
 // ******************************
 
-function getAwsSecretKey (in_serviceConfig) {
+function getAwsSecretKey (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        aws: {
-            access_key: 'STRING',
-            secret_key: 'STRING'
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        access_key: 'STRING',
+                        secret_key: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
         }
     });
 
-    let awsSecretKey = serviceConfig.aws.secret_key;
+    let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    let awsSecretKey = cluster.aws.secret_key;
 
     if (!awsSecretKey) {
-        if (serviceConfig.aws.access_key) {
-            awsSecretKey = env.getStoredSecretKey('aws', serviceConfig.aws.access_key);
+        if (cluster.aws.access_key) {
+            awsSecretKey = env.getStoredSecretKey('aws', cluster.access_key);
         }
     }
 
@@ -2274,22 +2335,38 @@ function getAwsSecretKey (in_serviceConfig) {
 // Setup Functions:
 // ******************************
 
-function awsLogin (in_serviceConfig) {
+function awsLogin (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
-        aws: {
-            access_key: 'STRING',
-            secret_key: 'STRING'
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        access_key: 'STRING',
+                        secret_key: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
         }
     });
-
-    let path = require('path');
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
         return false;
     }
 
-    let awsAccessKey = serviceConfig.aws.access_key;
+    let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    let awsAccessKey = cluster.aws.access_key;
     if (!awsAccessKey) {
         cprint.yellow('AWS access key not set');
         return false;
@@ -2301,8 +2378,9 @@ function awsLogin (in_serviceConfig) {
         return false;
     }
 
-    let awsRegion = serviceConfig.aws.region || 'ap-southeast-2';
+    let awsRegion = cluster.aws.region || 'ap-southeast-2';
 
+    let path = require('path');
     let awsFolder = path.resolve(env.getShellHome(), '.aws');
     if (!fs.folderExists(awsFolder)) {
         fs.createFolder(awsFolder);
@@ -2491,10 +2569,10 @@ module.exports['attachRolePolicy'] = attachRolePolicy;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;
 module.exports['clearCachedAutoScalingGroups'] = clearCachedAutoScalingGroups;
 module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCachedDockerRepositoryImagesForRepositoryName;
+module.exports['clearCachedLatestTaskDefinitionArnForTaskDefinition'] = clearCachedLatestTaskDefinitionArnForTaskDefinition;
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
 module.exports['clearCachedLaunchConfigurationsLike'] = clearCachedLaunchConfigurationsLike;
 module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
-module.exports['clearCachedLatestTaskDefinitionArnForTaskDefinition'] = clearCachedLatestTaskDefinitionArnForTaskDefinition;
 module.exports['cmd'] = awsCmd;
 module.exports['createBucket'] = createBucket;
 module.exports['createCluster'] = createCluster;
@@ -2522,13 +2600,13 @@ module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepositoryForDockerImageName'] = getDockerRepositoryForDockerImageName;
 module.exports['getDockerRepositoryImagesForRepositoryName'] = getDockerRepositoryImagesForRepositoryName;
 module.exports['getDockerRepositoryUrl'] = getAwsDockerRepositoryUrl;
+module.exports['getEnvironmentCluster'] = getEnvironmentCluster;
 module.exports['getInstanceIdsWithTags'] = getInstanceIdsWithTags;
 module.exports['getLatestTaskDefinitionArnForTaskDefinition'] = getLatestTaskDefinitionArnForTaskDefinition;
 module.exports['getLaunchConfigurationLike'] = getLaunchConfigurationLike;
 module.exports['getLaunchConfigurationsLike'] = getLaunchConfigurationsLike;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
-module.exports['getRepositoryServiceConfig'] = getAwsRepositoryServiceConfig;
 module.exports['getRoleArnForRoleName'] = getRoleArnForRoleName;
 module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getServiceConfig'] = getAwsServiceConfig;

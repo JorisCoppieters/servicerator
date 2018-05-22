@@ -289,13 +289,21 @@ function maskServiceConfig (in_source, in_mask) {
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         service: {
+            clusters: [
+                {
+                    aws: {
+                        bucket: {
+                            name: 'STRING'
+                        }
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ],
             name: 'STRING'
         },
         model: {
-            version: 'STRING',
-            bucket: {
-                name: 'STRING'
-            }
+            version: 'STRING'
         },
         docker: {
             image: {
@@ -306,10 +314,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
     });
 
     let fsCore = require('fs');
-
     let sourceFolder = serviceConfig.cwd || '.';
     sourceFolder = fsCore.realpathSync(sourceFolder);
-
     sourceFolder = sourceFolder.replace(new RegExp('\\\\', 'g'), '/');
 
     let replacements = {
@@ -318,9 +324,14 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         'WORKING_DIR': `${sourceFolder}`,
         'SERVICE_NAME': `${serviceConfig.service.name}`,
         'MODEL_VERSION': `${serviceConfig.model.version}`,
-        'MODEL_BUCKET': `${serviceConfig.model.bucket.name}`,
         'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`
     };
+
+    let clusters = serviceConfig.service.clusters || [];
+    let firstCluster = clusters[0] || {};
+    if (firstCluster && firstCluster.aws  && firstCluster.aws.bucket) {
+        replacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
+    }
 
     if (in_replacements) {
         Object.keys(in_replacements).forEach(k => {
@@ -946,6 +957,22 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 3.5) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_4To3_5(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
+    if (schemaVersion < 3.6) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_5To3_6(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
@@ -976,6 +1003,8 @@ function _checkSchemaVersion (in_configSchemaVersion) {
         cprint.yellow('You are running a minorly out of date servicerator, please update it with: npm install -g servicerator');
     }
 }
+
+// ******************************
 
 function _upgradeServiceConfigFrom0To1 (in_serviceConfig) {
     let hasBeenUpdated = false;
@@ -1120,6 +1149,121 @@ function _upgradeServiceConfigFrom3_3To3_4 (in_serviceConfig) {
 
 // ******************************
 
+function _upgradeServiceConfigFrom3_4To3_5 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.docker) {
+        if (in_serviceConfig.docker.container) {
+            if (in_serviceConfig.docker.container.ports) {
+                in_serviceConfig.docker.container.ports.forEach(port => {
+                    if (port.test) {
+                        port.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+
+            if (in_serviceConfig.docker.container.volumes) {
+                in_serviceConfig.docker.container.volumes.forEach(volume => {
+                    if (volume.test) {
+                        volume.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+
+            if (in_serviceConfig.docker.container.commands) {
+                in_serviceConfig.docker.container.commands.forEach(command => {
+                    if (command.test) {
+                        command.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+
+            if (in_serviceConfig.docker.container.environment_variables) {
+                in_serviceConfig.docker.container.environment_variables.forEach(environment_variable => {
+                    if (['PY_DEBUG_IS_REMOTE', 'PY_DEBUG_SECRET', 'PY_DEBUG_ENABLED'].indexOf(environment_variable.key) >= 0) {
+                        environment_variable.local = true;
+                        hasBeenUpdated = true;
+                    }
+                });
+            }
+        }
+    }
+
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _upgradeServiceConfigFrom3_5To3_6 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.aws) {
+        in_serviceConfig.service = in_serviceConfig.service || {};
+        in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+        if (in_serviceConfig.service.clusters.length === 0) {
+            in_serviceConfig.service.clusters.push({
+                'default': true,
+                'environment': 'main'
+            });
+        }
+        in_serviceConfig.service.clusters.forEach(cluster => {
+            cluster.aws = Object.assign({}, in_serviceConfig.aws);
+        });
+        delete in_serviceConfig.aws;
+        hasBeenUpdated = true;
+    }
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.task_definition) {
+            in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+            if (in_serviceConfig.service.clusters.length === 0) {
+                in_serviceConfig.service.clusters.push({
+                    'default': true,
+                    'environment': 'main'
+                });
+            }
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                cluster.task_definition = Object.assign({}, in_serviceConfig.service.task_definition);
+            });
+            delete in_serviceConfig.service.task_definition;
+        }
+    }
+
+    if (in_serviceConfig.model) {
+        if (in_serviceConfig.model.bucket) {
+            in_serviceConfig.service = in_serviceConfig.service || {};
+            in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+            if (in_serviceConfig.service.clusters.length === 0) {
+                in_serviceConfig.service.clusters.push({
+                    'default': true,
+                    'environment': 'main'
+                });
+            }
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                cluster.aws = cluster.aws || {};
+                cluster.aws.bucket = Object.assign({}, in_serviceConfig.model.bucket);
+            });
+            delete in_serviceConfig.model.bucket;
+            hasBeenUpdated = true;
+        }
+    }
+
+    if (in_serviceConfig.docker) {
+        if (in_serviceConfig.docker.other_repositories) {
+            delete in_serviceConfig.docker.other_repositories;
+            hasBeenUpdated = true;
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
 function _saveServiceConfig (in_serviceConfig, in_options) {
     let path = require('path');
 
@@ -1153,9 +1297,9 @@ function _checkObjectAgainstJSONSchema (in_path, in_obj, in_schema, in_warning) 
     if (errors && errors.length) {
         errors.forEach((error) => {
             if (in_warning) {
-                cprint.yellow(in_path + ' > ' + error);
+                cprint.yellow(in_path + ' > ' + error.message);
             } else {
-                cprint.red(in_path + ' > ' + error);
+                cprint.red(in_path + ' > ' + error.message);
             }
         });
         if (in_warning) {
