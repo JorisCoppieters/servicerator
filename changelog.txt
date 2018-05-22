@@ -1,3 +1,8 @@
+0.14.0
+- Split AWS config into service clusters
+- Shifted bucket config into service cluster
+- Decoupled Docker and AWS
+
 0.13.0
 - Removed _env.sh support
 - Added set-instance-ami command
