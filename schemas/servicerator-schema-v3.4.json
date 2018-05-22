@@ -571,7 +571,21 @@
                             "description": "The bucket name, without the s3:// prefix",
                             "type": "string"
                         },
+                        "permissions": {
+                            "description": "The permissions that should be associated with the username",
+                            "items": {
+                                "default": "read",
+                                "enum": [
+                                    "read",
+                                    "write",
+                                    "list"
+                                ],
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
                         "region": {
+                            "default": "ap-southeast-2",
                             "description": "The region of the bucket",
                             "enum": [
                                 "us-east-2",
@@ -592,25 +606,11 @@
                                 "eu-west-3",
                                 "sa-east-1"
                             ],
-                            "default": "ap-southeast-2",
                             "type": "string"
                         },
                         "username": {
                             "description": "The bucket user that has read access to the bucket",
                             "type": "string"
-                        },
-                        "permissions": {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "enum": [
-                                    "read",
-                                    "write",
-                                    "list"
-                                ],
-                                "default": "read"
-                            },
-                            "description": "The permissions that should be associated with the username"
                         }
                     },
                     "required": [
@@ -680,9 +680,14 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "ami": {
-                                        "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance, check https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI_launch_latest.html",
                                         "default": "ami-b88e7cda",
+                                        "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance, check https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI_launch_latest.html",
                                         "type": "string"
+                                    },
+                                    "assign_public_ip": {
+                                        "default": false,
+                                        "description": "Assign a public IP address to this instance",
+                                        "type": "boolean"
                                     },
                                     "count": {
                                         "default": 1,
@@ -692,11 +697,6 @@
                                     "iam_role": {
                                         "description": "The IAM role for this instance",
                                         "type": "string"
-                                    },
-                                    "assign_public_ip": {
-                                        "description": "Assign a public IP address to this instance",
-                                        "default": false,
-                                        "type": "boolean"
                                     },
                                     "tags": {
                                         "description": "A list of tags against the instance",

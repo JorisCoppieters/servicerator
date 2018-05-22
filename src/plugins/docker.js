@@ -388,7 +388,7 @@ function pushDockerImage (in_serviceConfig) {
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
         serviceConfig.docker.organization,
-        serviceConfig.docker.image.name
+        serviceConfig.image.name
     );
     if (!dockerImageDetails) {
         return;
@@ -690,7 +690,7 @@ function dockerLogin (in_serviceConfig) {
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
         dockerOrganization,
-        serviceConfig.docker.image.name
+        serviceConfig.image.name
     );
     if (!dockerImageDetails) {
         return;
@@ -1198,7 +1198,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
         serviceConfig.docker.organization,
-        serviceConfig.docker.image.name
+        serviceConfig.image.name
     );
     if (!dockerImageDetails) {
         return;
@@ -1406,9 +1406,6 @@ function _getDockerImagePath (in_serviceConfig) {
             name: 'STRING'
         },
         docker: {
-            image: {
-                name: 'STRING'
-            },
             organization: 'STRING'
         }
     });
@@ -1421,7 +1418,7 @@ function _getDockerImagePath (in_serviceConfig) {
     let dockerImageDetails = _getDockerImageDetails(
         in_serviceConfig,
         serviceConfig.docker.organization,
-        serviceConfig.docker.image.name
+        serviceConfig.image.name
     );
     if (!dockerImageDetails) {
         return;

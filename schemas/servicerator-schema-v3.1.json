@@ -573,18 +573,18 @@
             "additionalProperties": false,
             "properties": {
                 "bucket": {
-                    "type": "object",
                     "properties": {
                         "name": {
                             "type": "string"
                         },
-                        "username": {
-                            "type": "string"
-                        },
                         "region": {
                             "type": "string"
+                        },
+                        "username": {
+                            "type": "string"
                         }
-                    }
+                    },
+                    "type": "object"
                 },
                 "clusters": {
                     "description": "A list of clusters for the service",

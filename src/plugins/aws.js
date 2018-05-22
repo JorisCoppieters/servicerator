@@ -25,11 +25,9 @@ let sync = require('../utils/sync');
 function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
-        docker: {
-            image: {
-                name: 'STRING',
-                version: 'STRING'
-            }
+        image: {
+            name: 'STRING',
+            version: 'STRING'
         },
         service: {
             clusters: [
@@ -299,10 +297,10 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
 function awsTagDockerImage(in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        image: {
+            name: 'STRING'
+        },
         docker: {
-            image: {
-                name: 'STRING'
-            },
             organization: 'STRING'
         }
     });
@@ -322,7 +320,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -337,7 +335,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
     }
 
     let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
-    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageName = serviceConfig.image.name;
     let dockerImagePath = dockerRepositoryStore + '/' + dockerImageName;
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
@@ -378,10 +376,8 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
 
 function awsPushDockerImage(in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         }
     });
 
@@ -408,7 +404,7 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    if (!serviceConfig.docker.image.name) {
+    if (!serviceConfig.image.name) {
         cprint.yellow('Docker Image name not set');
         return;
     }
@@ -423,7 +419,7 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
     }
 
     let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
-    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageName = serviceConfig.image.name;
     let dockerImagePath = dockerRepositoryStore + '/' + dockerImageName;
 
     let tasks = [
@@ -1216,10 +1212,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
 function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         },
         service: {
             clusters: [
@@ -1270,7 +1264,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageName = serviceConfig.image.name;
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -1771,10 +1765,8 @@ function awsCreateDeliveryStructure (in_serviceConfig, in_environment) {
 function awsCreateRepository (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         },
         service: {
             clusters: [
@@ -1921,7 +1913,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageName = serviceConfig.image.name;
     if (!dockerImageName) {
         cprint.yellow('Docker image name not set');
         return false;
@@ -1937,7 +1929,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerImageVersion = serviceConfig.docker.image.version || '1.0.0';
+    let dockerImageVersion = serviceConfig.image.version || '1.0.0';
 
     let awsTaskDefinitionName = cluster.task_definition.name;
     if (!awsTaskDefinitionName) {
@@ -2638,10 +2630,8 @@ function awsCleanInfrastructure (in_serviceConfig, in_environment) {
 function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         },
         service: {
             clusters: [
@@ -2760,10 +2750,8 @@ function awsCleanDeliveryStructure (in_serviceConfig, in_environment) {
 function awsCleanRepository (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment),{
         cwd: 'STRING',
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         },
         service: {
             clusters: [
@@ -2795,7 +2783,7 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageName = serviceConfig.image.name;
     if (!dockerImageName) {
         cprint.yellow('Docker image name not set');
         return false;
@@ -2934,10 +2922,8 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
 function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         },
         service: {
             clusters: [
@@ -3819,10 +3805,8 @@ function awsViewDeliveryStructure (in_serviceConfig, in_environment) {
 
 function awsViewRepository (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
-        docker: {
-            image: {
-                name: 'STRING'
-            }
+        image: {
+            name: 'STRING'
         },
         service: {
             clusters: [
@@ -3839,7 +3823,7 @@ function awsViewRepository (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerImageName = serviceConfig.docker.image.name;
+    let dockerImageName = serviceConfig.image.name;
     if (!dockerImageName) {
         cprint.yellow('Docker image name not set');
         return false;

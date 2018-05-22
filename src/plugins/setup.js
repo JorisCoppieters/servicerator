@@ -10,7 +10,6 @@ let docker = require('../utils/docker');
 let fs = require('../utils/filesystem');
 let git = require('../utils/git');
 let hg = require('../utils/mercurial');
-let nginx = require('../utils/nginx');
 let object = require('../utils/object');
 let service = require('../utils/service');
 
@@ -25,20 +24,6 @@ function setupFolder (in_serviceConfig, in_overwrite) {
             source: 'STRING',
             type: 'STRING',
             version: 'STRING'
-        },
-        corpus: {},
-        docker: {
-            image: {
-                nginx: {
-                    servers: [
-                        {}
-                    ],
-                    daemon_off: 'BOOLEAN'
-                },
-                log: 'BOOLEAN',
-                language: 'STRING',
-                base: 'STRING'
-            }
         },
         version_control: {
             type: 'STRING',

@@ -6,10 +6,6 @@
         "$schema": {
             "type": "string"
         },
-        "__cwd": {
-            "description": "Private setting, don't set this directly",
-            "type": "string"
-        },
         "auth": {
             "additionalProperties": false,
             "description": "This section configures how to generate the certificates and private keys",
@@ -35,6 +31,14 @@
                 "rootCAKey": {
                     "description": "The path to the root private key",
                     "type": "string"
+                },
+                "type": {
+                    "default": "self-signed",
+                    "description": "The type of authentication",
+                    "enum": [
+                        "self-signed"
+                    ],
+                    "type": "string"
                 }
             },
             "required": [
@@ -43,40 +47,246 @@
             ],
             "type": "object"
         },
-        "aws": {
+        "corpus": {
             "additionalProperties": false,
+            "description": "Specify the corpus information",
             "properties": {
-                "__allow_prod_access__": {
-                    "description": "Private setting, don't set this directly",
-                    "type": "boolean"
-                },
-                "access_key": {
-                    "description": "The AWS Access Key associated with a user",
-                    "type": "string"
-                },
-                "account_id": {
-                    "description": "The AWS account id",
-                    "type": "number"
-                },
-                "profile": {
-                    "default": "default",
-                    "description": "The AWS profile to use",
-                    "type": "string"
-                },
-                "region": {
-                    "default": "ap-southeast-2",
-                    "description": "The AWS region to use ",
-                    "type": "string"
-                },
-                "secret_key": {
-                    "description": "The AWS Secret Key associated with a user",
+                "version": {
+                    "description": "The version of the corpus data",
                     "type": "string"
                 }
             },
             "required": [
-                "account_id"
+                "version"
             ],
             "type": "object"
+        },
+        "__cwd": {
+            "description": "Private setting, don't set this directly",
+            "type": "string"
+        },
+        "cwd": {
+            "deprecated": true,
+            "description": "DEPRECATED",
+            "type": "string"
+        },
+        "docker": {
+            "additionalProperties": false,
+            "properties": {
+                "build_folder": {
+                    "description": "The folder containing the Dockerfile",
+                    "type": "string"
+                },
+                "organization": {
+                    "description": "The organization associated with the docker account",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "The docker password associated with the docker account",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "The docker user name associated with the docker account",
+                    "type": "string"
+                }
+            },
+            "type": "object"
+        },
+        "containers": {
+            "description": "A list of containers for the service",
+            "items": {
+                "additionalProperties": false,
+                "properties": {
+                    "start_command": {
+                        "description": "The start up command that will run when container starts",
+                        "type": "string"
+                    },
+                    "test_start_command": {
+                        "description": "The start up command that will run when container starts in test mode",
+                        "type": "string"
+                    },
+                    "cpu_core_count": {
+                        "default": 1,
+                        "description": "The number of CPU cores available to the container",
+                        "type": "number"
+                    },
+                    "environment_variables": {
+                        "description": "A list of environment variables set for this container",
+                        "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                                "key": {
+                                    "type": "string"
+                                },
+                                "local": {
+                                    "description": "If local is true, use this only when running via servicerator otherwise use it within a task definition",
+                                    "type": "boolean"
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "key",
+                                "value"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "image": {
+                        "description": "The image name associated with this container, leave empty to refer to the current service image",
+                        "type": "string"
+                    },
+                    "memory_limit": {
+                        "default": 700,
+                        "description": "The memory available to the container (in megabytes)",
+                        "type": "number"
+                    },
+                    "ports": {
+                        "description": "A list of port bindings set for this container, define local dev bindings here as well as task definition bindings",
+                        "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                                "container": {
+                                    "default": 5000,
+                                    "description": "The exposed port on the container",
+                                    "type": "number"
+                                },
+                                "description": {
+                                    "description": "A description for the binding",
+                                    "type": "string"
+                                },
+                                "host": {
+                                    "default": 80,
+                                    "description": "The port to use on the host machine",
+                                    "type": "number"
+                                },
+                                "local": {
+                                    "description": "If local is true, use this only when running via servicerator otherwise use it within a task definition",
+                                    "type": "boolean"
+                                }
+                            },
+                            "required": [
+                                "container",
+                                "host"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "volumes": {
+                        "description": "A list of volume mounts set for this container, define local dev volume mounts here as well as task definition volume mounts",
+                        "items": {
+                            "additionalProperties": true,
+                            "properties": {
+                                "container": {
+                                    "description": "The volume name within the container",
+                                    "type": "string"
+                                },
+                                "host": {
+                                    "description": "The full path of the host volume",
+                                    "type": "string"
+                                },
+                                "local": {
+                                    "description": "If local is true, use this only when running via servicerator otherwise use it within a task definition",
+                                    "type": "boolean"
+                                },
+                                "name": {
+                                    "description": "The name of this volume mount",
+                                    "type": "string"
+                                },
+                                "read_only": {
+                                    "default": false,
+                                    "description": "Set if volume is read only",
+                                    "type": "boolean"
+                                }
+                            },
+                            "required": [
+                                "container",
+                                "host"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "image"
+                ],
+                "type": "object"
+            },
+            "type": "array"
+        },
+        "image": {
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "tag_with_date": {
+                    "type": "boolean"
+                },
+                "tag_with_revision": {
+                    "type": "boolean"
+                },
+                "tags": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "type": "object"
+        },
+        "tests": {
+            "items": {
+                "additionalProperties": false,
+                "properties": {
+                    "expected": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "request_data": {
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "type": "array"
+        },
+        "model": {
+            "additionalProperties": false,
+            "properties": {
+                "version": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "type"
+            ],
+            "type": "object"
+        },
+        "schema_version": {
+            "type": "number"
         },
         "clusters": {
             "description": "A list of clusters for the service",
@@ -109,18 +319,113 @@
                         ],
                         "type": "object"
                     },
+                    "aws": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "access_key": {
+                                "description": "The AWS Access Key associated with a user",
+                                "type": "string"
+                            },
+                            "account_id": {
+                                "description": "The AWS account id",
+                                "type": "number"
+                            },
+                            "profile": {
+                                "default": "default",
+                                "description": "The AWS profile to use",
+                                "type": "string"
+                            },
+                            "region": {
+                                "default": "ap-southeast-2",
+                                "description": "The AWS region to use",
+                                "enum": [
+                                    "us-east-2",
+                                    "us-east-1",
+                                    "us-west-1",
+                                    "us-west-2",
+                                    "ca-central-1",
+                                    "ap-south-1",
+                                    "ap-northeast-2",
+                                    "ap-southeast-1",
+                                    "ap-southeast-2",
+                                    "ap-northeast-1",
+                                    "cn-north-1",
+                                    "cn-northwest-1",
+                                    "eu-central-1",
+                                    "eu-west-1",
+                                    "eu-west-2",
+                                    "eu-west-3",
+                                    "sa-east-1"
+                                ],
+                                "type": "string"
+                            },
+                            "secret_key": {
+                                "description": "The AWS Secret Key associated with a user",
+                                "type": "string"
+                            },
+                            "bucket": {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "description": "The bucket name, without the s3:// prefix",
+                                        "type": "string"
+                                    },
+                                    "permissions": {
+                                        "description": "The permissions that should be associated with the username",
+                                        "items": {
+                                            "default": "read",
+                                            "enum": [
+                                                "read",
+                                                "write",
+                                                "list"
+                                            ],
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "region": {
+                                        "default": "ap-southeast-2",
+                                        "description": "The region of the bucket",
+                                        "enum": [
+                                            "us-east-2",
+                                            "us-east-1",
+                                            "us-west-1",
+                                            "us-west-2",
+                                            "ca-central-1",
+                                            "ap-south-1",
+                                            "ap-northeast-2",
+                                            "ap-southeast-1",
+                                            "ap-southeast-2",
+                                            "ap-northeast-1",
+                                            "cn-north-1",
+                                            "cn-northwest-1",
+                                            "eu-central-1",
+                                            "eu-west-1",
+                                            "eu-west-2",
+                                            "eu-west-3",
+                                            "sa-east-1"
+                                        ],
+                                        "type": "string"
+                                    },
+                                    "username": {
+                                        "description": "The bucket user that has read access to the bucket",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name"
+                                ],
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    },
                     "default": {
                         "description": "Specifiy if this is the default cluster you would deploy too when not providing a specific cluster as an argument",
                         "type": "boolean"
                     },
                     "environment": {
                         "description": "The name of the cluster environment",
-                        "enum": [
-                            "production",
-                            "stage",
-                            "test",
-                            "development"
-                        ],
                         "type": "string"
                     },
                     "identity_file": {
@@ -131,8 +436,14 @@
                         "additionalProperties": false,
                         "properties": {
                             "ami": {
-                                "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance",
+                                "default": "ami-b88e7cda",
+                                "description": "The name or the Amazon Resource Name (ARN) of the instance profile associated with the IAM role for the instance, check https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI_launch_latest.html",
                                 "type": "string"
+                            },
+                            "assign_public_ip": {
+                                "default": false,
+                                "description": "Assign a public IP address to this instance",
+                                "type": "boolean"
                             },
                             "count": {
                                 "default": 1,
@@ -164,6 +475,7 @@
                                 "type": "array"
                             },
                             "type": {
+                                "default": "t2.micro",
                                 "description": "The instance type of the Amazon EC2 instance",
                                 "enum": [
                                     "t2.nano",
@@ -477,9 +789,22 @@
                         "description": "The name of this cluster",
                         "type": "string"
                     },
+                    "role": {
+                        "description": "The AWS role of the cluster service",
+                        "type": "string"
+                    },
                     "service_name": {
                         "description": "The name of the service running on the cluster",
                         "type": "string"
+                    },
+                    "task_definition": {
+                        "additionalProperties": false,
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
                     },
                     "url": {
                         "description": "The URL for the service in this cluster",
@@ -493,195 +818,6 @@
                 "type": "object"
             },
             "type": "array"
-        },
-        "containers": {
-            "description": "A list of containers for the service",
-            "items": {
-                "additionalProperties": false,
-                "properties": {
-                    "cpu_core_count": {
-                        "default": 1,
-                        "description": "The number of CPU cores available to the container",
-                        "type": "number"
-                    },
-                    "environment_variables": {
-                        "description": "A list of environment variables set for this container",
-                        "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "key": {
-                                    "type": "string"
-                                },
-                                "value": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "key",
-                                "value"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "image": {
-                        "description": "The image name associated with this container, leave empty to refer to the current service image",
-                        "type": "string"
-                    },
-                    "memory_limit": {
-                        "default": 700,
-                        "description": "The memory available to the container (in megabytes)",
-                        "type": "number"
-                    },
-                    "ports": {
-                        "description": "A list of port bindings set for this container, define local dev bindings here as well as task definition bindings",
-                        "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "container": {
-                                    "default": 5000,
-                                    "description": "The exposed port on the container",
-                                    "type": "number"
-                                },
-                                "description": {
-                                    "description": "A description for the binding",
-                                    "type": "string"
-                                },
-                                "host": {
-                                    "default": 80,
-                                    "description": "The port to use on the host machine",
-                                    "type": "number"
-                                },
-                                "test": {
-                                    "description": "If test is true, use this as a dev binding, if false use it for a task definition binding",
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "container",
-                                "host"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    },
-                    "start_command": {
-                        "description": "The start up command that will run when container starts",
-                        "type": "string"
-                    },
-                    "test_start_command": {
-                        "description": "The start up command that will run when container starts in test mode",
-                        "type": "string"
-                    },
-                    "volumes": {
-                        "description": "A list of volume mounts set for this container, define local dev volume mounts here as well as task definition volume mounts",
-                        "items": {
-                            "additionalProperties": false,
-                            "properties": {
-                                "container": {
-                                    "description": "The volume name within the container",
-                                    "type": "string"
-                                },
-                                "host": {
-                                    "description": "The full path of the host volume",
-                                    "type": "string"
-                                },
-                                "name": {
-                                    "description": "The name of this volume mount",
-                                    "type": "string"
-                                },
-                                "read_only": {
-                                    "default": false,
-                                    "description": "Set if volume is read only",
-                                    "type": "boolean"
-                                },
-                                "test": {
-                                    "description": "If test is true, use this as a dev volume mount, if false use it for a task definition volume mount",
-                                    "type": "boolean"
-                                }
-                            },
-                            "required": [
-                                "container",
-                                "host"
-                            ],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "image"
-                ],
-                "type": "object"
-            },
-            "type": "array"
-        },
-        "corpus": {
-            "additionalProperties": false,
-            "description": "Specify the corpus information",
-            "properties": {
-                "version": {
-                    "description": "The version of the corpus data",
-                    "type": "string"
-                }
-            },
-            "required": [
-                "version"
-            ],
-            "type": "object"
-        },
-        "cwd": {
-            "deprecated": true,
-            "description": "DEPRECATED",
-            "type": "string"
-        },
-        "docker": {
-            "additionalProperties": false,
-            "properties": {
-                "build_folder": {
-                    "description": "The folder containing the Dockerfile",
-                    "type": "string"
-                },
-                "organization": {
-                    "description": "The organization associated with the docker account",
-                    "type": "string"
-                },
-                "password": {
-                    "description": "The docker password associated with the docker account",
-                    "type": "string"
-                },
-                "repositories": {
-                    "description": "A list of docker repositories to push to and pull from",
-                    "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                            "type": {
-                                "default": "DockerHub",
-                                "description": "The type of docker repository",
-                                "enum": [
-                                    "AWS",
-                                    "DockerHub"
-                                ],
-                                "type": "string"
-                            },
-                            "url": {
-                                "description": "The URL of the docker repository",
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "type"
-                        ],
-                        "type": "object"
-                    },
-                    "type": "array"
-                },
-                "username": {
-                    "description": "The docker user name associated with the docker account",
-                    "type": "string"
-                }
-            },
-            "type": "object"
         },
         "fileSystem": {
             "description": "Set up file system hooks",
@@ -743,54 +879,6 @@
             },
             "type": "array"
         },
-        "image": {
-            "additionalProperties": false,
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "tag_with_date": {
-                    "type": "boolean"
-                },
-                "tag_with_revision": {
-                    "type": "boolean"
-                },
-                "tags": {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": [
-                "name"
-            ],
-            "type": "object"
-        },
-        "model": {
-            "additionalProperties": false,
-            "properties": {
-                "bucket": {
-                    "type": "string"
-                },
-                "source": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            },
-            "required": [
-                "type"
-            ],
-            "type": "object"
-        },
-        "schema_version": {
-            "type": "number"
-        },
         "service": {
             "additionalProperties": false,
             "properties": {
@@ -817,46 +905,6 @@
                         "cmd"
                     ],
                     "type": "object"
-                },
-                "task_definition": {
-                    "additionalProperties": false,
-                    "properties": {
-                        "name": {
-                            "type": "string"
-                        }
-                    },
-                    "type": "object"
-                },
-                "tests": {
-                    "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                            "expected": {
-                                "type": "string"
-                            },
-                            "method": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "request_data": {
-                                "type": "object"
-                            },
-                            "type": {
-                                "type": "string"
-                            },
-                            "url": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "type",
-                            "name"
-                        ],
-                        "type": "object"
-                    },
-                    "type": "array"
                 },
                 "version": {
                     "type": "string"
