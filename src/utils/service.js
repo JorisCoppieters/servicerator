@@ -969,7 +969,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         serviceConfigChanged = _upgradeServiceConfigFrom3_5To3_6(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
-            // requiresSave = true;
+            requiresSave = true;
         }
     }
 
@@ -979,7 +979,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
     if (!schemaVersion || schemaVersion < scriptSchemaVersion) {
         newServiceConfig.schema_version = scriptSchemaVersion;
         newServiceConfig.$schema = scriptSchema;
-        // requiresSave = true;
+        requiresSave = true;
     }
 
     if (requiresSave) {
