@@ -314,10 +314,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
     }, 'replaceServiceConfigReferences');
 
     let fsCore = require('fs');
-
     let sourceFolder = serviceConfig.cwd || '.';
     sourceFolder = fsCore.realpathSync(sourceFolder);
-
     sourceFolder = sourceFolder.replace(new RegExp('\\\\', 'g'), '/');
 
     let replacements = {
@@ -326,9 +324,14 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         'WORKING_DIR': `${sourceFolder}`,
         'SERVICE_NAME': `${serviceConfig.service.name}`,
         'MODEL_VERSION': `${serviceConfig.model.version}`,
-        'MODEL_BUCKET': `${serviceConfig.model.bucket.name}`,
         'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`
     };
+
+    let clusters = serviceConfig.service.clusters || [];
+    let firstCluster = clusters[0] || {};
+    if (firstCluster && firstCluster.aws  && firstCluster.aws.bucket) {
+        replacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
+    }
 
     if (in_replacements) {
         Object.keys(in_replacements).forEach(k => {
@@ -966,7 +969,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         serviceConfigChanged = _upgradeServiceConfigFrom3_5To3_6(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
-            // requiresSave = true;
+            requiresSave = true;
         }
     }
 
@@ -976,7 +979,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
     if (!schemaVersion || schemaVersion < scriptSchemaVersion) {
         newServiceConfig.schema_version = scriptSchemaVersion;
         newServiceConfig.$schema = scriptSchema;
-        // requiresSave = true;
+        requiresSave = true;
     }
 
     if (requiresSave) {
@@ -1201,6 +1204,12 @@ function _upgradeServiceConfigFrom3_5To3_6 (in_serviceConfig) {
     if (in_serviceConfig.aws) {
         in_serviceConfig.service = in_serviceConfig.service || {};
         in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+        if (in_serviceConfig.service.clusters.length === 0) {
+            in_serviceConfig.service.clusters.push({
+                'default': true,
+                'environment': 'main'
+            });
+        }
         in_serviceConfig.service.clusters.forEach(cluster => {
             cluster.aws = Object.assign({}, in_serviceConfig.aws);
         });
@@ -1211,6 +1220,12 @@ function _upgradeServiceConfigFrom3_5To3_6 (in_serviceConfig) {
     if (in_serviceConfig.service) {
         if (in_serviceConfig.service.task_definition) {
             in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+            if (in_serviceConfig.service.clusters.length === 0) {
+                in_serviceConfig.service.clusters.push({
+                    'default': true,
+                    'environment': 'main'
+                });
+            }
             in_serviceConfig.service.clusters.forEach(cluster => {
                 cluster.task_definition = Object.assign({}, in_serviceConfig.service.task_definition);
             });
@@ -1222,6 +1237,12 @@ function _upgradeServiceConfigFrom3_5To3_6 (in_serviceConfig) {
         if (in_serviceConfig.model.bucket) {
             in_serviceConfig.service = in_serviceConfig.service || {};
             in_serviceConfig.service.clusters = in_serviceConfig.service.clusters || [];
+            if (in_serviceConfig.service.clusters.length === 0) {
+                in_serviceConfig.service.clusters.push({
+                    'default': true,
+                    'environment': 'main'
+                });
+            }
             in_serviceConfig.service.clusters.forEach(cluster => {
                 cluster.aws = cluster.aws || {};
                 cluster.aws.bucket = Object.assign({}, in_serviceConfig.model.bucket);
