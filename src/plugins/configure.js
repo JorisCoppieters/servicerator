@@ -17,7 +17,6 @@ function showAllWizard (in_serviceConfig) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
-                base: 'STRING',
                 name: 'STRING',
                 version: 'STRING'
             }
@@ -29,11 +28,6 @@ function showAllWizard (in_serviceConfig) {
     });
 
     let questions = [
-        {
-            prompt: 'What is your docker base image',
-            currentValue: serviceConfig.docker.image.base,
-            path: 'docker.image.base'
-        },
         {
             prompt: 'What is your docker image name',
             currentValue: serviceConfig.docker.image.name,

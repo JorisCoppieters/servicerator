@@ -17,7 +17,6 @@ function getIgnoreFileContents (in_serviceConfig) {
         model: {},
         docker: {
             image: {
-                language: 'STRING',
                 log: 'BOOLEAN'
             }
         },
@@ -39,14 +38,6 @@ function getIgnoreFileContents (in_serviceConfig) {
     let ignoreFiles = [
         '.cache'
     ];
-
-    if (serviceConfig.docker.image.language === 'node') {
-        ignoreFiles.push(dockerRelativePath + 'node/node_modules/*');
-    }
-
-    if (serviceConfig.docker.image.language === 'python') {
-        ignoreFiles.push(dockerRelativePath + 'python/*.pyc');
-    }
 
     if (serviceConfig.docker.image.log) {
         ignoreFiles.push(dockerRelativePath + 'logs/*');

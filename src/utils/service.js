@@ -6,6 +6,9 @@
 
 let cprint = require('color-print');
 
+let aws = require('./aws');
+let cache = require('./cache');
+let date = require('./date');
 let docker = require('./docker');
 let env = require('./env');
 let fs = require('./filesystem');
@@ -294,7 +297,8 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
                     aws: {
                         bucket: {
                             name: 'STRING'
-                        }
+                        },
+                        service_role: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -329,8 +333,21 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
 
     let clusters = serviceConfig.service.clusters || [];
     let firstCluster = clusters[0] || {};
-    if (firstCluster && firstCluster.aws  && firstCluster.aws.bucket) {
-        replacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
+    if (firstCluster && firstCluster.aws) {
+        if (firstCluster.aws.bucket) {
+            replacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
+        }
+
+        let roleCredentials = getAWSAssumedRoleCredentials(in_serviceConfig);
+        if (roleCredentials) {
+            replacements['AWS_ACCESS_KEY_ID'] = roleCredentials['AccessKeyId'];
+            replacements['AWS_SECRET_ACCESS_KEY'] = roleCredentials['SecretAccessKey'];
+            replacements['AWS_SESSION_TOKEN'] = roleCredentials['SessionToken'];
+        } else {
+            replacements['AWS_ACCESS_KEY_ID'] = '';
+            replacements['AWS_SECRET_ACCESS_KEY'] = '';
+            replacements['AWS_SESSION_TOKEN'] = '';
+        }
     }
 
     if (in_replacements) {
@@ -347,6 +364,76 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
     });
 
     return replaced;
+}
+
+// ******************************
+
+function getAWSAssumedRoleCredentials(in_serviceConfig) {
+    let serviceConfig = accessServiceConfig(in_serviceConfig, {
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        service_role: 'STRING',
+                        profile: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let clusters = serviceConfig.service.clusters || [];
+    let firstCluster = clusters[0] || {};
+    if (!firstCluster) {
+        return;
+    }
+
+    let awsRoleName = firstCluster.aws.service_role;
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws') || {};
+    let caceKey = 'TryAssumeRole_' + awsRoleName;
+    let cacheItem = awsCache[caceKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    awsCache[caceKey] = {
+        val: false,
+        expires: date.getTimestamp() + 3600 * 1000 // 1 hour
+    };
+    if (hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    let awsRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
+        cache: awsCache,
+        profile: firstCluster.aws.profile
+    });
+    if (!awsRoleArn) {
+        return;
+    }
+
+    let roleCredentials = aws.getRoleCredentials(awsRoleArn, {
+        cache: awsCache,
+        profile: firstCluster.aws.profile
+    });
+    if (!roleCredentials) {
+        return;
+    }
+
+    awsCache[caceKey] = {
+        val: roleCredentials,
+        expires: date.getTimestamp() + 3600 * 1000 // 1 hour
+    };
+    if (hasServiceConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    return roleCredentials;
 }
 
 // ******************************
@@ -447,24 +534,10 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    // let nginxFile = false;
-
-    // let dockerFolder = docker.getFolder(sourceFolder);
-    // if (dockerFolder) {
-    //     nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-    // }
-
     opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
 
     let filePath = path.resolve(sourceFolder, serviceFile.path);
     filePath = replaceServiceConfigReferences(in_serviceConfig, filePath);
-
-    // if (filePath === nginxFile) {
-    //     if (!opt.suppressOutput) {
-    //         cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
-    //     }
-    //     return;
-    // }
 
     let fileFolder = path.dirname(filePath);
     if (!fs.folderExists(fileFolder)) {
@@ -504,13 +577,6 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    // let nginxFile = false;
-
-    // let dockerFolder = docker.getFolder(sourceFolder);
-    // if (dockerFolder) {
-    //     nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-    // }
-
     opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
 
     let source = path.resolve(sourceFolder, serviceFile.source);
@@ -518,13 +584,6 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let destination = path.resolve(sourceFolder, serviceFile.destination);
     destination = replaceServiceConfigReferences(in_serviceConfig, destination);
-
-    // if (destination === nginxFile) {
-    //     if (!opt.suppressOutput) {
-    //         cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
-    //     }
-    //     return;
-    // }
 
     let fileFolder = path.dirname(destination);
     if (!fs.folderExists(fileFolder)) {
@@ -560,13 +619,6 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    // let nginxFile = false;
-
-    // let dockerFolder = docker.getFolder(sourceFolder);
-    // if (dockerFolder) {
-    //     nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-    // }
-
     opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
 
     let source = path.resolve(sourceFolder, serviceFile.source);
@@ -574,13 +626,6 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let destination = path.resolve(sourceFolder, serviceFile.destination);
     destination = replaceServiceConfigReferences(in_serviceConfig, destination);
-
-    // if (destination === nginxFile) {
-    //     if (!opt.suppressOutput) {
-    //         cprint.yellow('  WARNING: Use the nginx option in the schema to generate the nginx.conf file')
-    //     }
-    //     return;
-    // }
 
     let fileFolder = path.dirname(destination);
     if (!fs.folderExists(fileFolder)) {
@@ -973,6 +1018,14 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (schemaVersion < 3.7) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_6To3_7(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
@@ -1256,6 +1309,70 @@ function _upgradeServiceConfigFrom3_5To3_6 (in_serviceConfig) {
         if (in_serviceConfig.docker.other_repositories) {
             delete in_serviceConfig.docker.other_repositories;
             hasBeenUpdated = true;
+        }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _upgradeServiceConfigFrom3_6To3_7 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.docker) {
+        if (in_serviceConfig.docker.image) {
+            if (in_serviceConfig.docker.image.name) {
+                if (in_serviceConfig.service) {
+                    if (in_serviceConfig.service.clusters && in_serviceConfig.service.clusters.length) {
+                        in_serviceConfig.service.clusters.forEach(cluster => {
+                            cluster.aws = cluster.aws || {};
+                            cluster.aws.image = cluster.aws.image || {};
+                            cluster.aws.image.name = in_serviceConfig.docker.image.name;
+                            hasBeenUpdated = true;
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    if (in_serviceConfig.docker) {
+        if (in_serviceConfig.docker.image) {
+            if (in_serviceConfig.docker.image.base) {
+                delete in_serviceConfig.docker.image.base;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.env_variables) {
+                delete in_serviceConfig.docker.image.env_variables;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.ignore) {
+                delete in_serviceConfig.docker.image.ignore;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.language) {
+                delete in_serviceConfig.docker.image.language;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.nginx) {
+                delete in_serviceConfig.docker.image.nginx;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.operations) {
+                delete in_serviceConfig.docker.image.operations;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.scripts) {
+                delete in_serviceConfig.docker.image.scripts;
+                hasBeenUpdated = true;
+            }
         }
     }
 

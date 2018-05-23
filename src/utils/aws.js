@@ -1225,6 +1225,59 @@ function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, 
 // IAM Role Functions:
 // ******************************
 
+function getRoleCredentials (in_roleArn, in_options) {
+    let opt = in_options || {};
+
+    if (opt.verbose) {
+        cprint.cyan('Assuming credentials for AWS Role ARN "' + in_roleArn + '"...');
+    }
+
+    let cache = opt.cache || {};
+    let cacheKey = 'RoleAssumedCredentials_' + in_roleArn;
+    let cacheItem = cache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    let cmdResult = awsCmd([
+        'sts',
+        'assume-role',
+        '--role-arn', in_roleArn,
+        '--role-session-name', 'servicerator'
+    ], {
+        hide: !opt.verbose,
+        profile: opt.profile
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let awsRoleAssumedCredentials;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.Credentials) {
+        awsRoleAssumedCredentials = awsResult.Credentials;
+    }
+
+    if (!awsRoleAssumedCredentials) {
+        if (opt.showWarning) {
+            cprint.yellow('Couldn\'t assume credentials for AWS Role ARN "' + in_roleArn + '"');
+        }
+        return false;
+    }
+
+    cache[cacheKey] = {
+        val: awsRoleAssumedCredentials,
+        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+    };
+
+    return awsRoleAssumedCredentials;
+}
+
+// ******************************
+
 function getRoleArnForRoleName (in_roleName, in_options) {
     let opt = in_options || {};
 
@@ -1233,7 +1286,8 @@ function getRoleArnForRoleName (in_roleName, in_options) {
     }
 
     let cache = opt.cache || {};
-    let cacheItem = cache['RoleArn_' + in_roleName];
+    let cacheKey = 'RoleArn_' + in_roleName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1259,6 +1313,10 @@ function getRoleArnForRoleName (in_roleName, in_options) {
             .sort()
             .reverse()
             .find(obj => obj.RoleName === in_roleName);
+
+        if (awsRoleArn) {
+            awsRoleArn = awsRoleArn.Arn;
+        }
     }
 
     if (!awsRoleArn) {
@@ -1268,7 +1326,7 @@ function getRoleArnForRoleName (in_roleName, in_options) {
         return false;
     }
 
-    cache['RoleArn_' + in_roleName] = {
+    cache[cacheKey] = {
         val: awsRoleArn,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -1366,6 +1424,122 @@ function addRoleToInstanceProfile (in_instanceProfileName, in_roleName, in_optio
 
 // ******************************
 // IAM User Functions:
+// ******************************
+
+function getMultiFactorAuthDevice (in_opts, in_awsCache) {
+    let opts = in_opts || {};
+
+    let profile = opts.profile;
+    let longTermProfile = opts.longTermProfile;
+
+    let awsCache = in_awsCache || {};
+    let cacheKey = profile + '-mfa-device';
+    if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
+        return awsCache[cacheKey].val;
+    }
+
+    let username = getAwsUsername(in_opts, in_awsCache);
+
+    // First try with long term profile if present
+    let awsCmdResult = awsCmd([
+        'iam',
+        'list-mfa-devices',
+        '--max-items', 1,
+        '--user-name', username
+    ], {
+        hide: true,
+        profile: longTermProfile
+    });
+
+    // Otherwise try with normal profile if present
+    if (awsCmdResult.hasError) {
+        awsCmdResult = awsCmd([
+            'iam',
+            'list-mfa-devices',
+            '--max-items', 1,
+            '--user-name', username
+        ], {
+            hide: true,
+            profile: profile
+        });
+    }
+
+    if (awsCmdResult.hasError) {
+        awsCmdResult.printError('  ');
+        return;
+    }
+
+    let mfaDevicesResponse = JSON.parse(awsCmdResult.result);
+    if (!mfaDevicesResponse || !mfaDevicesResponse.MFADevices) {
+        return;
+    }
+
+    let mfaDevice = mfaDevicesResponse.MFADevices.shift();
+    awsCache[cacheKey] = {
+        val: mfaDevice,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return mfaDevice;
+}
+
+// ******************************
+
+function getAwsUsername(in_opts, in_awsCache) {
+    let opts = in_opts || {};
+
+    let profile = opts.profile;
+    let longTermProfile = opts.longTermProfile;
+
+    let awsCache = in_awsCache || {};
+    let cacheKey = profile + '-username';
+    if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
+        return awsCache[cacheKey].val;
+    }
+
+    // First try with long term profile if present
+    let awsCmdResult = awsCmd([
+        'iam',
+        'list-access-keys',
+        '--max-items', 1
+    ], {
+        hide: true,
+        profile: longTermProfile
+    });
+
+    // Otherwise try with normal profile if present
+    if (awsCmdResult.hasError) {
+        awsCmdResult = awsCmd([
+            'iam',
+            'list-access-keys',
+            '--max-items', 1
+        ], {
+            hide: true,
+            profile: profile
+        });
+    }
+
+    if (awsCmdResult.hasError) {
+        awsCmdResult.printError('  ');
+        return;
+    }
+
+    let accessKeysResponse = JSON.parse(awsCmdResult.result);
+    if (!accessKeysResponse || !accessKeysResponse.AccessKeyMetadata) {
+        return;
+    }
+
+    let firstAccessKeyMetadata = accessKeysResponse.AccessKeyMetadata.shift();
+    let username = firstAccessKeyMetadata.UserName;
+
+    awsCache[cacheKey] = {
+        val: username,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return username;
+}
+
 // ******************************
 
 function getUserArnForUsername (in_username, in_options) {
@@ -1500,6 +1674,37 @@ function attachInlinePolicyToUser (in_username, in_inlinePolicyName, in_inlinePo
     cmdResult.printResult('  ');
     cprint.green('Attached Inline Policy To AWS User "' + in_username + '"');
     return true;
+}
+
+// ******************************
+// STS Functions:
+// ******************************
+
+function getSessionToken (in_profile, in_accountId, in_mfaArn) {
+    const MAX_TOKEN_PERIOD_IN_SECONDS = 129600; // 36 Hours
+
+    let tokenCode = readline.sync(`Please enter the current MFA token for account (#${in_accountId}): `);
+
+    let awsCmdResult = awsCmd([
+        'sts',
+        'get-session-token',
+        '--duration-seconds', MAX_TOKEN_PERIOD_IN_SECONDS,
+        '--serial-number', in_mfaArn,
+        '--token-code', tokenCode
+    ], {
+        hide: true,
+        profile: in_profile
+    });
+
+    if (awsCmdResult.hasError) {
+        awsCmdResult.printError('  ');
+        return;
+    }
+
+    let awsSessionToken = JSON.parse(awsCmdResult.result);
+    if (awsSessionToken && awsSessionToken.Credentials) {
+        return awsSessionToken.Credentials;
+    }
 }
 
 // ******************************
@@ -2020,61 +2225,6 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function getMultiFactorAuthDevice (in_opts, in_awsCache) {
-    let opts = in_opts || {};
-
-    let profile = opts.profile;
-    let longTermProfile = opts.longTermProfile;
-
-    let awsCache = in_awsCache || {};
-    let cacheKey = profile + '-mfa-device';
-    if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
-        return awsCache[cacheKey].val;
-    }
-
-    // First try with long term profile if present
-    let awsCmdResult = awsCmd([
-        'iam',
-        'list-mfa-devices',
-        '--max-items', 1
-    ], {
-        hide: true,
-        profile: longTermProfile
-    });
-
-    // Otherwise try with normal profile if present
-    if (awsCmdResult.hasError) {
-        awsCmdResult = awsCmd([
-            'iam',
-            'list-mfa-devices',
-            '--max-items', 1
-        ], {
-            hide: true,
-            profile: profile
-        });
-    }
-
-    if (awsCmdResult.hasError) {
-        awsCmdResult.printError('  ');
-        return;
-    }
-
-    let mfaDevicesResponse = JSON.parse(awsCmdResult.result);
-    if (!mfaDevicesResponse || !mfaDevicesResponse.MFADevices) {
-        return;
-    }
-
-    let mfaDevice = mfaDevicesResponse.MFADevices.shift();
-    awsCache[cacheKey] = {
-        val: mfaDevice,
-        expires: date.getTimestamp() + cache.durations.week
-    };
-
-    return mfaDevice;
-}
-
-// ******************************
-
 function configureMultiFactorAuth(in_opts) {
     let opts = in_opts || {};
 
@@ -2128,48 +2278,9 @@ function configureMultiFactorAuth(in_opts) {
     awsCredentials[profile].aws_secret_access_key = sessionToken.SecretAccessKey;
     awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
     awsCredentials[profile].aws_security_token = sessionToken.SessionToken;
-    awsCredentials[profile].expiration = formatSessionExpiration(sessionToken.Expiration);
+    awsCredentials[profile].expiration = _formatSessionExpiration(sessionToken.Expiration);
     ini.writeFile(opts.credentialsFile, awsCredentials);
     return true;
-}
-
-// ******************************
-
-function formatSessionExpiration(in_expiration) {
-    // Returns an ISO 8601 formatted date string sans the time zone Z and T date and time separator
-
-    let isoFormattedExpiration = new Date(in_expiration).toISOString();
-
-    return isoFormattedExpiration.replace('T', ' ').replace('.000Z', '');
-}
-
-// ******************************
-
-function getSessionToken (in_profile, in_accountId, in_mfaArn) {
-    const MAX_TOKEN_PERIOD_IN_SECONDS = 129600; // 36 Hours
-
-    let tokenCode = readline.sync(`Please enter the current MFA token for account (#${in_accountId}): `);
-
-    let awsCmdResult = awsCmd([
-        'sts',
-        'get-session-token',
-        '--duration-seconds', MAX_TOKEN_PERIOD_IN_SECONDS,
-        '--serial-number', in_mfaArn,
-        '--token-code', tokenCode
-    ], {
-        hide: true,
-        profile: in_profile
-    });
-
-    if (awsCmdResult.hasError) {
-        awsCmdResult.printError('  ');
-        return;
-    }
-
-    let awsSessionToken = JSON.parse(awsCmdResult.result);
-    if (awsSessionToken && awsSessionToken.Credentials) {
-        return awsSessionToken.Credentials;
-    }
 }
 
 // ******************************
@@ -2559,6 +2670,16 @@ function awsVersion (awsCmd) {
 }
 
 // ******************************
+// Helper Functions:
+// ******************************
+
+function _formatSessionExpiration(in_expiration) {
+    // Returns an ISO 8601 formatted date string sans the time zone Z and T date and time separator
+    let isoFormattedExpiration = new Date(in_expiration).toISOString();
+    return isoFormattedExpiration.replace('T', ' ').replace('.000Z', '');
+}
+
+// ******************************
 // Exports:
 // ******************************
 
@@ -2608,6 +2729,7 @@ module.exports['getLaunchConfigurationsLike'] = getLaunchConfigurationsLike;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
 module.exports['getRoleArnForRoleName'] = getRoleArnForRoleName;
+module.exports['getRoleCredentials'] = getRoleCredentials;
 module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getServiceConfig'] = getAwsServiceConfig;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;

@@ -462,14 +462,27 @@ function cleanDockerImages (in_serviceConfig, in_force) {
         return;
     }
 
-    let nonLatestImageTags = cmdResult.rows
+    let allImages = cmdResult.rows;
+
+    let nonLatestImageTags = allImages
         .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
         .filter(r => !r.match(/<none>/))
+        .map(r => r.split(/\t/)[0])
+        .filter(r => dockerImageTaggedPaths.indexOf(r) < 0);
+
+    let imageIds = allImages
+        .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
+        .map(r => r.split(/\t/)[1])
+        .reduce((unique, r) => { if (unique.indexOf(r) < 0) { unique.push(r); } return unique; }, []);
+
+    let otherImageTags = allImages
+        .filter(r => imageIds.indexOf(r.split(/\t/)[1]) >= 0)
         .filter(r => dockerImageTaggedPaths.indexOf(r.split(/\t/)[0]) < 0)
         .map(r => r.split(/\t/)[0]);
 
     let cleanImageTagsAndIds = []
         .concat(nonLatestImageTags || [])
+        .concat(otherImageTags || [])
         .concat(zombieDockerImageIds || []);
 
     if (!cleanImageTagsAndIds.length) {

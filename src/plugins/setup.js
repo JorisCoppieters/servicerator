@@ -10,7 +10,6 @@ let docker = require('../utils/docker');
 let fs = require('../utils/filesystem');
 let git = require('../utils/git');
 let hg = require('../utils/mercurial');
-let nginx = require('../utils/nginx');
 let object = require('../utils/object');
 let service = require('../utils/service');
 
@@ -29,15 +28,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
         corpus: {},
         docker: {
             image: {
-                nginx: {
-                    servers: [
-                        {}
-                    ],
-                    daemon_off: 'BOOLEAN'
-                },
-                log: 'BOOLEAN',
-                language: 'STRING',
-                base: 'STRING'
+                log: 'BOOLEAN'
             }
         },
         version_control: {
@@ -63,32 +54,6 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     let dockerFolder = docker.getFolder(sourceFolder);
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
         dockerFolder = sourceFolder;
-    }
-
-    if (serviceConfig.docker.image.base) {
-        let dockerFileContents = docker.getDockerfileContents(in_serviceConfig);
-        if (dockerFileContents) {
-            fs.setupFile('Dockerfile', path.resolve(dockerFolder, 'Dockerfile'), dockerFileContents, {
-                overwrite: in_overwrite
-            });
-        }
-
-        let dockerIgnoreFileContents = docker.getIgnoreDockerContents(in_serviceConfig);
-        if (dockerIgnoreFileContents) {
-            fs.setupFile('.dockerignore', path.resolve(dockerFolder, '.dockerignore'), dockerIgnoreFileContents, {
-                overwrite: in_overwrite
-            });
-        }
-    }
-
-    if (serviceConfig.docker.image.nginx && !object.isEmpty(serviceConfig.docker.image.nginx)) {
-        let nginxFile = path.resolve(dockerFolder, 'nginx.conf');
-        if (serviceConfig.docker.image.nginx.servers.length) {
-            let nginxFileContents = nginx.getFileContents(in_serviceConfig);
-            fs.setupFile('nginx.conf', nginxFile, nginxFileContents, {
-                overwrite: in_overwrite
-            });
-        }
     }
 
     let repositoryFolder = serviceConfig.version_control.root_folder;
@@ -121,11 +86,6 @@ function setupFolder (in_serviceConfig, in_overwrite) {
     // TODO: Shift to global setup file
     if (serviceConfig.docker.image.log) {
         fs.setupFolder('docker log', path.resolve(dockerFolder, 'logs'));
-    }
-
-    // TODO: Shift to global setup file
-    if (serviceConfig.docker.image.language === 'python') {
-        fs.setupFolder('docker python', path.resolve(dockerFolder, 'python'));
     }
 
     // TODO: Shift to global setup file
