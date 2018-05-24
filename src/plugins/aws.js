@@ -410,7 +410,9 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
 
 
     let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
-    let cmdResult = docker.cmd(args);
+    let cmdResult = docker.cmd(args, {
+        hide: true
+    });
 
     if (cmdResult.hasError) {
         cmdResult.printError('  ');

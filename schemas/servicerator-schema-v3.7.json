@@ -709,9 +709,6 @@
                                         "type": "array"
                                     }
                                 },
-                                "required": [
-                                    "ami"
-                                ],
                                 "type": "object"
                             },
                             "launch_configuration": {
