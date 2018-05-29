@@ -703,6 +703,8 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
 // ******************************
 
 function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
+    let opt = in_options || {};
+
     cprint.cyan('Deregistering AWS Task Definition "' + in_taskDefinitionArn + '"...');
 
     let cmdResult = awsCmd([
@@ -717,7 +719,9 @@ function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
         return false;
     }
 
-    cmdResult.printResult('  ');
+    if (opt.verbose) {
+        cmdResult.printResult('  ');
+    }
     cprint.green('Deregistered AWS Task Definition "' + in_taskDefinitionArn + '"');
     return true;
 }
@@ -1225,7 +1229,32 @@ function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, 
 // IAM Role Functions:
 // ******************************
 
-function getRoleCredentials (in_roleArn, in_options) {
+function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
+    let opt = in_options || {};
+
+    let awsRoleArn = getAWSRoleArnForRoleName(awsRoleName, {
+        cache: opt.cache,
+        profile: opt.profile
+    });
+    if (!awsRoleArn) {
+        return;
+    }
+
+    let roleCredentials = getAWSRoleCredentials(awsRoleArn, {
+        cache: opt.cache,
+        profile: opt.profile,
+        verbose: true
+    });
+    if (!roleCredentials) {
+        return;
+    }
+
+    return roleCredentials;
+}
+
+// ******************************
+
+function getAWSRoleCredentials (in_roleArn, in_options) {
     let opt = in_options || {};
 
     if (opt.verbose) {
@@ -1278,7 +1307,7 @@ function getRoleCredentials (in_roleArn, in_options) {
 
 // ******************************
 
-function getRoleArnForRoleName (in_roleName, in_options) {
+function getAWSRoleArnForRoleName (in_roleName, in_options) {
     let opt = in_options || {};
 
     if (opt.verbose) {
@@ -2548,6 +2577,13 @@ function clearCachedLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionN
 
 // ******************************
 
+function clearCachedPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_cache) {
+    let cache = in_cache || {};
+    cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName] = undefined;
+}
+
+// ******************************
+
 function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_cache) {
     let cache = in_cache || {};
     cache['DockerRepositoryImages_' + in_dockerRepositoryName] = undefined;
@@ -2693,6 +2729,7 @@ module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCach
 module.exports['clearCachedLatestTaskDefinitionArnForTaskDefinition'] = clearCachedLatestTaskDefinitionArnForTaskDefinition;
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;
 module.exports['clearCachedLaunchConfigurationsLike'] = clearCachedLaunchConfigurationsLike;
+module.exports['clearCachedPreviousTaskDefinitionArnsForTaskDefinition'] = clearCachedPreviousTaskDefinitionArnsForTaskDefinition;
 module.exports['clearCachedTaskDefinitionArnForTaskDefinition'] = clearCachedTaskDefinitionArnForTaskDefinition;
 module.exports['cmd'] = awsCmd;
 module.exports['createBucket'] = createBucket;
@@ -2707,6 +2744,7 @@ module.exports['deleteDockerRepositoryImages'] = deleteDockerRepositoryImages;
 module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
+module.exports['getAssumedRoleCredentials'] = getAWSAssumedRoleCredentials;
 module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
 module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
@@ -2728,8 +2766,8 @@ module.exports['getLaunchConfigurationLike'] = getLaunchConfigurationLike;
 module.exports['getLaunchConfigurationsLike'] = getLaunchConfigurationsLike;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
-module.exports['getRoleArnForRoleName'] = getRoleArnForRoleName;
-module.exports['getRoleCredentials'] = getRoleCredentials;
+module.exports['getRoleArnForRoleName'] = getAWSRoleArnForRoleName;
+module.exports['getRoleCredentials'] = getAWSRoleCredentials;
 module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getServiceConfig'] = getAwsServiceConfig;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;

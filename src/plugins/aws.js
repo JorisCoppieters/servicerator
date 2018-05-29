@@ -53,6 +53,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                             name: 'STRING'
                         }
                     },
+                    role: 'STRING',
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     name: 'STRING',
@@ -103,11 +104,12 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
+    let oldEnvironment = cluster.role === 'ecsServiceRole';
     let prefixedEnvironmentTitle = 'AWS ' + environmentTitle;
 
     cprint.magenta('-- AWS Docker --');
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -213,12 +215,14 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
             print.out('\n');
 
+            let oldServiceName = cluster.auto_scaling_group.name.replace('-prod-auto-scaling-group', '');
+
             if (in_extra) {
                 let instanceIds = aws.getInstanceIdsWithTags([
                     {
-                        key: 'Service',
+                        key: oldEnvironment ? 'ServiceName' : 'Service', // TODO - Remove environment specific code
                         vals: [
-                            serviceName
+                            oldEnvironment ? oldServiceName : serviceName  // TODO - Remove environment specific code
                         ]
                     },
                     {
@@ -362,7 +366,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -501,7 +505,7 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -680,12 +684,12 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
 // ******************************
 
-function awsDeployNewTaskDefinition (in_serviceConfig, in_stopTasks, in_environment) {
+function awsDeployNewTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_stopTasks, in_environment) {
     if (!awsPushDockerImage(in_serviceConfig, in_environment)) {
         return false;
     }
 
-    if (!awsCreateTaskDefinition(in_serviceConfig, in_environment)) {
+    if (!awsCreateTaskDefinition(in_serviceConfig, in_forceModelUpdate, in_environment)) {
         return;
     }
 
@@ -1847,7 +1851,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
 function awsCreateDeliveryStructure (in_serviceConfig, in_environment) {
     awsCreateRepository(in_serviceConfig, in_environment);
 
-    if (!awsCreateTaskDefinition(in_serviceConfig, in_environment)) {
+    if (!awsCreateTaskDefinition(in_serviceConfig, false, in_environment)) {
         return;
     }
 
@@ -1948,9 +1952,13 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
+function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
+        model: {
+            version: 'STRING',
+            dynamic: 'BOOLEAN'
+        },
         docker: {
             container: {
                 commands: [
@@ -1963,6 +1971,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
                     {
                         key: 'STRING',
                         local: 'BOOLEAN',
+                        prod: 'BOOLEAN',
                         value: 'STRING'
                     }
                 ],
@@ -1995,12 +2004,16 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         account_id: 'NUMBER',
+                        bucket: {
+                            name: 'STRING'
+                        },
                         profile: 'STRING',
                         service_role: 'STRING',
                         image: {
                             name: 'STRING'
                         }
                     },
+                    role: 'STRING',
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     task_definition: {
@@ -2060,6 +2073,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     let environment = cluster.environment;
+    let oldEnvironment = cluster.role === 'ecsServiceRole';
 
     cprint.magenta('-- Task Definition --');
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
@@ -2067,24 +2081,30 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
 
     print.keyVal('AWS Task Definition Role', '...', true);
     let awsRoleName = cluster.aws.service_role;
-    let taskDefinitionRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
-        cache: awsCache,
-        showWarning: true,
-        profile: cluster.aws.profile
-    });
-    if (!taskDefinitionRoleArn) {
-        return;
+    let taskDefinitionRoleArn = false;
+
+    if (awsRoleName) {
+        taskDefinitionRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
+            cache: awsCache,
+            showWarning: true,
+            profile: cluster.aws.profile
+        });
+        if (!taskDefinitionRoleArn) {
+            return;
+        }
+
+        print.clearLine();
+        print.keyVal('AWS Task Definition Role', taskDefinitionRoleArn);
     }
 
-    print.clearLine();
-    print.keyVal('AWS Task Definition Role', taskDefinitionRoleArn);
+    let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
 
     let serviceContainerDefinition = {
         'cpu': 0,
         'essential': true,
         'image': awsTaskDefinitionImagePath,
         'memoryReservation': awsTaskDefinitionMemoryLimit,
-        'name': serviceName,
+        'name': oldEnvironment ? oldContainerDefinition : 'service', // TODO - Remove environment specific setting
         'volumesFrom': []
     };
 
@@ -2098,13 +2118,51 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
         return;
     });
 
+    let bucketName = cluster.aws.bucket.name;
+
+    let modelVersion = serviceConfig.model.version;
+    if (serviceConfig.model.dynamic && !in_forceModelUpdate) {
+        let awsTaskDefinitionName = cluster.task_definition.name;
+        if (!awsTaskDefinitionName) {
+            cprint.yellow('Service task definition name not set');
+            return false;
+        }
+
+        let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
+            cache: awsCache,
+            verbose: true,
+            profile: cluster.aws.profile
+        });
+
+        let lastTaskDefinitionArn = taskDefinitionArns[0];
+        if (lastTaskDefinitionArn) {
+            let lastTaskDefinition = aws.getTaskDefinition(lastTaskDefinitionArn, {
+                cache: awsCache,
+                verbose: true,
+                profile: cluster.aws.profile
+            });
+
+            let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
+            if (lastTaskDefinition) {
+                modelVersion = lastTaskDefinition.containerDefinitions
+                    .filter(container => [oldContainerDefinition, 'service'].indexOf(container.name) >= 0)
+                    .map(container => container.environment[0])
+                    .find(environmentVariable => environmentVariable.name === 'MODEL_VERSION').value || modelVersion;
+            }
+        }
+    }
+
     serviceContainerDefinition.environment = Object.entries(
         serviceConfig.docker.container.environment_variables
             .filter(environmentVariable => !environmentVariable.local && environmentVariable.key && environmentVariable.value)
+            .filter(environmentVariable => environment === 'production' || !environmentVariable.prod)
             .map(environmentVariable => {
                 return {
                     key: service.replaceConfigReferences(in_serviceConfig, environmentVariable.key),
-                    value: service.replaceConfigReferences(in_serviceConfig, environmentVariable.value)
+                    value: service.replaceConfigReferences(in_serviceConfig, environmentVariable.value, {
+                        'MODEL_BUCKET': bucketName,
+                        'MODEL_VERSION': modelVersion
+                    })
                 };
             })
             .reduce((arr, environmentVariable) => { arr[environmentVariable.key] = environmentVariable.value; return arr; }, {})
@@ -2156,7 +2214,11 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
     let containerDefinitions = [serviceContainerDefinition];
     if (loggingSupport) {
         // TODO - remove TM specific filebeat
-        let awsTaskDefinitionFilebeatImagePath = awsDockerRepositoryUrl + '/' + 'filebeat-tm-services-' + environment + ':' + 'latest';
+        let filebeatServiceName = 'filebeat-tm-services';
+        if (!oldEnvironment) {
+            filebeatServiceName += '-test';
+        }
+        let awsTaskDefinitionFilebeatImagePath = awsDockerRepositoryUrl + '/' + filebeatServiceName + ':' + 'latest';
         let awsTaskDefinitionFilebeatMemoryLimit = 200;
         let awsTaskDefinitionFilebeatVolumes = [
             {
@@ -2183,7 +2245,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
             'essential': true,
             'image': awsTaskDefinitionFilebeatImagePath,
             'memoryReservation': awsTaskDefinitionFilebeatMemoryLimit,
-            'name': 'filebeat-tm-services',
+            'name': oldEnvironment ? 'filebeat-tm-services' : 'filebeat',
             'portMappings': [],
             'volumesFrom': []
         };
@@ -2243,13 +2305,20 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating task definition...');
 
-    let cmdResult = aws.cmd([
+    let args = [
         'ecs',
         'register-task-definition',
-        '--task-role-arn', taskDefinitionRoleArn,
         '--cli-input-json',
         JSON.stringify(awsTaskDefinitionStructure)
-    ], {
+    ];
+
+    if (taskDefinitionRoleArn) {
+        args = args.concat([
+            '--task-role-arn', taskDefinitionRoleArn
+        ]);
+    }
+
+    let cmdResult = aws.cmd(args, {
         profile: cluster.aws.profile
     });
 
@@ -2262,6 +2331,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_environment) {
         cprint.green('Created task definition "' + taskDefinitionArn + '"');
         aws.clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
         aws.clearCachedLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
+        aws.clearCachedPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, awsCache);
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -3364,14 +3434,17 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
 
     serviceConfig = service.updateConfig(in_serviceConfig, {
         service: {
-            clusters: [
-                {
-                    aws: {
-                        account_id: awsDockerCredentials.account_id,
-                        region: awsDockerCredentials.region
+            clusters: serviceConfig.service.clusters
+                .map(otherCluster => {
+                    if (otherCluster.environment === cluster.environment) {
+                        otherCluster.aws = {
+                            account_id: awsDockerCredentials.account_id,
+                            region: awsDockerCredentials.region
+                        };
                     }
-                }
-            ]
+
+                    return otherCluster;
+                })
         }
     });
 
@@ -3738,7 +3811,8 @@ function awsViewInstances (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     default: 'BOOLEAN',
-                    environment: 'STRING'
+                    environment: 'STRING',
+                    role: 'STRING'
                 }
             ],
             name: 'STRING'
@@ -3756,6 +3830,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
     }
 
     let environment = cluster.environment;
+    let oldEnvironment = cluster.role === 'ecsServiceRole';
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
@@ -3773,8 +3848,9 @@ function awsViewInstances (in_serviceConfig, in_environment) {
     }
 
     let awsRegion = awsDockerCredentials.region;
+    let serviceKey = oldEnvironment ? 'ServiceName' : 'Service'; // TODO - Remove environment specific code
 
-    let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environment};tag:Service=${serviceName}`;
+    let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environment};tag:${serviceKey}=${serviceName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
@@ -4304,6 +4380,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let env = in_args['env'] || in_args['environment'] || false;
     let extra = in_args['extra'];
     let stopTasks = in_args['stop-tasks'];
+    let forceModelUpdate = in_args['force-model-update'];
 
     let firstParam = in_params.shift();
 
@@ -4362,7 +4439,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         break;
 
     case 'create-task-definition':
-        awsCreateTaskDefinition(in_serviceConfig, env);
+        awsCreateTaskDefinition(in_serviceConfig, forceModelUpdate, env);
         break;
 
     case 'create-cluster':
@@ -4497,7 +4574,7 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         break;
 
     case 'deploy-new-task-definition':
-        awsDeployNewTaskDefinition(in_serviceConfig, stopTasks, env);
+        awsDeployNewTaskDefinition(in_serviceConfig, forceModelUpdate, stopTasks, env);
         break;
 
     case 'set-instance-ami':
@@ -4556,7 +4633,10 @@ function getCommands () {
 
         { params: ['create-delivery-structure'], description: 'Create delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-repository'], description: 'Create repository for the service', options: [{param:'environment', description:'Environment'}] },
-        { params: ['create-task-definition'], description: 'Create task definition for the service', options: [{param:'environment', description:'Environment'}] },
+        { params: ['create-task-definition'], description: 'Create task definition for the service', options: [
+            {param:'environment', description:'Environment'},
+            {param:'force-model-update', description:'Force a model update to the configured value even if the model version is dynamic'}
+        ] },
         { params: ['create-cluster'], description: 'Create cluster for the service', options: [{param:'environment', description:'Environment'}] },
         { params: ['create-cluster-service'], description: 'Create cluster-service for the service', options: [{param:'environment', description:'Environment'}] },
 

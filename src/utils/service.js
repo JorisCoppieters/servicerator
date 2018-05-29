@@ -6,9 +6,6 @@
 
 let cprint = require('color-print');
 
-let aws = require('./aws');
-let cache = require('./cache');
-let date = require('./date');
 let docker = require('./docker');
 let env = require('./env');
 let fs = require('./filesystem');
@@ -292,22 +289,11 @@ function maskServiceConfig (in_source, in_mask) {
 function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replacements) {
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         service: {
-            clusters: [
-                {
-                    aws: {
-                        bucket: {
-                            name: 'STRING'
-                        },
-                        service_role: 'STRING'
-                    },
-                    default: 'BOOLEAN',
-                    environment: 'STRING'
-                }
-            ],
             name: 'STRING'
         },
         model: {
-            version: 'STRING'
+            version: 'STRING',
+            dynamic: 'BOOLEAN'
         },
         docker: {
             image: {
@@ -327,27 +313,11 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
         'BASE_DIR': `${sourceFolder}`,
         'WORKING_DIR': `${sourceFolder}`,
         'SERVICE_NAME': `${serviceConfig.service.name}`,
-        'MODEL_VERSION': `${serviceConfig.model.version}`,
         'DOCKER_IMAGE_VERSION': `${serviceConfig.docker.image.version}`
     };
 
-    let clusters = serviceConfig.service.clusters || [];
-    let firstCluster = clusters[0] || {};
-    if (firstCluster && firstCluster.aws) {
-        if (firstCluster.aws.bucket) {
-            replacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
-        }
-
-        let roleCredentials = getAWSAssumedRoleCredentials(in_serviceConfig);
-        if (roleCredentials) {
-            replacements['AWS_ACCESS_KEY_ID'] = roleCredentials['AccessKeyId'];
-            replacements['AWS_SECRET_ACCESS_KEY'] = roleCredentials['SecretAccessKey'];
-            replacements['AWS_SESSION_TOKEN'] = roleCredentials['SessionToken'];
-        } else {
-            replacements['AWS_ACCESS_KEY_ID'] = '';
-            replacements['AWS_SECRET_ACCESS_KEY'] = '';
-            replacements['AWS_SESSION_TOKEN'] = '';
-        }
+    if (!serviceConfig.model.dynamic) {
+        replacements['MODEL_VERSION'] = `${serviceConfig.model.version}`;
     }
 
     if (in_replacements) {
@@ -364,76 +334,6 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
     });
 
     return replaced;
-}
-
-// ******************************
-
-function getAWSAssumedRoleCredentials(in_serviceConfig) {
-    let serviceConfig = accessServiceConfig(in_serviceConfig, {
-        service: {
-            clusters: [
-                {
-                    aws: {
-                        service_role: 'STRING',
-                        profile: 'STRING'
-                    },
-                    default: 'BOOLEAN',
-                    environment: 'STRING'
-                }
-            ]
-        },
-        cwd: 'STRING'
-    });
-
-    let clusters = serviceConfig.service.clusters || [];
-    let firstCluster = clusters[0] || {};
-    if (!firstCluster) {
-        return;
-    }
-
-    let awsRoleName = firstCluster.aws.service_role;
-
-    let awsCache = cache.load(serviceConfig.cwd, 'aws') || {};
-    let caceKey = 'TryAssumeRole_' + awsRoleName;
-    let cacheItem = awsCache[caceKey];
-    let cacheVal = (cacheItem || {}).val;
-    if (cacheVal !== undefined) {
-        return cacheVal;
-    }
-
-    awsCache[caceKey] = {
-        val: false,
-        expires: date.getTimestamp() + 3600 * 1000 // 1 hour
-    };
-    if (hasServiceConfigFile(serviceConfig.cwd)) {
-        cache.save(serviceConfig.cwd, 'aws', awsCache);
-    }
-
-    let awsRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
-        cache: awsCache,
-        profile: firstCluster.aws.profile
-    });
-    if (!awsRoleArn) {
-        return;
-    }
-
-    let roleCredentials = aws.getRoleCredentials(awsRoleArn, {
-        cache: awsCache,
-        profile: firstCluster.aws.profile
-    });
-    if (!roleCredentials) {
-        return;
-    }
-
-    awsCache[caceKey] = {
-        val: roleCredentials,
-        expires: date.getTimestamp() + 3600 * 1000 // 1 hour
-    };
-    if (hasServiceConfigFile(serviceConfig.cwd)) {
-        cache.save(serviceConfig.cwd, 'aws', awsCache);
-    }
-
-    return roleCredentials;
 }
 
 // ******************************
@@ -1371,6 +1271,11 @@ function _upgradeServiceConfigFrom3_6To3_7 (in_serviceConfig) {
 
             if (in_serviceConfig.docker.image.scripts) {
                 delete in_serviceConfig.docker.image.scripts;
+                hasBeenUpdated = true;
+            }
+
+            if (in_serviceConfig.docker.image.working_directory) {
+                delete in_serviceConfig.docker.image.working_directory;
                 hasBeenUpdated = true;
             }
         }

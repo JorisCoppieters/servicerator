@@ -6,6 +6,8 @@
 
 let cprint = require('color-print');
 
+let aws = require('../utils/aws');
+let cache = require('../utils/cache');
 let docker = require('../utils/docker');
 let edit = require('../utils/edit');
 let fs = require('../utils/filesystem');
@@ -1179,7 +1181,19 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             },
             build_folder: 'STRING'
         },
+        model: {
+            version: 'STRING'
+        },
         service: {
+            clusters: [
+                {
+                    aws: {
+                        bucket: {
+                            name: 'STRING'
+                        }
+                    }
+                }
+            ],
             name: 'STRING'
         },
         cwd: 'STRING'
@@ -1343,11 +1357,36 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
     Object.assign(environmentVariableArgs, localEnvironmentVariableArgs);
 
+    let environmentVariableReplacements = {};
+
+    let clusters = serviceConfig.service.clusters || [];
+    let firstCluster = clusters[0] || {};
+    environmentVariableReplacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
+
+    let hasAWSEnvironmentVariables = !!Object.keys(environmentVariableArgs)
+        .find(environmentVariable => ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN'].indexOf(environmentVariable) >= 0);
+
+    if (hasAWSEnvironmentVariables)
+    {
+        let roleCredentials = _getAWSAssumedRoleCredentials(in_serviceConfig);
+        if (roleCredentials) {
+            environmentVariableReplacements['AWS_ACCESS_KEY_ID'] = roleCredentials['AccessKeyId'];
+            environmentVariableReplacements['AWS_SECRET_ACCESS_KEY'] = roleCredentials['SecretAccessKey'];
+            environmentVariableReplacements['AWS_SESSION_TOKEN'] = roleCredentials['SessionToken'];
+        } else {
+            environmentVariableReplacements['AWS_ACCESS_KEY_ID'] = '';
+            environmentVariableReplacements['AWS_SECRET_ACCESS_KEY'] = '';
+            environmentVariableReplacements['AWS_SESSION_TOKEN'] = '';
+        }
+    }
+
+    environmentVariableReplacements['MODEL_VERSION'] = serviceConfig.model.version;
+
     Object.keys(environmentVariableArgs).forEach(key => {
         let value = environmentVariableArgs[key];
 
-        key = service.replaceConfigReferences(in_serviceConfig, key);
-        value = service.replaceConfigReferences(in_serviceConfig, value);
+        key = service.replaceConfigReferences(in_serviceConfig, key, environmentVariableReplacements);
+        value = service.replaceConfigReferences(in_serviceConfig, value, environmentVariableReplacements);
 
         args.push('--env');
         args.push(key + '=' + value);
@@ -1383,6 +1422,46 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             cmdResult.printResult('  ');
         }
     }
+}
+
+// ******************************
+
+function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        service_role: 'STRING',
+                        profile: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
+                }
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let clusters = serviceConfig.service.clusters || [];
+    let firstCluster = clusters[0] || {};
+    if (!firstCluster) {
+        return;
+    }
+
+    let awsRoleName = firstCluster.aws.service_role;
+    let awsCache = cache.load(serviceConfig.cwd, 'aws') || {};
+
+    let roleCredentials = aws.getAssumedRoleCredentials(awsRoleName, {
+        cache: awsCache,
+        profile: firstCluster.aws.profile
+    });
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
+    return roleCredentials;
 }
 
 // ******************************

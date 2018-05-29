@@ -197,7 +197,7 @@ function getShellHome() {
 // ******************************
 
 function getTemp() {
-    return process.env['TEMP'];
+    return process.env['TEMP'] || process.env['TMP'] || '/tmp';
 }
 
 // ******************************
