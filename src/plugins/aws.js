@@ -215,7 +215,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
             print.out('\n');
 
-            let oldServiceName = cluster.auto_scaling_group.name.replace('-prod-auto-scaling-group', '');
+            let oldServiceName = (cluster.auto_scaling_group.name || '').replace('-prod-auto-scaling-group', '').replace('-prod', '');
 
             if (in_extra) {
                 let instanceIds = aws.getInstanceIdsWithTags([

@@ -27,14 +27,15 @@ let g_AWS_CMD = 'aws';
 // ******************************
 
 function getClusterArnForClusterName (in_clusterName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Cluster ARN for AWS Cluster "' + in_clusterName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['Cluster_' + in_clusterName];
+    let cache = opts.cache || {};
+    let cacheKey = 'Cluster_' + in_clusterName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -44,8 +45,8 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
         'ecs',
         'list-clusters'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -61,13 +62,13 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
     }
 
     if (awsClusterArn === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find AWS Cluster ARN for AWS Cluster "' + in_clusterName + '"');
         }
         return;
     }
 
-    cache['Cluster_' + in_clusterName] = {
+    cache[cacheKey] = {
         val: awsClusterArn,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
     };
@@ -158,21 +159,22 @@ function getEnvironmentCluster (in_clusters, in_environment) {
 // ******************************
 
 function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     if (!in_clusterServiceName) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('AWS Cluster Service name not set');
         }
         return false;
     }
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Cluster Service ARN in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['Cluster_' + in_clusterArn];
+    let cache = opts.cache || {};
+    let cacheKey = 'Cluster_' + in_clusterArn;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -183,8 +185,8 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
         'list-services',
         '--cluster', in_clusterArn
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -200,13 +202,13 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     }
 
     if (awsClusterServiceArn === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find AWS Cluster Service ARN in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"');
         }
         return;
     }
 
-    cache['Cluster_' + in_clusterArn] = {
+    cache[cacheKey] = {
         val: awsClusterServiceArn,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
     };
@@ -294,18 +296,19 @@ function stopClusterTask (in_clusterName, in_taskArn, in_options) {
 // ******************************
 
 function getTasks (in_clusterName, in_taskArns, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     if (!in_taskArns || !in_taskArns.length) {
         return [];
     }
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Tasks "' + in_clusterName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['TaskDefinition_' + in_clusterName];
+    let cache = opts.cache || {};
+    let cacheKey = 'TaskDefinition_' + in_clusterName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -324,8 +327,8 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
     });
 
     let cmdResult = awsCmd(args, {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -344,7 +347,7 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
         return;
     }
 
-    cache['TaskDefinition_' + in_clusterName] = {
+    cache[cacheKey] = {
         val: awsTasks,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -386,14 +389,15 @@ function getTaskDetails (in_clusterName, in_taskArns, in_options) {
 // ******************************
 
 function getClusterTaskArnsForCluster (in_clusterName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Cluster Task ARNs for AWS Cluster "' + in_clusterName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['ClusterTaskArns_' + in_clusterName];
+    let cache = opts.cache || {};
+    let cacheKey = 'ClusterTaskArns_' + in_clusterName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -405,8 +409,8 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
         '--cluster',
         in_clusterName
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -422,7 +426,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
         return;
     }
 
-    cache['ClusterTaskArns_' + in_clusterName] = {
+    cache[cacheKey] = {
         val: awsClusterTaskArns,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -435,14 +439,15 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
 // ******************************
 
 function getTaskDefinition (in_taskDefinitionArn, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Task Definition "' + in_taskDefinitionArn + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['TaskDefinition_' + in_taskDefinitionArn];
+    let cache = opts.cache || {};
+    let cacheKey = 'TaskDefinition_' + in_taskDefinitionArn;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -454,8 +459,8 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
         '--task-definition',
         in_taskDefinitionArn
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -474,7 +479,7 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
         return;
     }
 
-    cache['TaskDefinition_' + in_taskDefinitionArn] = {
+    cache[cacheKey] = {
         val: awsTaskDefinition,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -513,14 +518,15 @@ function getClusterServiceVersionForTaskDefinition (in_taskDefinitionArn, in_opt
 // ******************************
 
 function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServiceArn, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Task Definition ARN for AWS Cluster Service "' + in_clusterServiceArn + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['TaskDefinitionArn_' + in_clusterServiceArn];
+    let cache = opts.cache || {};
+    let cacheKey = 'TaskDefinitionArn_' + in_clusterServiceArn;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -534,8 +540,8 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
         '--service',
         in_clusterServiceArn
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -558,7 +564,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
         return;
     }
 
-    cache['TaskDefinitionArn_' + in_clusterServiceArn] = {
+    cache[cacheKey] = {
         val: awsTaskDefinitionArn,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -569,14 +575,15 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
 // ******************************
 
 function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving latest AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['LatestTaskDefinitionArn_' + in_taskDefinitionName];
+    let cache = opts.cache || {};
+    let cacheKey = 'LatestTaskDefinitionArn_' + in_taskDefinitionName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -588,8 +595,8 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
         '--family-prefix',
         in_taskDefinitionName
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -625,7 +632,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
         return;
     }
 
-    cache['LatestTaskDefinitionArn_' + in_taskDefinitionName] = {
+    cache[cacheKey] = {
         val: latestTaskDefinitionArn,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -636,14 +643,15 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
 // ******************************
 
 function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving previous AWS Task Definition ARNs for AWS Task Definition "' + in_taskDefinitionName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName];
+    let cache = opts.cache || {};
+    let cacheKey = 'PreviousTaskDefinitionArns_' + in_taskDefinitionName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -655,8 +663,8 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
         '--family-prefix',
         in_taskDefinitionName
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -692,7 +700,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
         return;
     }
 
-    cache['PreviousTaskDefinitionArns_' + in_taskDefinitionName] = {
+    cache[cacheKey] = {
         val: previousTaskDefinitionArn,
         expires: date.getTimestamp() + 1000 // 1 second
     };
@@ -703,7 +711,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
 // ******************************
 
 function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     cprint.cyan('Deregistering AWS Task Definition "' + in_taskDefinitionArn + '"...');
 
@@ -719,7 +727,7 @@ function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
         return false;
     }
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cmdResult.printResult('  ');
     }
     cprint.green('Deregistered AWS Task Definition "' + in_taskDefinitionArn + '"');
@@ -731,14 +739,15 @@ function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
 // ******************************
 
 function getContainerInstance (in_clusterName, in_containerInstanceArn, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Container Instance "' + in_containerInstanceArn + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['ContainerInstance_' + in_containerInstanceArn];
+    let cache = opts.cache || {};
+    let cacheKey = 'ContainerInstance_' + in_containerInstanceArn;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -752,8 +761,8 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
         '--container-instance',
         in_containerInstanceArn
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -773,7 +782,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
         return;
     }
 
-    cache['ContainerInstance_' + in_containerInstanceArn] = {
+    cache[cacheKey] = {
         val: awsTasks,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -786,14 +795,15 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
 // ******************************
 
 function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Docker Repository for Docker Image "' + in_dockerImageName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['DockerRepository_' + in_dockerImageName];
+    let cache = opts.cache || {};
+    let cacheKey = 'DockerRepository_' + in_dockerImageName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -803,8 +813,8 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
         'ecr',
         'describe-repositories'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -821,13 +831,13 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
     }
 
     if (awsRepository === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find AWS Docker Repository for Docker Image "' + in_dockerImageName + '"');
         }
         return;
     }
 
-    cache['DockerRepository_' + in_dockerImageName] = {
+    cache[cacheKey] = {
         val: awsRepository,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -838,14 +848,15 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
 // ******************************
 
 function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['DockerRepositoryImages_' + in_dockerRepositoryName];
+    let cache = opts.cache || {};
+    let cacheKey = 'DockerRepositoryImages_' + in_dockerRepositoryName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -856,8 +867,8 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
         'describe-images',
         '--repository-name', in_dockerRepositoryName
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -872,13 +883,13 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
     }
 
     if (awsRepositoryImages === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"');
         }
         return;
     }
 
-    cache['DockerRepositoryImages_' + in_dockerRepositoryName] = {
+    cache[cacheKey] = {
         val: awsRepositoryImages,
         expires: date.getTimestamp() + 3600 * 1000 // 1 hour
     };
@@ -943,14 +954,15 @@ function createDockerRepository (in_dockerImageName, in_options) {
 // ******************************
 
 function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving latest Launch Configuration like "' + in_launchConfigurationTemplate + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['LaunchConfiguration_' + in_launchConfigurationTemplate];
+    let cache = opts.cache || {};
+    let cacheKey = 'LaunchConfiguration_' + in_launchConfigurationTemplate;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -964,13 +976,13 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
     }
 
     if (latestLaunchConfiguration === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find latest Launch Configuration like "' + in_launchConfigurationTemplate + '"');
         }
         return;
     }
 
-    cache['LaunchConfiguration_' + in_launchConfigurationTemplate] = {
+    cache[cacheKey] = {
         val: latestLaunchConfiguration,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -981,14 +993,15 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
 // ******************************
 
 function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving Launch Configurations like "' + in_launchConfigurationTemplate + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['LaunchConfigurations_' + in_launchConfigurationTemplate];
+    let cache = opts.cache || {};
+    let cacheKey = 'LaunchConfigurations_' + in_launchConfigurationTemplate;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -998,8 +1011,8 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
         'autoscaling',
         'describe-launch-configurations'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1017,7 +1030,7 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
             .reverse();
     }
 
-    cache['LaunchConfigurations_' + in_launchConfigurationTemplate] = {
+    cache[cacheKey] = {
         val: launchConfigurations,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -1028,9 +1041,9 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
 // ******************************
 
 function deleteLaunchConfiguration (in_launchConfiguration, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Deleting AWS Launch Configuration "' + in_launchConfiguration + '"...');
     }
 
@@ -1041,8 +1054,8 @@ function deleteLaunchConfiguration (in_launchConfiguration, in_options) {
         '--launch-configuration-name',
         in_launchConfiguration
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1076,7 +1089,7 @@ function getServiceStateFromAutoScalingGroupInstanceCount (in_autoScalingGroupIn
 // ******************************
 
 function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScalingGroupInstanceCount, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     cprint.cyan('Setting Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '" to ' + in_autoScalingGroupInstanceCount + '...');
 
@@ -1095,21 +1108,22 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
 
     cmdResult.printResult('  ');
     cprint.green('Set Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '" to ' + in_autoScalingGroupInstanceCount);
-    clearCachedAutoScalingGroupInstanceCount(in_autoScalingGroupName, opt.cache);
+    clearCachedAutoScalingGroupInstanceCount(in_autoScalingGroupName, opts.cache);
     return true;
 }
 
 // ******************************
 
 function getAutoScalingGroups (in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving all AWS Auto Scaling Groups...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['AllAutoScalingGroups'];
+    let cache = opts.cache || {};
+    let cacheKey = 'AllAutoScalingGroups';
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1119,8 +1133,8 @@ function getAutoScalingGroups (in_options) {
         'autoscaling',
         'describe-auto-scaling-groups'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1135,13 +1149,13 @@ function getAutoScalingGroups (in_options) {
     }
 
     if (autoScalingGroups === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
         }
         return;
     }
 
-    cache['AllAutoScalingGroups'] = {
+    cache[cacheKey] = {
         val: autoScalingGroups,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -1152,14 +1166,15 @@ function getAutoScalingGroups (in_options) {
 // ******************************
 
 function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName];
+    let cache = opts.cache || {};
+    let cacheKey = 'AutoScalingGroupInstanceCount_' + in_autoScalingGroupName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1170,8 +1185,8 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
         'describe-auto-scaling-groups',
         '--auto-scaling-group', in_autoScalingGroupName
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1188,13 +1203,13 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     }
 
     if (desiredCapacity === undefined) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '"');
         }
         return;
     }
 
-    cache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName] = {
+    cache[cacheKey] = {
         val: desiredCapacity,
         expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
     };
@@ -1205,15 +1220,15 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
 // ******************************
 
 function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Auto Scaling Group for Launch Configuration "' + in_launchConfigurationName + '"...');
     }
 
     let autoScalingGroups = getAutoScalingGroups(in_options);
     if (!autoScalingGroups || !autoScalingGroups.length) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
         }
         return;
@@ -1230,19 +1245,19 @@ function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, 
 // ******************************
 
 function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     let awsRoleArn = getAWSRoleArnForRoleName(awsRoleName, {
-        cache: opt.cache,
-        profile: opt.profile
+        cache: opts.cache,
+        profile: opts.profile
     });
     if (!awsRoleArn) {
         return;
     }
 
     let roleCredentials = getAWSRoleCredentials(awsRoleArn, {
-        cache: opt.cache,
-        profile: opt.profile,
+        cache: opts.cache,
+        profile: opts.profile,
         verbose: true
     });
     if (!roleCredentials) {
@@ -1255,13 +1270,13 @@ function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
 // ******************************
 
 function getAWSRoleCredentials (in_roleArn, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Assuming credentials for AWS Role ARN "' + in_roleArn + '"...');
     }
 
-    let cache = opt.cache || {};
+    let cache = opts.cache || {};
     let cacheKey = 'RoleAssumedCredentials_' + in_roleArn;
     let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
@@ -1275,8 +1290,8 @@ function getAWSRoleCredentials (in_roleArn, in_options) {
         '--role-arn', in_roleArn,
         '--role-session-name', 'servicerator'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1291,7 +1306,7 @@ function getAWSRoleCredentials (in_roleArn, in_options) {
     }
 
     if (!awsRoleAssumedCredentials) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t assume credentials for AWS Role ARN "' + in_roleArn + '"');
         }
         return false;
@@ -1308,13 +1323,13 @@ function getAWSRoleCredentials (in_roleArn, in_options) {
 // ******************************
 
 function getAWSRoleArnForRoleName (in_roleName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Role ARN for Role "' + in_roleName + '"...');
     }
 
-    let cache = opt.cache || {};
+    let cache = opts.cache || {};
     let cacheKey = 'RoleArn_' + in_roleName;
     let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
@@ -1326,8 +1341,8 @@ function getAWSRoleArnForRoleName (in_roleName, in_options) {
         'iam',
         'list-roles'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1349,7 +1364,7 @@ function getAWSRoleArnForRoleName (in_roleName, in_options) {
     }
 
     if (!awsRoleArn) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find AWS Role ARN for Role "' + in_roleName + '"');
         }
         return false;
@@ -1572,14 +1587,15 @@ function getAwsUsername(in_opts, in_awsCache) {
 // ******************************
 
 function getUserArnForUsername (in_username, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS User ARN for Username "' + in_username + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['UserArn_' + in_username];
+    let cache = opts.cache || {};
+    let cacheKey = 'UserArn_' + in_username;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1589,8 +1605,8 @@ function getUserArnForUsername (in_username, in_options) {
         'iam',
         'list-users'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1608,13 +1624,13 @@ function getUserArnForUsername (in_username, in_options) {
     }
 
     if (!awsUserArn) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find AWS User ARN for Username "' + in_username + '"');
         }
         return false;
     }
 
-    cache['UserArn_' + in_username] = {
+    cache[cacheKey] = {
         val: awsUserArn,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -1741,14 +1757,15 @@ function getSessionToken (in_profile, in_accountId, in_mfaArn) {
 // ******************************
 
 function getBucketPathForBucketName (in_bucketName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving Bucket Path for Bucket "' + in_bucketName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['BucketPath_' + in_bucketName];
+    let cache = opts.cache || {};
+    let cacheKey = 'BucketPath_' + in_bucketName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1758,8 +1775,8 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
         's3',
         'ls'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1792,13 +1809,13 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
     }
 
     if (!awsBucketPath) {
-        if (opt.showWarning) {
+        if (opts.showWarning) {
             cprint.yellow('Couldn\'t find Bucket Path for Bucket "' + in_bucketName + '"');
         }
         return false;
     }
 
-    cache['BucketPath_' + in_bucketName] = {
+    cache[cacheKey] = {
         val: awsBucketPath,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -1833,14 +1850,15 @@ function createBucket (in_bucketName, in_options) {
 // ******************************
 
 function getVpcIdForVpc (in_vpcName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS VPC ID for AWS VPC "' + in_vpcName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['VpcId_' + in_vpcName];
+    let cache = opts.cache || {};
+    let cacheKey = 'VpcId_' + in_vpcName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1851,8 +1869,8 @@ function getVpcIdForVpc (in_vpcName, in_options) {
         'describe-vpcs',
         '--filter'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1889,7 +1907,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
         return false;
     }
 
-    cache['VpcId_' + in_vpcName] = {
+    cache[cacheKey] = {
         val: awsVpcId,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -1900,14 +1918,15 @@ function getVpcIdForVpc (in_vpcName, in_options) {
 // ******************************
 
 function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving Default AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['VpcDefaultSecurityGroupId_' + in_vpcId];
+    let cache = opts.cache || {};
+    let cacheKey = 'VpcDefaultSecurityGroupId_' + in_vpcId;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1920,8 +1939,8 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
         `Name=vpc-id,Values="${in_vpcId}"`,
         'Name=group-name,Values="default"'
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1944,7 +1963,7 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
         return false;
     }
 
-    cache['VpcDefaultSecurityGroupId_' + in_vpcId] = {
+    cache[cacheKey] = {
         val: awsDefaultVpcSecurityGroupId,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -1955,14 +1974,15 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
 // ******************************
 
 function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Security Group Id for AWS VPC Id "' + in_vpcId + '" from name "' + in_groupName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['VpcSecurityGroupId_' + in_vpcId + '_' + in_groupName];
+    let cache = opts.cache || {};
+    let cacheKey = 'VpcSecurityGroupId_' + in_vpcId + '_' + in_groupName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -1974,8 +1994,8 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
         '--filters',
         `Name=vpc-id,Values="${in_vpcId}"`
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -1997,7 +2017,7 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
         return false;
     }
 
-    cache['VpcSecurityGroupId_' + in_vpcId + '_' + in_groupName] = {
+    cache[cacheKey] = {
         val: awsVpcSecurityGroupId,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -2008,14 +2028,15 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
 // ******************************
 
 function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS VPC Subnet Id for AWS VPC Subnet "' + in_vpcSubnetName + '"...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['VpcSubnetId_' + in_vpcSubnetName];
+    let cache = opts.cache || {};
+    let cacheKey = 'VpcSubnetId_' + in_vpcSubnetName;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -2027,8 +2048,8 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
         '--filters',
         `Name=vpc-id,Values="${in_vpcId}"`
     ], {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -2066,7 +2087,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
         return false;
     }
 
-    cache['VpcSubnetId_' + in_vpcSubnetName] = {
+    cache[cacheKey] = {
         val: awsVpcSubnetId,
         expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
     };
@@ -2079,17 +2100,18 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
 // ******************************
 
 function getInstanceIdsWithTags (in_tags, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     let tags = in_tags || [];
     let tagsStr = JSON.stringify(tags);
 
-    if (opt.verbose) {
+    if (opts.verbose) {
         cprint.cyan('Retrieving AWS Instance IDs for tags [' + tagsStr + ']...');
     }
 
-    let cache = opt.cache || {};
-    let cacheItem = cache['InstanceIds_' + tagsStr];
+    let cache = opts.cache || {};
+    let cacheKey = 'InstanceIds_' + tagsStr;
+    let cacheItem = cache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return cacheVal;
@@ -2109,8 +2131,8 @@ function getInstanceIdsWithTags (in_tags, in_options) {
     });
 
     let cmdResult = awsCmd(args, {
-        hide: !opt.verbose,
-        profile: opt.profile
+        hide: !opts.verbose,
+        profile: opts.profile
     });
 
     if (cmdResult.hasError) {
@@ -2151,7 +2173,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
         return false;
     }
 
-    cache['InstanceIds_' + tagsStr] = {
+    cache[cacheKey] = {
         val: awsInstanceIds,
         expires: date.getTimestamp() + 10 * 60 * 1000 // 10 minutes
     };
@@ -2374,8 +2396,8 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
         }
     });
 
-    let opt = in_options || {};
-    let environment = opt.environment;
+    let opts = in_options || {};
+    let environment = opts.environment;
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2393,7 +2415,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
     }
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], {
-        hide: !opt.verbose,
+        hide: !opts.verbose,
         profile: cluster.aws.profile
     });
 
@@ -2620,8 +2642,8 @@ function awsArnToTitle (in_arn) {
 // ******************************
 
 function awsCmd (in_args, in_options) {
-    let opt = in_options || {};
-    let hide = opt.hide;
+    let opts = in_options || {};
+    let hide = opts.hide;
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2640,8 +2662,8 @@ function awsCmd (in_args, in_options) {
 
     args.push('--profile');
 
-    if (opt.profile) {
-        args.push(opt.profile);
+    if (opts.profile) {
+        args.push(opts.profile);
     } else {
         args.push('default');
     }
