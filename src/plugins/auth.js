@@ -170,7 +170,10 @@ function generateAuthFiles (in_serviceConfig) {
     fs.writeFile(caSignDB, '');
     fs.writeFile(caSignSerial, '01');
 
-    let urls = serviceConfig.service.clusters.map(c => c.url) || [];
+    let urls = serviceConfig.service.clusters
+        .filter(c => c.url)
+        .map(c => c.url) || [];
+
     let firstUrl = urls[0] || false;
     let otherUrls = urls.slice(1);
 

@@ -2387,7 +2387,8 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2416,7 +2417,8 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], {
         hide: !opts.verbose,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (awsCmdResult.hasError) {
@@ -2666,6 +2668,11 @@ function awsCmd (in_args, in_options) {
         args.push(opts.profile);
     } else {
         args.push('default');
+    }
+
+    if (opts.region) {
+        args.push('--region');
+        args.push(opts.region);
     }
 
     return exec.cmdSync(g_AWS_CMD, args, {

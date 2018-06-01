@@ -1883,7 +1883,8 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
                         profile: 'STRING',
                         image: {
                             name: 'STRING'
-                        }
+                        },
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -1928,7 +1929,8 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
     let awsDockerRepository = aws.getDockerRepositoryForDockerImageName(awsDockerImageName, {
         cache: awsCache,
         verbose: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsDockerRepository) {
         cprint.green('Repository already exists!');
@@ -1937,7 +1939,8 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating repository...');
     if (!aws.createDockerRepository(awsDockerImageName, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2216,7 +2219,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         // TODO - remove TM specific filebeat
         let filebeatServiceName = 'filebeat-tm-services';
         if (!oldEnvironment) {
-            filebeatServiceName += '-test';
+            filebeatServiceName += '-' + environment;
         }
         let awsTaskDefinitionFilebeatImagePath = awsDockerRepositoryUrl + '/' + filebeatServiceName + ':' + 'latest';
         let awsTaskDefinitionFilebeatMemoryLimit = 200;
@@ -2955,7 +2958,8 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
                         profile: 'STRING',
                         image: {
                             name: 'STRING'
-                        }
+                        },
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2998,7 +3002,8 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
     let awsDockerRepository = aws.getDockerRepositoryForDockerImageName(awsDockerImageName, {
         cache: awsCache,
         verbose: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsDockerRepository) {
         cprint.yellow('Repository does not exist!');
@@ -4655,7 +4660,11 @@ function getCommands () {
         { params: ['update-auto-scaling-group'], description: 'Update auto scaling group for the service', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['deploy-new-launch-configuration'], description: 'Deploy new launch configuration and update the auto scaling groups', options: [{param:'environment', description:'Environment'}] },
-        { params: ['deploy-new-task-definition'], description: 'Create new task definition and deploy it', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
+        { params: ['deploy-new-task-definition'], description: 'Create new task definition and deploy it', options: [
+            {param:'stop-tasks', description:'Stop existing tasks'},
+            {param:'environment', description:'Environment'},
+            {param:'force-model-update', description:'Force a model update to the configured value even if the model version is dynamic'}
+        ] },
         { params: ['deploy'], description: 'Deploy latest task definition for service', options: [{param:'stop-tasks', description:'Stop existing tasks'}, {param:'environment', description:'Environment'}] },
 
         { params: ['start-cluster', 'start'], description: 'Start AWS cluster', options: [{param:'environment', description:'Environment'}] },
