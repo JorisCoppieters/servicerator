@@ -2147,10 +2147,12 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
 
             let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
             if (lastTaskDefinition) {
-                modelVersion = lastTaskDefinition.containerDefinitions
+                let modelVersionVariable = lastTaskDefinition.containerDefinitions
                     .filter(container => [oldContainerDefinition, 'service'].indexOf(container.name) >= 0)
                     .map(container => container.environment[0])
-                    .find(environmentVariable => environmentVariable.name === 'MODEL_VERSION').value || modelVersion;
+                    .find(environmentVariable => environmentVariable.name === 'MODEL_VERSION');
+
+                modelVersion = modelVersionVariable ? modelVersionVariable.value : modelVersion;
             }
         }
     }
