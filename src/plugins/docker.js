@@ -1191,7 +1191,9 @@ function _startDockerContainer (in_serviceConfig, in_options) {
                         bucket: {
                             name: 'STRING'
                         }
-                    }
+                    },
+                    environment: 'STRING',
+                    default: 'BOOLEAN'
                 }
             ],
             name: 'STRING'
@@ -1359,9 +1361,13 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
     let environmentVariableReplacements = {};
 
-    let clusters = serviceConfig.service.clusters || [];
-    let firstCluster = clusters[0] || {};
-    environmentVariableReplacements['MODEL_BUCKET'] = `${firstCluster.aws.bucket.name}`;
+    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters);
+    if (!cluster) {
+        cprint.yellow('No default environment defined');
+        return false;
+    }
+
+    environmentVariableReplacements['MODEL_BUCKET'] = `${cluster.aws.bucket.name}`;
 
     let hasAWSEnvironmentVariables = !!Object.keys(environmentVariableArgs)
         .find(environmentVariable => ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN'].indexOf(environmentVariable) >= 0);
@@ -1443,18 +1449,22 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
         cwd: 'STRING'
     });
 
-    let clusters = serviceConfig.service.clusters || [];
-    let firstCluster = clusters[0] || {};
-    if (!firstCluster) {
-        return;
+    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
     }
 
-    let awsRoleName = firstCluster.aws.service_role;
+    let awsRoleName = cluster.aws.service_role;
     let awsCache = cache.load(serviceConfig.cwd, 'aws') || {};
 
     let roleCredentials = aws.getAssumedRoleCredentials(awsRoleName, {
         cache: awsCache,
-        profile: firstCluster.aws.profile
+        profile: cluster.aws.profile
     });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
