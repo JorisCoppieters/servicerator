@@ -1,6 +1,6 @@
 {
   "name": "servicerator",
-  "version": "0.15.3",
+  "version": "0.15.4",
   "description": "A tool for creating, deploying and managing services easily",
   "bin": {
     "svr": "./index.js"
