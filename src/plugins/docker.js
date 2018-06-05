@@ -1362,12 +1362,9 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let environmentVariableReplacements = {};
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters);
-    if (!cluster) {
-        cprint.yellow('No default environment defined');
-        return false;
+    if (cluster) {
+        environmentVariableReplacements['MODEL_BUCKET'] = `${cluster.aws.bucket.name}`;
     }
-
-    environmentVariableReplacements['MODEL_BUCKET'] = `${cluster.aws.bucket.name}`;
 
     let hasAWSEnvironmentVariables = !!Object.keys(environmentVariableArgs)
         .find(environmentVariable => ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN'].indexOf(environmentVariable) >= 0);
