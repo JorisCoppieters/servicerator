@@ -791,6 +791,7 @@ function enterDockerContainer (in_serviceConfig) {
     } else {
         cmdResult.printResult('  ');
     }
+    return !cmdResult.hasError;
 }
 
 // ******************************
@@ -1325,7 +1326,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             volumeHost = path.resolve(dockerFolder, volumeHost);
         }
 
-        if (volumeHost.match(/^[A-Z]:[\\/]?$/)) {
+        if (volumeHost.match(/^[A-Z]:[\\/]?$/i)) {
             volumeHost = volumeHost + '.';
         }
 
@@ -1415,6 +1416,8 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         } else {
             cmdResult.printResult('  ');
         }
+        return !cmdResult.hasError;
+
     } else {
         args.push(dockerImageStartCommand);
         cprint.cyan('Starting Docker container "' + containerName + '" in detached mode with start command...');
@@ -1424,6 +1427,8 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         } else {
             cmdResult.printResult('  ');
         }
+        return !cmdResult.hasError;
+
     }
 }
 

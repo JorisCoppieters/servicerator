@@ -48,6 +48,14 @@ function shellCmd (in_args, in_options) {
         ];
     }
 
+    if (shell.match(/mintty/)) {
+        args = [
+            'bash',
+            '-c',
+            ['winpty'].concat(args).join(' ')
+        ];
+    }
+
     if (shell.match(/^\/bin\/bash$/)) {
         shell = args[0];
         args = args.slice(1);
@@ -81,6 +89,12 @@ function getShell () {
     let path = require('path');
 
     let shellPaths = [];
+
+    if (env.isMinGW()) {
+        shellPaths = shellPaths.concat([
+            'C:/Program Files/Git/usr/bin/mintty.exe'
+        ]);
+    }
 
     if (env.isWindows()) {
         shellPaths = shellPaths.concat([

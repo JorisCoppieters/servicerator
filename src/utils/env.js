@@ -38,6 +38,18 @@ function isWindows () {
 
 // ******************************
 
+function isMinGW () {
+    return process.env['MSYSTEM'] === 'MINGW64';
+}
+
+// ******************************
+
+function isTTY () {
+    return process.stdout.isTTY;
+}
+
+// ******************************
+
 function getServiceFolder () {
     let path = require('path');
 
@@ -205,18 +217,21 @@ function getTemp() {
 // ******************************
 
 module.exports['SERVICE_CONFIG_FILE_NAME'] = SERVICE_CONFIG_FILE_NAME;
-module.exports['isDevelopment'] = isDevelopment;
-module.exports['isWindows'] = isWindows;
-module.exports['isLinux'] = isLinux;
-module.exports['getServiceFolder'] = getServiceFolder;
+
+module.exports['getPlugins'] = getPlugins;
 module.exports['getServiceConfigFile'] = getServiceConfigFile;
+module.exports['getServiceFolder'] = getServiceFolder;
+module.exports['getShellHome'] = getShellHome;
 module.exports['getStoredPassword'] = getStoredPassword;
 module.exports['getStoredSecretKey'] = getStoredSecretKey;
 module.exports['getStoredValue'] = getStoredValue;
-module.exports['getPlugins'] = getPlugins;
+module.exports['getTemp'] = getTemp;
 module.exports['getUserExplorerHome'] = getUserExplorerHome;
 module.exports['getUserHome'] = getUserHome;
-module.exports['getShellHome'] = getShellHome;
-module.exports['getTemp'] = getTemp;
+module.exports['isDevelopment'] = isDevelopment;
+module.exports['isLinux'] = isLinux;
+module.exports['isMinGW'] = isMinGW;
+module.exports['isTTY'] = isTTY;
+module.exports['isWindows'] = isWindows;
 
 // ******************************
