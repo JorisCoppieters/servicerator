@@ -41,6 +41,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                         access_key: 'STRING',
                         account_id: 'NUMBER',
                         profile: 'STRING',
+                        region: 'STRING',
                         bucket: {
                             name: 'STRING',
                             permissions: [
@@ -76,6 +77,15 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     cprint.magenta('-- AWS --');
 
+    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
+        environment: in_environment
+    });
+
+    if (!awsDockerCredentials) {
+        cprint.yellow('Failed to get AWS Docker credentials');
+        return false;
+    }
+
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         if (in_environment) {
@@ -85,6 +95,11 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
         }
         return false;
     }
+
+    cluster.aws = service.combineConfig({
+        account_id: awsDockerCredentials.account_id,
+        region: awsDockerCredentials.region
+    }, cluster.aws);
 
     let awsAccessKey = cluster.aws.access_key || false;
     let awsSecretKey = false;
@@ -109,7 +124,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     cprint.magenta('-- AWS Docker --');
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -134,6 +149,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                 let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(cluster.auto_scaling_group.name, {
                     cache: awsCache,
                     profile: cluster.aws.profile,
+                    region: cluster.aws.region,
                     showWarning: true
                 });
                 print.clearLine();
@@ -156,7 +172,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                 print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', '...', true);
                 let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(cluster.name, cluster.service_name, {
                     cache: awsCache,
-                    profile: cluster.aws.profile
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
                 });
                 print.clearLine();
 
@@ -168,7 +185,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', '...', true);
                     let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(cluster.name, awsClusterServiceArn, {
                         cache: awsCache,
-                        profile: cluster.aws.profile
+                        profile: cluster.aws.profile,
+                        region: cluster.aws.region
                     });
                     print.clearLine();
 
@@ -182,7 +200,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', '...', true);
                     let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
                         cache: awsCache,
-                        profile: cluster.aws.profile
+                        profile: cluster.aws.profile,
+                        region: cluster.aws.region
                     });
                     print.clearLine();
 
@@ -195,11 +214,13 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', '...', true);
                     let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(cluster.name, {
                         cache: awsCache,
-                        profile: cluster.aws.profile
+                        profile: cluster.aws.profile,
+                        region: cluster.aws.region
                     });
                     let awsClusterTaskDetails = aws.getTaskDetails(cluster.name, awsClusterTaskArns, {
                         cache: awsCache,
-                        profile: cluster.aws.profile
+                        profile: cluster.aws.profile,
+                        region: cluster.aws.region
                     });
                     print.clearLine();
 
@@ -232,7 +253,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                         ]
                     }
                 ], {
-                    profile: cluster.aws.profile
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
                 });
 
                 instanceIds.forEach(i => {
@@ -254,7 +276,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                         print.keyVal(prefixedEnvironmentTitle + ' VPC Id', '...', true);
                         let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
                             cache: awsCache,
-                            profile: cluster.aws.profile
+                            profile: cluster.aws.profile,
+                            region: cluster.aws.region
                         });
                         print.clearLine();
 
@@ -267,7 +290,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                         print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', '...', true);
                         let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
                             cache: awsCache,
-                            profile: cluster.aws.profile
+                            profile: cluster.aws.profile,
+                            region: cluster.aws.region
                         });
                         print.clearLine();
 
@@ -291,7 +315,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
             let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
                 cache: awsCache,
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
             print.keyVal(prefixedEnvironmentTitle + ' Bucket Path', awsBucketPath ? awsBucketPath : cprint.toYellow('Does not exist!'));
 
@@ -329,7 +354,8 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
                     }
                 }
             ]
-        }
+        },
+        cwd: 'STRING'
     });
 
     if (!aws.installed()) {
@@ -366,7 +392,12 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
+    cluster.aws = service.combineConfig({
+        account_id: awsDockerCredentials.account_id,
+        region: awsDockerCredentials.region
+    }, cluster.aws);
+
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -460,7 +491,8 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
                     }
                 }
             ]
-        }
+        },
+        cwd: 'STRING'
     });
 
     if (!aws.installed()) {
@@ -478,18 +510,7 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    if (!awsTagDockerImage(in_serviceConfig, in_environment)) {
-        return false;
-    }
-
-    if (!awsDockerLogin(in_serviceConfig, in_environment)) {
-        return false;
-    }
-
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
+    let awsDockerCredentials = awsDockerLogin(in_serviceConfig, in_environment);
     if (!awsDockerCredentials) {
         cprint.yellow('Failed to get AWS Docker credentials');
         return false;
@@ -505,7 +526,16 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
+    cluster.aws = service.combineConfig({
+        account_id: awsDockerCredentials.account_id,
+        region: awsDockerCredentials.region
+    }, cluster.aws);
+
+    if (!awsTagDockerImage(in_serviceConfig, in_environment)) {
+        return false;
+    }
+
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -547,6 +577,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
                     aws: {
                         account_id: 'NUMBER',
                         profile: 'STRING',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
                         }
@@ -627,7 +658,8 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!taskDefinitionArn) {
         return;
@@ -636,7 +668,8 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsClusterServiceArn) {
         return;
@@ -653,7 +686,8 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsClusterTaskArns) {
         return;
@@ -665,13 +699,15 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
     if (in_stopTasks) {
         awsClusterTaskArns.forEach(t => {
             aws.stopClusterTask(awsClusterName, t, {
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
         });
     }
 
     aws.deployTaskDefinitionToCluster(awsClusterName, awsClusterServiceArn, taskDefinitionArn, awsClusterServiceInstanceCount, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -771,7 +807,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -884,7 +921,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsVpcId) {
         return;
@@ -902,7 +940,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
                 let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
                     cache: awsCache,
                     showWarning: true,
-                    profile: cluster.aws.profile
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
                 });
                 if (!awsVpcSecurityGroupId) {
                     awsLaunchConfigurationSecurityGroupsFound = false;
@@ -918,7 +957,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
             cache: awsCache,
             showWarning: true,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
         if (!awsDefaultVpcSecurityGroupId) {
             return;
@@ -991,7 +1031,8 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     }
 
     let cmdResult = aws.cmd(args, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (cmdResult.hasError) {
@@ -1021,7 +1062,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -1115,7 +1157,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsVpcId) {
         return;
@@ -1133,7 +1176,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                 let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
                     cache: awsCache,
                     showWarning: true,
-                    profile: cluster.aws.profile
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
                 });
                 if (!awsVpcSecurityGroupId) {
                     awsLoadBalancerSecurityGroupsFound = false;
@@ -1149,7 +1193,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
             cache: awsCache,
             showWarning: true,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
         if (!awsDefaultVpcSecurityGroupId) {
             return;
@@ -1170,7 +1215,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
                 showWarning: true,
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
             if (!awsVpcSubnetId) {
                 awsVpcSubnetIdsFound = false;
@@ -1255,7 +1301,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
     args = args.concat('--subnets').concat(awsVpcSubnetIds);
 
     let cmdResult = aws.cmd(args, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1285,7 +1332,8 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         ];
 
         let cmdResult = aws.cmd(args, {
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
@@ -1326,6 +1374,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                     },
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
                         }
@@ -1430,7 +1479,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsLaunchConfigurationName) {
         return;
@@ -1444,7 +1494,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsVpcId) {
         return;
@@ -1459,7 +1510,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
                 showWarning: true,
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
             if (!awsVpcSubnetId) {
                 awsVpcSubnetIdsFound = false;
@@ -1532,7 +1584,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     ];
 
     let cmdResult = aws.cmd(args, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -1555,7 +1608,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         ];
 
         let cmdResult = aws.cmd(args, {
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
@@ -1583,6 +1637,7 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING',
                         bucket: {
                             name: 'STRING'
                         }
@@ -1623,7 +1678,8 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
 
     let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
         cache: awsCache,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsBucketPath) {
         cprint.green('AWS bucket already exists!');
@@ -1633,7 +1689,8 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
     cprint.cyan('Creating bucket...');
 
     if (!aws.createBucket(awsBucketName, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -1655,6 +1712,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING',
                         bucket: {
                             username: 'STRING',
                             name: 'STRING',
@@ -1725,7 +1783,8 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
 
     let awsUserArn = aws.getUserArnForUsername(awsBucketUsername, {
         cache: awsCache,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsUserArn) {
         cprint.green('AWS bucket user already exists!');
@@ -1735,7 +1794,8 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
     cprint.cyan('Creating bucket user...');
 
     if (!aws.createUser(awsBucketUsername, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -1743,7 +1803,8 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
     cprint.cyan('Creating access key...');
 
     let userObject = aws.createUserAccessKey(awsBucketUsername, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (!userObject) {
@@ -1807,7 +1868,8 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
     };
 
     if (!aws.attachInlinePolicyToUser(awsBucketUsername, awsBucketUsernameInlinePolicyName, awsBucketUsernameInlinePolicy, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -1881,10 +1943,10 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
-                        },
-                        region: 'STRING'
+                        }
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2011,6 +2073,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
                             name: 'STRING'
                         },
                         profile: 'STRING',
+                        region: 'STRING',
                         service_role: 'STRING',
                         image: {
                             name: 'STRING'
@@ -2090,7 +2153,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         taskDefinitionRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
             cache: awsCache,
             showWarning: true,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
         if (!taskDefinitionRoleArn) {
             return;
@@ -2134,7 +2198,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
             cache: awsCache,
             verbose: true,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
 
         let lastTaskDefinitionArn = taskDefinitionArns[0];
@@ -2142,7 +2207,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
             let lastTaskDefinition = aws.getTaskDefinition(lastTaskDefinitionArn, {
                 cache: awsCache,
                 verbose: true,
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
 
             let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
@@ -2324,7 +2390,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     }
 
     let cmdResult = aws.cmd(args, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (cmdResult.hasError) {
@@ -2356,7 +2423,8 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -2404,7 +2472,8 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
 
     let awsClusterArn = aws.getClusterArnForClusterName(awsClusterName, {
         cache: awsCache,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsClusterArn) {
         cprint.green('Cluster already exists!');
@@ -2413,7 +2482,8 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating cluster...');
     if (!aws.createCluster(awsClusterName, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2453,7 +2523,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                         health_check_grace_period: 'NUMBER'
                     },
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -2567,7 +2638,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!taskDefinitionArn) {
         return;
@@ -2578,7 +2650,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
         cache: awsCache,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsClusterServiceArn) {
         cprint.green('Cluster service already exists!');
@@ -2595,7 +2668,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         role: role,
         healthCheckGracePeriod: healthCheckGracePeriod
     }, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2617,7 +2691,8 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2651,7 +2726,8 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
     let awsRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
         cache: awsCache,
         showWarning: false,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsRoleArn) {
         cprint.green('AWS role already exists!');
@@ -2674,7 +2750,8 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating role...');
     if (!aws.createRole(awsRoleName, awsRoleDescription, awsRolePolicyDocument, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2685,7 +2762,8 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
 
     cprint.cyan('Attaching role policy...');
     if (!aws.attachRolePolicy(awsRoleName, awsEC2ContainerServiceforEC2RolePolicyArn, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2696,14 +2774,16 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating instance profile...');
     if (!aws.createInstanceProfile(awsInstanceProfileName, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
 
     cprint.cyan('Adding role to instance profile...');
     if (!aws.addRoleToInstanceProfile(awsInstanceProfileName, awsRoleName, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2725,6 +2805,7 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2759,7 +2840,8 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
     let awsRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
         cache: awsCache,
         showWarning: false,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (awsRoleArn) {
         cprint.green('AWS role already exists!');
@@ -2782,7 +2864,8 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
 
     cprint.cyan('Creating role...');
     if (!aws.createRole(awsRoleName, awsRoleDescription, awsRolePolicyDocument, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2793,7 +2876,8 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
 
     cprint.cyan('Attaching role policy...');
     if (!aws.attachRolePolicy(awsRoleName, awsECSRolePolicyArn, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     })) {
         return;
     }
@@ -2841,7 +2925,8 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
                         ]
                     },
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -2904,7 +2989,8 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
     let awsLaunchConfigurationNames = aws.getLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (!awsLaunchConfigurationNames || !awsLaunchConfigurationNames.length) {
@@ -2917,11 +3003,13 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
             cache: awsCache,
             showWarning: true,
             profile: cluster.aws.profile,
+            region: cluster.aws.region,
             verbose: true
         }))
         .forEach(l => {
             aws.deleteLaunchConfiguration(l, {
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
         });
 
@@ -2958,10 +3046,10 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
-                        },
-                        region: 'STRING'
+                        }
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -3015,7 +3103,8 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
     let awsDockerRepositoryImages = aws.getDockerRepositoryImagesForRepositoryName(awsDockerRepository, {
         cache: awsCache,
         verbose: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsDockerRepositoryImages) {
         cprint.yellow('Failed to get repository images!');
@@ -3032,7 +3121,8 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
     }
 
     aws.deleteDockerRepositoryImages(awsDockerRepository, awsDockerRepositoryImagesWithoutTags, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     aws.clearCachedDockerRepositoryImagesForRepositoryName(awsDockerRepository, awsCache);
@@ -3055,7 +3145,8 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -3101,7 +3192,8 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
     let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
         cache: awsCache,
         verbose: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
 
     if (!taskDefinitionArns || !taskDefinitionArns.length) {
@@ -3112,7 +3204,8 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
     taskDefinitionArns
         .forEach(t => {
             aws.deregisterTaskDefinition(t, {
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
         });
 
@@ -3144,6 +3237,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
                     },
                     aws: {
                         profile: 'STRING',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
                         }
@@ -3248,7 +3342,8 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsLaunchConfigurationName = aws.getLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsLaunchConfigurationName) {
         return;
@@ -3262,7 +3357,8 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     let awsVpcId = aws.getVpcIdForVpc(awsVpcName, {
         cache: awsCache,
         showWarning: true,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (!awsVpcId) {
         return;
@@ -3277,7 +3373,8 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
                 showWarning: true,
-                profile: cluster.aws.profile
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
             });
             if (!awsVpcSubnetId) {
                 awsVpcSubnetIdsFound = false;
@@ -3336,7 +3433,8 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     ];
 
     let cmdResult = aws.cmd(args, {
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
     });
     if (cmdResult.hasError) {
         cmdResult.printError('  ');
@@ -3359,7 +3457,8 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
         ];
 
         let cmdResult = aws.cmd(args, {
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
@@ -3389,7 +3488,8 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -3427,10 +3527,19 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
+    cluster.aws = service.combineConfig({
+        account_id: awsDockerCredentials.account_id,
+        region: awsDockerCredentials.region
+    }, cluster.aws);
+
+    let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
         cprint.yellow('Couldn\'t get aws docker repository');
         return false;
+    }
+
+    if (docker.isLoggedIn(awsDockerRepositoryUrl)) {
+        return awsDockerCredentials;
     }
 
     let success = docker.login(awsDockerCredentials.username, awsDockerCredentials.password, awsDockerRepositoryUrl);
@@ -3439,23 +3548,7 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
         return false;
     }
 
-    serviceConfig = service.updateConfig(in_serviceConfig, {
-        service: {
-            clusters: serviceConfig.service.clusters
-                .map(otherCluster => {
-                    if (otherCluster.environment === cluster.environment) {
-                        otherCluster.aws = {
-                            account_id: awsDockerCredentials.account_id,
-                            region: awsDockerCredentials.region
-                        };
-                    }
-
-                    return otherCluster;
-                })
-        }
-    });
-
-    return true;
+    return awsDockerCredentials;
 }
 
 // ******************************
@@ -3470,7 +3563,8 @@ function awsStartCluster (in_serviceConfig, in_environment) {
                         name: 'STRING'
                     },
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
@@ -3516,6 +3610,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
 
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
         profile: cluster.aws.profile,
+        region: cluster.aws.region,
         showWarning: true
     });
     if (autoScalingGroupInstanceCount < 0) {
@@ -3527,13 +3622,15 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         cprint.cyan('Starting AWS cluster...');
         aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, instanceCount, {
             cache: awsCache,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
     } else if (autoScalingGroupInstanceCount != instanceCount) {
         cprint.cyan('Updating AWS cluster...');
         aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, instanceCount, {
             cache: awsCache,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
     } else {
         cprint.green('AWS cluster already started');
@@ -3556,7 +3653,8 @@ function awsStopCluster (in_serviceConfig, in_environment) {
                         name: 'STRING'
                     },
                     aws: {
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -3597,6 +3695,7 @@ function awsStopCluster (in_serviceConfig, in_environment) {
 
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
         profile: cluster.aws.profile,
+        region: cluster.aws.region,
         showWarning: true
     });
     if (autoScalingGroupInstanceCount < 0) {
@@ -3608,7 +3707,8 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         cprint.cyan('Stopping AWS cluster...');
         aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 0, {
             cache: awsCache,
-            profile: cluster.aws.profile
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
         });
     } else {
         cprint.green('AWS cluster already stopped');

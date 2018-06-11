@@ -46,7 +46,8 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
         'list-clusters'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -186,7 +187,8 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
         '--cluster', in_clusterArn
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -328,7 +330,8 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
 
     let cmdResult = awsCmd(args, {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -410,7 +413,8 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
         in_clusterName
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -460,7 +464,8 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
         in_taskDefinitionArn
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -541,7 +546,8 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
         in_clusterServiceArn
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -596,7 +602,8 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
         in_taskDefinitionName
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -664,7 +671,8 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
         in_taskDefinitionName
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -762,7 +770,8 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
         in_containerInstanceArn
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -814,7 +823,8 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
         'describe-repositories'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -868,7 +878,8 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
         '--repository-name', in_dockerRepositoryName
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1012,7 +1023,8 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
         'describe-launch-configurations'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1055,7 +1067,8 @@ function deleteLaunchConfiguration (in_launchConfiguration, in_options) {
         in_launchConfiguration
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1134,7 +1147,8 @@ function getAutoScalingGroups (in_options) {
         'describe-auto-scaling-groups'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1186,7 +1200,8 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
         '--auto-scaling-group', in_autoScalingGroupName
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1249,7 +1264,8 @@ function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
 
     let awsRoleArn = getAWSRoleArnForRoleName(awsRoleName, {
         cache: opts.cache,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
     if (!awsRoleArn) {
         return;
@@ -1258,6 +1274,7 @@ function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
     let roleCredentials = getAWSRoleCredentials(awsRoleArn, {
         cache: opts.cache,
         profile: opts.profile,
+        region: opts.region,
         verbose: true
     });
     if (!roleCredentials) {
@@ -1291,7 +1308,8 @@ function getAWSRoleCredentials (in_roleArn, in_options) {
         '--role-session-name', 'servicerator'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1342,7 +1360,8 @@ function getAWSRoleArnForRoleName (in_roleName, in_options) {
         'list-roles'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1470,8 +1489,8 @@ function addRoleToInstanceProfile (in_instanceProfileName, in_roleName, in_optio
 // IAM User Functions:
 // ******************************
 
-function getMultiFactorAuthDevice (in_opts, in_awsCache) {
-    let opts = in_opts || {};
+function getMultiFactorAuthDevice (in_options, in_awsCache) {
+    let opts = in_options || {};
 
     let profile = opts.profile;
     let longTermProfile = opts.longTermProfile;
@@ -1482,7 +1501,7 @@ function getMultiFactorAuthDevice (in_opts, in_awsCache) {
         return awsCache[cacheKey].val;
     }
 
-    let username = getAwsUsername(in_opts, in_awsCache);
+    let username = getAwsUsername(in_options, in_awsCache);
 
     // First try with long term profile if present
     let awsCmdResult = awsCmd([
@@ -1492,7 +1511,8 @@ function getMultiFactorAuthDevice (in_opts, in_awsCache) {
         '--user-name', username
     ], {
         hide: true,
-        profile: longTermProfile
+        profile: longTermProfile,
+        region: opts.region
     });
 
     // Otherwise try with normal profile if present
@@ -1504,7 +1524,8 @@ function getMultiFactorAuthDevice (in_opts, in_awsCache) {
             '--user-name', username
         ], {
             hide: true,
-            profile: profile
+            profile: profile,
+            region: opts.region
         });
     }
 
@@ -1529,8 +1550,8 @@ function getMultiFactorAuthDevice (in_opts, in_awsCache) {
 
 // ******************************
 
-function getAwsUsername(in_opts, in_awsCache) {
-    let opts = in_opts || {};
+function getAwsUsername(in_options, in_awsCache) {
+    let opts = in_options || {};
 
     let profile = opts.profile;
     let longTermProfile = opts.longTermProfile;
@@ -1548,7 +1569,8 @@ function getAwsUsername(in_opts, in_awsCache) {
         '--max-items', 1
     ], {
         hide: true,
-        profile: longTermProfile
+        profile: longTermProfile,
+        region: opts.region
     });
 
     // Otherwise try with normal profile if present
@@ -1559,7 +1581,8 @@ function getAwsUsername(in_opts, in_awsCache) {
             '--max-items', 1
         ], {
             hide: true,
-            profile: profile
+            profile: profile,
+            region: opts.region
         });
     }
 
@@ -1606,7 +1629,8 @@ function getUserArnForUsername (in_username, in_options) {
         'list-users'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1725,20 +1749,22 @@ function attachInlinePolicyToUser (in_username, in_inlinePolicyName, in_inlinePo
 // STS Functions:
 // ******************************
 
-function getSessionToken (in_profile, in_accountId, in_mfaArn) {
+function getSessionToken (in_profile, in_options) {
+    let opts = in_options || {};
     const MAX_TOKEN_PERIOD_IN_SECONDS = 129600; // 36 Hours
 
-    let tokenCode = readline.sync(`Please enter the current MFA token for account (#${in_accountId}): `);
+    let tokenCode = readline.sync(`Please enter the current MFA token for account (#${opts.accountId}): `);
 
     let awsCmdResult = awsCmd([
         'sts',
         'get-session-token',
         '--duration-seconds', MAX_TOKEN_PERIOD_IN_SECONDS,
-        '--serial-number', in_mfaArn,
+        '--serial-number', opts.serialNumber,
         '--token-code', tokenCode
     ], {
         hide: true,
-        profile: in_profile
+        profile: in_profile,
+        region: opts.region
     });
 
     if (awsCmdResult.hasError) {
@@ -1776,7 +1802,8 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
         'ls'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1870,7 +1897,8 @@ function getVpcIdForVpc (in_vpcName, in_options) {
         '--filter'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1940,7 +1968,8 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
         'Name=group-name,Values="default"'
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -1995,7 +2024,8 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
         `Name=vpc-id,Values="${in_vpcId}"`
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -2049,7 +2079,8 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
         `Name=vpc-id,Values="${in_vpcId}"`
     ], {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -2132,7 +2163,8 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 
     let cmdResult = awsCmd(args, {
         hide: !opts.verbose,
-        profile: opts.profile
+        profile: opts.profile,
+        region: opts.region
     });
 
     if (cmdResult.hasError) {
@@ -2192,7 +2224,8 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
                 {
                     aws: {
                         account_id: 'NUMBER',
-                        profile: 'STRING'
+                        profile: 'STRING',
+                        assume_role: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2226,6 +2259,8 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
 
     cluster.aws.profile = profile;
 
+    let assumeRoleArn = cluster.aws.assume_role || '';
+
     let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
 
@@ -2243,6 +2278,8 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
         cache.save(in_serviceConfig.cwd, 'aws', awsCache);
     }
 
+    let reloadConfigFiles = false;
+
     if(mfaDevice && mfaDevice.SerialNumber) {
         let configured = configureMultiFactorAuth({
             serialNumber: mfaDevice.SerialNumber,
@@ -2252,11 +2289,34 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
             credentialsFile: awsCredentialsFile
         });
 
-        if (!configured) {
-            return;
+        if (configured) {
+            reloadConfigFiles = true;
         }
 
-        //Reload the ini files as they may have changed off the back of configuring an MFA device
+    }
+
+    if (assumeRoleArn) {
+        let profileAsRole = profile + '-as-' + assumeRoleArn;
+
+        let configured = configureProfileAsRole({
+            profile: profile,
+            profileAsRole: profileAsRole,
+            assumeRoleArn: assumeRoleArn,
+            accountId: cluster.aws.account_id,
+            credentialsFile: awsCredentialsFile
+        });
+
+        // Set the profile to the profileAsRole since we'll use those credentials now
+        profile = profileAsRole;
+        cluster.aws.profile = profile;
+
+        if (configured) {
+            reloadConfigFiles = true;
+        }
+    }
+
+    if (reloadConfigFiles) {
+        //Reload the ini files as they may have changed off the back of configuration
         awsConfig = ini.parseFile(awsConfigFile);
         awsCredentials = ini.parseFile(awsCredentialsFile);
     }
@@ -2276,8 +2336,8 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function configureMultiFactorAuth(in_opts) {
-    let opts = in_opts || {};
+function configureMultiFactorAuth(in_options) {
+    let opts = in_options || {};
 
     let profile = opts.profile;
     let longTermProfile = opts.longTermProfile;
@@ -2315,10 +2375,10 @@ function configureMultiFactorAuth(in_opts) {
     }
 
     if (!isSessionRefreshRequired) {
-        return true;
+        return;
     }
 
-    let sessionToken = getSessionToken(longTermProfile, opts.accountId, opts.serialNumber);
+    let sessionToken = getSessionToken(longTermProfile, opts);
     if (!sessionToken) {
         return;
     }
@@ -2330,6 +2390,64 @@ function configureMultiFactorAuth(in_opts) {
     awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
     awsCredentials[profile].aws_security_token = sessionToken.SessionToken;
     awsCredentials[profile].expiration = _formatSessionExpiration(sessionToken.Expiration);
+    ini.writeFile(opts.credentialsFile, awsCredentials);
+
+    return true;
+}
+
+// ******************************
+
+function configureProfileAsRole(in_options) {
+    let opts = in_options || {};
+
+    let profile = opts.profile;
+    let profileAsRole = opts.profileAsRole;
+    let assumeRoleArn = opts.assumeRoleArn;
+
+    let awsCredentials =  ini.parseFile(opts.credentialsFile);
+
+    if(!awsCredentials[profile]) {
+        cprint.yellow(`${profile} credentials don't exist. You need to configure these in ~/.aws/credentails!`);
+        return;
+    }
+
+    if (!assumeRoleArn)
+    {
+        cprint.yellow('No role to assume!');
+        return;
+    }
+
+    let isRoleAssumptionRequired = false;
+
+    if (!awsCredentials[profileAsRole]) {
+        isRoleAssumptionRequired = true;
+    }
+    else if (!awsCredentials[profileAsRole].expiration
+        || new Date() > new Date(awsCredentials[profileAsRole].expiration + 'Z')) {
+        isRoleAssumptionRequired = true;
+    }
+
+    if (!isRoleAssumptionRequired) {
+        return;
+    }
+
+    let roleCredentials = getAWSRoleCredentials(assumeRoleArn, {
+        profile: profile,
+        verbose: true
+    });
+
+    if (!roleCredentials) {
+        return;
+    }
+
+    awsCredentials[profileAsRole] = {};
+    awsCredentials[profileAsRole].assumed_role = 'True';
+    awsCredentials[profileAsRole].assumed_role_arn = assumeRoleArn;
+    awsCredentials[profileAsRole].aws_access_key_id = roleCredentials.AccessKeyId;
+    awsCredentials[profileAsRole].aws_secret_access_key = roleCredentials.SecretAccessKey;
+    awsCredentials[profileAsRole].aws_session_token = roleCredentials.SessionToken;
+    awsCredentials[profileAsRole].aws_security_token = roleCredentials.SessionToken;
+    awsCredentials[profileAsRole].expiration = _formatSessionExpiration(roleCredentials.Expiration);
     ini.writeFile(opts.credentialsFile, awsCredentials);
     return true;
 }

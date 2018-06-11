@@ -258,7 +258,7 @@ function getDockerImageExecTask (in_dockerUsername, in_dockerPassword, in_docker
             return;
         }
 
-        if (!isDockerLoggedIn(in_dockerRepositoryStore) && !in_forceLogin) {
+        if (!isDockerLoggedIn(in_dockerRepositoryStore) || in_forceLogin) {
             dockerLogin(in_dockerUsername, in_dockerPassword, in_dockerRepositoryStore);
         }
 
