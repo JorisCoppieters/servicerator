@@ -12,10 +12,14 @@ function unsetMaskOnObject (in_mask, in_destinationObject) {
         if (isArray(in_mask)) { // If mask is an Array
             if (!isArray(destinationObject)) { // If destinationObject isn't an Array, we should leave it
                 return destinationObject;
+            } else {
+                destinationObject = destinationObject.slice(0); // Othewise make a clone of the destination object (array)
             }
         } else { // If mask is an Object
             if (!isObject(destinationObject)) { // If destinationObject isn't an Object, we should leave it
                 return destinationObject;
+            } else {
+                destinationObject = Object.assign({}, destinationObject); // Othewise make a clone of the destination object (object)
             }
         }
 
@@ -32,7 +36,7 @@ function unsetMaskOnObject (in_mask, in_destinationObject) {
 
             delete destinationObject[k]; // Otherwise remove from destinationObject
             if (isArray(destinationObject)) {
-                destinationObject = destinationObject.filter(Boolean);
+                destinationObject = destinationObject.filter(Boolean); // Filter out undefined
             }
         });
 
@@ -57,26 +61,30 @@ function setMaskOnObject (in_mask, in_destinationObject) {
         if (isArray(in_mask)) { // If mask is an Array
             if (!isArray(destinationObject)) { // If destinationObject isn't an Array, make it one
                 destinationObject = [];
+            } else {
+                destinationObject = destinationObject.slice(0); // Othewise make a clone of the destination object (array)
             }
         } else { // If mask is an Object
             if (!isObject(destinationObject)) { // If destinationObject isn't an Object, make it one
                 destinationObject = {};
+            } else {
+                destinationObject = Object.assign({}, destinationObject); // Othewise make a clone of the destination object (object)
             }
         }
 
         Object.keys(in_mask).forEach(k => {
             let v = in_mask[k];
-            if (isObjectOrArray(v)) { // If mask is an Object or Array, recurse
+            if (isObjectOrArray(v)) { // If mask value is an Object or Array, recurse
                 destinationObject[k] = setMaskOnObject(v, destinationObject[k]);
                 if (isArray(destinationObject)) {
-                    destinationObject = destinationObject.filter(Boolean);
+                    destinationObject = destinationObject.filter(Boolean); // Filter out undefined
                 }
                 return;
             }
 
-            destinationObject[k] = v; // Otherwise set on destinationObject
+            destinationObject[k] = v; // Otherwise set mask value on destinationObject
             if (isArray(destinationObject)) {
-                destinationObject = destinationObject.filter(Boolean);
+                destinationObject = destinationObject.filter(Boolean); // Filter out undefined
             }
         });
 

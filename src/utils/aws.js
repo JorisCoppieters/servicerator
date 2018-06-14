@@ -2254,6 +2254,7 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
 
     let profile = cluster.aws.profile || 'default';
     profile = profile.replace(/-long-term$/,''); // Remove postfixed -long-term if present
+    profile = profile.replace(/-as-.*$/,''); // Remove postfixed -as-.... if present
 
     let longTermProfile = profile + '-long-term';
 
@@ -2321,13 +2322,14 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
         awsCredentials = ini.parseFile(awsCredentialsFile);
     }
 
-    if (awsConfig[profile] && awsConfig[profile].region) {
-        cluster.aws.region = awsConfig[profile].region;
+    if (awsConfig[profile]) {
+        cluster.aws.region = awsConfig[profile].region || cluster.aws.region;
     }
 
-    if (awsCredentials[profile] && awsCredentials[profile].aws_access_key_id) {
-        cluster.aws.access_key = awsCredentials[profile].aws_access_key_id;
-        cluster.aws.secret_key = awsCredentials[profile].aws_secret_access_key;
+    if (awsCredentials[profile]) {
+        cluster.aws.access_key = awsCredentials[profile].aws_access_key_id || cluster.aws.access_key;
+        cluster.aws.secret_key = awsCredentials[profile].aws_secret_access_key || cluster.aws.secret_key;
+        cluster.aws.account_id = parseInt(awsCredentials[profile].account_id) || cluster.aws.account_id;
     }
 
     service.checkConfigSchema(serviceConfig);
@@ -2385,6 +2387,7 @@ function configureMultiFactorAuth(in_options) {
 
     awsCredentials[profile] = {};
     awsCredentials[profile].assumed_role = 'False';
+    awsCredentials[profile].account_id = opts.accountId;
     awsCredentials[profile].aws_access_key_id = sessionToken.AccessKeyId;
     awsCredentials[profile].aws_secret_access_key = sessionToken.SecretAccessKey;
     awsCredentials[profile].aws_session_token = sessionToken.SessionToken;
@@ -2443,6 +2446,7 @@ function configureProfileAsRole(in_options) {
     awsCredentials[profileAsRole] = {};
     awsCredentials[profileAsRole].assumed_role = 'True';
     awsCredentials[profileAsRole].assumed_role_arn = assumeRoleArn;
+    awsCredentials[profileAsRole].account_id = awsArnToAccountId(assumeRoleArn);
     awsCredentials[profileAsRole].aws_access_key_id = roleCredentials.AccessKeyId;
     awsCredentials[profileAsRole].aws_secret_access_key = roleCredentials.SecretAccessKey;
     awsCredentials[profileAsRole].aws_session_token = roleCredentials.SessionToken;
@@ -2457,14 +2461,14 @@ function configureProfileAsRole(in_options) {
 function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = in_serviceConfig || {};
     let awsServiceConfig = getAwsServiceConfig(in_serviceConfig, in_environment);
-    service.combineConfig(awsServiceConfig, serviceConfig);
+    serviceConfig = service.combineConfig(awsServiceConfig, serviceConfig);
     return serviceConfig;
 }
 
 // ******************************
 
 function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
-    let serviceConfig = service.accessConfig(in_serviceConfig, {
+    let serviceConfig = service.accessConfig(getMergedAwsServiceConfig(in_serviceConfig, in_environment), {
         service: {
             clusters: [
                 {
@@ -2500,7 +2504,10 @@ function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
 // ******************************
 
 function getAwsDockerCredentials (in_serviceConfig, in_options) {
-    let serviceConfig = service.accessConfig(in_serviceConfig, {
+    let opts = in_options || {};
+    let environment = opts.environment;
+
+    let serviceConfig = service.accessConfig(getMergedAwsServiceConfig(in_serviceConfig, environment), {
         service: {
             clusters: [
                 {
@@ -2514,9 +2521,6 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
             ]
         }
     });
-
-    let opts = in_options || {};
-    let environment = opts.environment;
 
     if (!awsInstalled()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2761,6 +2765,18 @@ function awsArnToTitle (in_arn) {
 
 // ******************************
 
+function awsArnToAccountId (in_arn) {
+    let title = in_arn || '';
+    let match = in_arn.match(/arn:aws:.*:([0-9]+):.*/);
+    if (match) {
+        title = parseInt(match[1]);
+    }
+
+    return title;
+}
+
+// ******************************
+
 function awsCmd (in_args, in_options) {
     let opts = in_options || {};
     let hide = opts.hide;
@@ -2868,6 +2884,7 @@ function _formatSessionExpiration(in_expiration) {
 
 module.exports['addRoleToInstanceProfile'] = addRoleToInstanceProfile;
 module.exports['arnToTitle'] = awsArnToTitle;
+module.exports['arnToAccountId'] = awsArnToAccountId;
 module.exports['attachInlinePolicyToUser'] = attachInlinePolicyToUser;
 module.exports['attachRolePolicy'] = attachRolePolicy;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;

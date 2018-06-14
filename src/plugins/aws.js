@@ -77,15 +77,6 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     cprint.magenta('-- AWS --');
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         if (in_environment) {
@@ -95,11 +86,6 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
         }
         return false;
     }
-
-    cluster.aws = service.combineConfig({
-        account_id: awsDockerCredentials.account_id,
-        region: awsDockerCredentials.region
-    }, cluster.aws);
 
     let awsAccessKey = cluster.aws.access_key || false;
     let awsSecretKey = false;
@@ -124,7 +110,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     cprint.magenta('-- AWS Docker --');
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -348,6 +334,8 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     aws: {
+                        account_id: 'NUMBER',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
                         }
@@ -373,15 +361,6 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         if (in_environment) {
@@ -392,12 +371,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    cluster.aws = service.combineConfig({
-        account_id: awsDockerCredentials.account_id,
-        region: awsDockerCredentials.region
-    }, cluster.aws);
-
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -485,6 +459,8 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     aws: {
+                        account_id: 'NUMBER',
+                        region: 'STRING',
                         image: {
                             name: 'STRING'
                         }
@@ -526,16 +502,11 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         return false;
     }
 
-    cluster.aws = service.combineConfig({
-        account_id: awsDockerCredentials.account_id,
-        region: awsDockerCredentials.region
-    }, cluster.aws);
-
     if (!awsTagDockerImage(in_serviceConfig, in_environment)) {
         return false;
     }
 
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
+    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
     if (!awsDockerImageName) {
         cprint.yellow('AWS docker image name not set');
@@ -1764,16 +1735,7 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         awsBucketUsernamePermissions = ['read'];
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -3488,7 +3450,7 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        profile: 'STRING',
+                        account_id: 'NUMBER',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -3527,12 +3489,7 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
         return false;
     }
 
-    cluster.aws = service.combineConfig({
-        account_id: awsDockerCredentials.account_id,
-        region: awsDockerCredentials.region
-    }, cluster.aws);
-
-    let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(serviceConfig, in_environment);
+    let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
         cprint.yellow('Couldn\'t get aws docker repository');
         return false;
@@ -3917,6 +3874,9 @@ function awsViewInstances (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
+                    aws: {
+                        region: 'STRING'
+                    },
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     role: 'STRING'
@@ -3945,16 +3905,7 @@ function awsViewInstances (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
     let serviceKey = oldEnvironment ? 'ServiceName' : 'Service'; // TODO - Remove environment specific code
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environment};tag:${serviceKey}=${serviceName}`;
@@ -3971,6 +3922,9 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
+                    aws: {
+                        region: 'STRING'
+                    },
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     load_balancer: {
@@ -3997,16 +3951,7 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#LoadBalancers:search=${awsLoadBalancerName}`;
     url = 'https://' + url;
@@ -4022,6 +3967,9 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
+                    aws: {
+                        region: 'STRING'
+                    },
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     launch_configuration: {
@@ -4048,16 +3996,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#LaunchConfigurations:id=${awsLaunchConfigurationName};filter=${awsLaunchConfigurationName}`;
     url = 'https://' + url;
@@ -4075,6 +4014,9 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
                 {
                     auto_scaling_group: {
                         name: 'STRING'
+                    },
+                    aws: {
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -4099,16 +4041,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/autoscaling/home?region=${awsRegion}#AutoScalingGroups:id=${awsAutoScalingGroupName};filter=${awsAutoScalingGroupName}`;
     url = 'https://' + url;
@@ -4138,13 +4071,14 @@ function awsViewRepository (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
-                    default: 'BOOLEAN',
-                    environment: 'STRING',
                     aws: {
                         image: {
                             name: 'STRING'
-                        }
-                    }
+                        },
+                        region: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING'
                 }
             ]
         }
@@ -4171,16 +4105,7 @@ function awsViewRepository (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/repositories/${awsDockerImageName}#images;tagStatus=ALL`;
     url = 'https://' + url;
@@ -4196,6 +4121,9 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
+                    aws: {
+                        region: 'STRING'
+                    },
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     task_definition: {
@@ -4227,16 +4155,7 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/taskDefinitions/${awsTaskDefinitionName}/latest`;
     url = 'https://' + url;
@@ -4252,9 +4171,12 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
+                    aws: {
+                        region: 'STRING'
+                    },
                     default: 'BOOLEAN',
                     environment: 'STRING',
-                    name: 'STRING'
+                    name: 'STRING',
                 }
             ]
         }
@@ -4270,16 +4192,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
     let awsClusterName = cluster.name;
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/tasks`;
@@ -4296,6 +4209,9 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
         service: {
             clusters: [
                 {
+                    aws: {
+                        region: 'STRING'
+                    },
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     name: 'STRING',
@@ -4315,16 +4231,7 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
     let awsClusterName = cluster.name;
     let awsClusterServiceName = cluster.service_name;
 
@@ -4389,7 +4296,8 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
                     aws: {
                         bucket: {
                             username: 'STRING'
-                        }
+                        },
+                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -4414,16 +4322,7 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
-        environment: in_environment
-    });
-
-    if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
-    }
-
-    let awsRegion = awsDockerCredentials.region;
+    let awsRegion = cluster.aws.region;
 
     let url = `console.aws.amazon.com/iam/home?region=${awsRegion}#/users/${awsBucketUsername}`;
     url = 'https://' + url;
