@@ -1111,7 +1111,6 @@ function printDockerContainerStats (in_serviceConfig) {
     return false;
 }
 
-
 // ******************************
 
 function editServiceDockerfile (in_serviceConfig) {
@@ -1132,6 +1131,65 @@ function editServiceDockerfile (in_serviceConfig) {
     }
 
     edit.file(serviceDockerfile);
+}
+
+// ******************************
+// Configure Functions:
+// ******************************
+
+function addVolume (in_serviceConfig, in_mount, in_path) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        docker: {
+            container: {
+                volumes: [
+                    {
+                        host: 'STRING',
+                        container: 'STRING',
+                        local: 'BOOLEAN'
+                    }
+                ]
+            }
+        },
+        cwd: 'STRING'
+    });
+
+    if (!in_mount) {
+        cprint.yellow('Mount location must be defined');
+        return;
+    }
+
+    if (!in_path || !fs.folderExists(in_path)) {
+        cprint.yellow(`Volume path "${in_path}" doesn't exist`);
+        return;
+    }
+
+    let existingMount = serviceConfig.docker.container.volumes.find(volume => {
+        if (!volume.host || !volume.container) {
+            return;
+        }
+
+        return volume.container === in_mount;
+    });
+
+    if (existingMount) {
+        cprint.yellow(`Mount point "${in_mount}" is already defined in the serivce configuration`);
+        return;
+    }
+
+    let volumes = serviceConfig.docker.container.volumes.concat({
+        host: in_path,
+        container: in_mount,
+        local: true
+    });
+
+    let updatedServiceConfig = service.updateConfig(in_serviceConfig, {
+        docker: {
+            container: {
+                volumes
+            }
+        }
+    });
+    return updatedServiceConfig;
 }
 
 // ******************************
@@ -1585,6 +1643,9 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
     let no_cache = in_args['cache'] === false;
     let force = in_args['force'];
     let attach = in_args['attach'];
+    let mount = in_args['mount'];
+    let path = in_args['path'];
+
     switch(command)
     {
     case '':
@@ -1671,6 +1732,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         editServiceDockerfile(in_serviceConfig);
         break;
 
+    case 'add-volume':
+        addVolume(in_serviceConfig, mount, path);
+        break;
+
     default:
         return false;
     }
@@ -1697,7 +1762,13 @@ function getCommands () {
             {param:'+b', description:'Increment bug version (i.e 1.2.5 -> 1.2.6)'},
             {param:'b', description:'Decrement bug version (i.e 1.2.7 -> 1.2.6)'}
         ]},
-        { params: ['start-container', 'start', 'run', 'run-container'], description: 'Start the service docker container', options: [{param:'attach', description:'Run the container in attached mode'}] },
+        { params: ['add-volume'], description: 'Add a volume to attach when running the container', options: [
+            {param:'mount', description:'The container mount point'},
+            {param:'path', description:'The folder to attach'}
+        ] },
+        { params: ['start-container', 'start', 'run', 'run-container'], description: 'Start the service docker container', options: [
+            {param:'attach', description:'Run the container in attached mode'}
+        ] },
         { params: ['enter-container', 'enter', 'interact', 'interactive'], description: 'Enter the running service docker container' },
         { params: ['stop-container', 'stop'], description: 'Stop the service docker container' },
         { params: ['remove-container', 'remove', 'rm'], description: 'Remove the service docker container' },
@@ -1706,10 +1777,16 @@ function getCommands () {
         { params: ['login'], description: 'Log into docker' },
         { params: ['incremental-push'], description: 'Increment docker image version, build image and push' },
         { params: ['pull'], description: 'Pull the service docker image' },
-        { params: ['build'], description: 'Build the service docker image', options: [{param:'no-cache', description:'Don\'t use cached images'}] },
+        { params: ['build'], description: 'Build the service docker image', options: [
+            {param:'no-cache', description:'Don\'t use cached images'}
+        ] },
         { params: ['push'], description: 'Push the service docker image' },
-        { params: ['clean'], description: 'Clean up service temporary docker images', options: [{param:'force', description:'Force clean'}] },
-        { params: ['purge'], description: 'Remove all service docker images', options: [{param:'force', description:'Force purge'}] },
+        { params: ['clean'], description: 'Clean up service temporary docker images', options: [
+            {param:'force', description:'Force clean'}
+        ] },
+        { params: ['purge'], description: 'Remove all service docker images', options: [
+            {param:'force', description:'Force purge'}
+        ] },
         { params: ['edit', 'config', 'configure'], description: 'Edit the Dockerfile' },
     ];
 }
