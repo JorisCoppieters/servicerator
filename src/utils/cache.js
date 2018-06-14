@@ -16,6 +16,8 @@ let date = require('./date');
 //A list of helper cache duration periods. Used for when a new cache item is added.
 const secondInMilis = 1000;
 const minuteInMilis = 60 * secondInMilis;
+const tenMinutesInMilis = 10 * minuteInMilis;
+const halfHourInMilis = 30 * minuteInMilis;
 const hourInMilis = 60 * minuteInMilis;
 const dayInMilis = 24 * hourInMilis;
 const weekInMilis = 7 * dayInMilis;
@@ -104,6 +106,8 @@ module.exports['save'] = saveCache;
 module.exports['durations'] = {
     second: secondInMilis,
     minute: minuteInMilis,
+    tenMinutes: tenMinutesInMilis,
+    halfHour: halfHourInMilis,
     hour: hourInMilis,
     day: dayInMilis,
     week: weekInMilis

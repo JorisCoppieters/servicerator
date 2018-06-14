@@ -71,7 +71,7 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
 
     cache[cacheKey] = {
         val: awsClusterArn,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsClusterArn;
@@ -212,7 +212,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
 
     cache[cacheKey] = {
         val: awsClusterServiceArn,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsClusterServiceArn;
@@ -352,7 +352,7 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
 
     cache[cacheKey] = {
         val: awsTasks,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return awsTasks;
@@ -432,7 +432,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
 
     cache[cacheKey] = {
         val: awsClusterTaskArns,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return awsClusterTaskArns;
@@ -486,7 +486,7 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
 
     cache[cacheKey] = {
         val: awsTaskDefinition,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return awsTaskDefinition;
@@ -572,7 +572,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
 
     cache[cacheKey] = {
         val: awsTaskDefinitionArn,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return awsTaskDefinitionArn;
@@ -641,7 +641,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
 
     cache[cacheKey] = {
         val: latestTaskDefinitionArn,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return latestTaskDefinitionArn;
@@ -710,7 +710,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
 
     cache[cacheKey] = {
         val: previousTaskDefinitionArn,
-        expires: date.getTimestamp() + 1000 // 1 second
+        expires: date.getTimestamp() + cache.durations.second
     };
 
     return previousTaskDefinitionArn;
@@ -793,7 +793,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
 
     cache[cacheKey] = {
         val: awsTasks,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return awsTasks;
@@ -849,7 +849,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
 
     cache[cacheKey] = {
         val: awsRepository,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsRepository;
@@ -902,7 +902,7 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
 
     cache[cacheKey] = {
         val: awsRepositoryImages,
-        expires: date.getTimestamp() + 3600 * 1000 // 1 hour
+        expires: date.getTimestamp() + cache.durations.hour
     };
 
     return awsRepositoryImages;
@@ -995,7 +995,7 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
 
     cache[cacheKey] = {
         val: latestLaunchConfiguration,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return latestLaunchConfiguration;
@@ -1044,7 +1044,7 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
 
     cache[cacheKey] = {
         val: launchConfigurations,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return launchConfigurations;
@@ -1171,7 +1171,7 @@ function getAutoScalingGroups (in_options) {
 
     cache[cacheKey] = {
         val: autoScalingGroups,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return autoScalingGroups;
@@ -1226,7 +1226,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
 
     cache[cacheKey] = {
         val: desiredCapacity,
-        expires: date.getTimestamp() + 2 * 60 * 1000 // 2 minutes
+        expires: date.getTimestamp() + cache.durations.minute
     };
 
     return desiredCapacity;
@@ -1332,7 +1332,7 @@ function getAWSRoleCredentials (in_roleArn, in_options) {
 
     cache[cacheKey] = {
         val: awsRoleAssumedCredentials,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.halfHour
     };
 
     return awsRoleAssumedCredentials;
@@ -1391,7 +1391,7 @@ function getAWSRoleArnForRoleName (in_roleName, in_options) {
 
     cache[cacheKey] = {
         val: awsRoleArn,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsRoleArn;
@@ -1656,7 +1656,7 @@ function getUserArnForUsername (in_username, in_options) {
 
     cache[cacheKey] = {
         val: awsUserArn,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsUserArn;
@@ -1844,7 +1844,7 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
 
     cache[cacheKey] = {
         val: awsBucketPath,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsBucketPath;
@@ -1937,7 +1937,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
 
     cache[cacheKey] = {
         val: awsVpcId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsVpcId;
@@ -1994,7 +1994,7 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
 
     cache[cacheKey] = {
         val: awsDefaultVpcSecurityGroupId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsDefaultVpcSecurityGroupId;
@@ -2049,7 +2049,7 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
 
     cache[cacheKey] = {
         val: awsVpcSecurityGroupId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsVpcSecurityGroupId;
@@ -2120,7 +2120,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
 
     cache[cacheKey] = {
         val: awsVpcSubnetId,
-        expires: date.getTimestamp() + 7 * 24 * 3600 * 1000 // 1 week
+        expires: date.getTimestamp() + cache.durations.week
     };
 
     return awsVpcSubnetId;
@@ -2207,7 +2207,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 
     cache[cacheKey] = {
         val: awsInstanceIds,
-        expires: date.getTimestamp() + 10 * 60 * 1000 // 10 minutes
+        expires: date.getTimestamp() + cache.durations.tenMinutes
     };
 
     return awsInstanceIds;
