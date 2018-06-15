@@ -1028,6 +1028,8 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
 // ******************************
 
 function getRunningDockerContainerId (in_serviceConfig) {
+    cprint.cyan('Checking docker container is running...');
+
     if (!docker.installed()) {
         cprint.yellow('Docker isn\'t installed');
         return false;
@@ -1524,7 +1526,8 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
 
     let roleCredentials = aws.getAssumedRoleCredentials(awsRoleName, {
         cache: awsCache,
-        profile: cluster.aws.profile
+        profile: cluster.aws.profile,
+        verbose: true
     });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {

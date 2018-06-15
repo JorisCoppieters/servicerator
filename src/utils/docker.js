@@ -444,8 +444,7 @@ function dockerVersion () {
 function dockerRunningCommand () {
     let cmdResult = exec.cmdSync('docker', ['info'], {
         indent: '',
-        hide: true,
-        errToOut: true
+        hide: true
     });
 
     if (cmdResult.hasError) {

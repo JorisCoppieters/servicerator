@@ -18,7 +18,7 @@ function getNiceDateTimeStamp(in_date) {
     let minutes = ('0' + dateObj.getMinutes()).slice(-2);
     let seconds = ('0' + dateObj.getSeconds()).slice(-2);
     return hours + ':' + minutes + ':' + seconds + ' ' + date + '/' + month + '/' + year;
-};
+}
 
 // ******************************
 
