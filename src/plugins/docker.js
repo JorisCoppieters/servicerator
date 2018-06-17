@@ -1438,9 +1438,8 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             environmentVariableReplacements['AWS_SECRET_ACCESS_KEY'] = roleCredentials['SecretAccessKey'];
             environmentVariableReplacements['AWS_SESSION_TOKEN'] = roleCredentials['SessionToken'];
         } else {
-            environmentVariableReplacements['AWS_ACCESS_KEY_ID'] = '';
-            environmentVariableReplacements['AWS_SECRET_ACCESS_KEY'] = '';
-            environmentVariableReplacements['AWS_SESSION_TOKEN'] = '';
+            cprint.yellow('Cannot start docker container since it requires valid credentials');
+            return;
         }
     }
 
@@ -1510,6 +1509,9 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {

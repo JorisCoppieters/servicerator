@@ -163,6 +163,10 @@ function createServiceConfig (in_folderName, in_initialise) {
 // ******************************
 
 function checkServiceConfigSchema (in_serviceConfig) {
+    if (!in_serviceConfig) {
+        return;
+    }
+
     let warning = true;
     return _checkObjectAgainstJSONSchema('CHECK', in_serviceConfig, getServiceConfigSchema(), warning);
 }
@@ -170,6 +174,10 @@ function checkServiceConfigSchema (in_serviceConfig) {
 // ******************************
 
 function accessServiceConfig (in_serviceConfig, in_accessConfig) {
+    if (!in_serviceConfig) {
+        return;
+    }
+
     let accessConfig = _convertToJSONSchema(in_accessConfig);
     _checkObjectAgainstJSONSchema('ACCESS', in_serviceConfig, accessConfig);
 

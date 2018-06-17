@@ -65,6 +65,9 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let awsInstalled = aws.installed();
     if (!awsInstalled) {
@@ -345,6 +348,9 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -470,6 +476,9 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -568,6 +577,9 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -818,6 +830,9 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1076,6 +1091,9 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1374,6 +1392,9 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1620,6 +1641,9 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1700,6 +1724,9 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -1916,6 +1943,9 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2051,6 +2081,9 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2396,6 +2429,9 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2507,6 +2543,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2662,6 +2701,9 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2776,6 +2818,9 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -2914,6 +2959,9 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     cprint.cyan('Cleaning launch configurations...');
 
@@ -3019,6 +3067,9 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     cprint.cyan('Cleaning repositories...');
 
@@ -3119,6 +3170,9 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     cprint.cyan('Cleaning task definitions...');
 
@@ -3228,6 +3282,9 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3459,6 +3516,9 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3533,6 +3593,9 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3620,6 +3683,9 @@ function awsStopCluster (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -3692,6 +3758,9 @@ function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!in_ami) {
         cprint.yellow('Instance AMI not provided');
@@ -3737,6 +3806,9 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!in_count) {
         cprint.yellow('Instance count not provided');
@@ -3783,6 +3855,9 @@ function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!in_type) {
         cprint.yellow('Instance type not provided');
@@ -3828,6 +3903,9 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3885,6 +3963,9 @@ function awsViewInstances (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3934,6 +4015,9 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -3979,6 +4063,9 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4024,6 +4111,9 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4083,6 +4173,9 @@ function awsViewRepository (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -4133,6 +4226,9 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     if (!aws.installed()) {
         cprint.yellow('AWS-CLI isn\'t installed');
@@ -4181,6 +4277,9 @@ function awsViewCluster (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4220,6 +4319,9 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4261,6 +4363,9 @@ function awsViewBucket (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4305,6 +4410,9 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
             ]
         }
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
@@ -4346,6 +4454,9 @@ function awsViewEndpoint (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
+    if (!serviceConfig) {
+        return;
+    }
 
     let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {

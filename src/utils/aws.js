@@ -1491,6 +1491,9 @@ function getMultiFactorAuthDevice (in_options) {
     }
 
     let username = getAwsUsername(in_options);
+    if (!username) {
+        return;
+    }
 
     if (opts.verbose) {
         cprint.cyan(`Getting MFA device for ${username}...`);
@@ -1528,7 +1531,7 @@ function getMultiFactorAuthDevice (in_options) {
     }
 
     let mfaDevicesResponse = JSON.parse(awsCmdResult.result);
-    if (!mfaDevicesResponse || !mfaDevicesResponse.MFADevices) {
+    if (!mfaDevicesResponse || !mfaDevicesResponse.MFADevices || !mfaDevicesResponse.MFADevices.length) {
         return;
     }
 
@@ -2246,7 +2249,7 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        return false;
+        return;
     }
 
     if (!awsInstalled()) {
@@ -2462,6 +2465,9 @@ function configureProfileAsRole(in_options) {
 function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = in_serviceConfig || {};
     let awsServiceConfig = getAwsServiceConfig(in_serviceConfig, in_environment);
+    if (!awsServiceConfig) {
+        return;
+    }
     serviceConfig = service.combineConfig(awsServiceConfig, serviceConfig);
     return serviceConfig;
 }
