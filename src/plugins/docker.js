@@ -1529,7 +1529,8 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
     let roleCredentials = aws.getAssumedRoleCredentials(awsRoleName, {
         cache: awsCache,
         profile: cluster.aws.profile,
-        verbose: true
+        verbose: true,
+        showWarning: true
     });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
