@@ -1530,12 +1530,15 @@ function getMultiFactorAuthDevice (in_options) {
         return;
     }
 
+    let mfaDevice = false;
+
     let mfaDevicesResponse = JSON.parse(awsCmdResult.result);
     if (!mfaDevicesResponse || !mfaDevicesResponse.MFADevices || !mfaDevicesResponse.MFADevices.length) {
-        return;
+        mfaDevice = false;
+    } else {
+        mfaDevice = mfaDevicesResponse.MFADevices.shift();
     }
 
-    let mfaDevice = mfaDevicesResponse.MFADevices.shift();
     awsCache[cacheKey] = {
         val: mfaDevice,
         expires: date.getTimestamp() + cache.durations.week
