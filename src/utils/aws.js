@@ -1483,11 +1483,22 @@ function getMultiFactorAuthDevice (in_options) {
 
     let profile = opts.profile;
     let longTermProfile = opts.longTermProfile;
+    let awsCredentials = opts.awsCredentials;
 
     let awsCache = opts.cache || {};
     let cacheKey = profile + '-mfa-device';
     if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
         return awsCache[cacheKey].val;
+    }
+
+    // First try with long term profile if present
+    if (awsCredentials[longTermProfile] && awsCredentials[longTermProfile].assumed_role) {
+        return;
+    }
+
+    // Otherwise try with normal profile if present
+    if (awsCredentials[profile] && awsCredentials[profile].assumed_role) {
+        return;
     }
 
     let username = getAwsUsername(in_options);
@@ -2280,6 +2291,7 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
     let mfaDevice = getMultiFactorAuthDevice({
         profile: profile,
         longTermProfile: longTermProfile,
+        awsCredentials: awsCredentials,
         cache: awsCache,
         verbose: true
     });
@@ -2303,7 +2315,6 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
         if (configured) {
             reloadConfigFiles = true;
         }
-
     }
 
     if (assumeRoleArn) {
