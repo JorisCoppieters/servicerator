@@ -246,7 +246,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     region: cluster.aws.region
                 });
 
-                instanceIds.forEach(i => {
+                (instanceIds || []).forEach(i => {
                     cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
                     print.keyVal('Instance Id', i.InstanceId);
                     print.keyVal('Instance Ip Address', i.IpAddress);

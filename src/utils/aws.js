@@ -1492,12 +1492,12 @@ function getMultiFactorAuthDevice (in_options) {
     }
 
     // First try with long term profile if present
-    if (awsCredentials[longTermProfile] && awsCredentials[longTermProfile].assumed_role) {
+    if (awsCredentials[longTermProfile] && !_isProfileExpired(awsCredentials[longTermProfile]) && awsCredentials[longTermProfile].assumed_role) {
         return;
     }
 
     // Otherwise try with normal profile if present
-    if (awsCredentials[profile] && awsCredentials[profile].assumed_role) {
+    if (awsCredentials[profile] && !_isProfileExpired(awsCredentials[profile]) && awsCredentials[profile].assumed_role) {
         return;
     }
 
@@ -2394,8 +2394,7 @@ function configureMultiFactorAuth(in_options) {
         isSessionRefreshRequired = true;
     }
     else if (awsCredentials[profile]) {
-        isSessionRefreshRequired = !awsCredentials[profile].expiration
-            || new Date() > new Date(awsCredentials[profile].expiration + 'Z');
+        isSessionRefreshRequired = _isProfileExpired(awsCredentials[profile]);
     }
 
     if (!isSessionRefreshRequired) {
@@ -2447,8 +2446,7 @@ function configureProfileAsRole(in_options) {
     if (!awsCredentials[profileAsRole]) {
         isRoleAssumptionRequired = true;
     }
-    else if (!awsCredentials[profileAsRole].expiration
-        || new Date() > new Date(awsCredentials[profileAsRole].expiration + 'Z')) {
+    else if (_isProfileExpired(awsCredentials[profileAsRole])) {
         isRoleAssumptionRequired = true;
     }
 
@@ -2891,6 +2889,24 @@ function awsVersion (awsCmd) {
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _isProfileExpired(profile) {
+    if (!profile) {
+        return true;
+    }
+
+    if (!profile.expiration) {
+        return true;
+    }
+
+    if (new Date() > new Date(profile.expiration + 'Z')) {
+        return true;
+    }
+
+    return false;
+}
+
 // ******************************
 
 function _formatSessionExpiration(in_expiration) {
