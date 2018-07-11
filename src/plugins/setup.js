@@ -136,7 +136,7 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
         return;
     }
 
-    let suppressOutput = ['on_open', 'on_close'].indexOf(in_fieldCheck) >= 0;
+    let suppressOutput = false; //['on_open', 'on_close'].indexOf(in_fieldCheck) >= 0;
 
     let fileSystem = serviceConfig.service.fileSystem;
     fileSystem.forEach(f => {
@@ -177,17 +177,52 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
 }
 
 // ******************************
+
+function _hasSetupTasks (in_serviceConfig, in_fieldCheck) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        service: {
+            fileSystem: [
+                {
+                    on_open: 'BOOLEAN',
+                    on_close: 'BOOLEAN',
+                    on_setup: 'BOOLEAN'
+                }
+
+            ]
+        },
+        cwd: 'STRING'
+    });
+
+    let hasSetupTasks = false;
+
+    let fileSystem = serviceConfig.service.fileSystem;
+    fileSystem.forEach(f => {
+        if (f[in_fieldCheck]) {
+            hasSetupTasks = true;
+        }
+    });
+
+    return hasSetupTasks;
+}
+
+// ******************************
 // Plugin Functions:
 // ******************************
 
 function onOpen (in_serviceConfig) {
-    _createFilesystem(in_serviceConfig, 'on_open');
+    if (_hasSetupTasks(in_serviceConfig, 'on_open')) {
+        cprint.cyan('Checking setup...');
+        _createFilesystem(in_serviceConfig, 'on_open');
+    }
 }
 
 // ******************************
 
 function onClose (in_serviceConfig) {
-    _createFilesystem(in_serviceConfig, 'on_close');
+    if (_hasSetupTasks(in_serviceConfig, 'on_close')) {
+        cprint.cyan('Checking setup...');
+        _createFilesystem(in_serviceConfig, 'on_close');
+    }
 }
 
 // ******************************

@@ -1465,7 +1465,9 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             args.push('bash');
             cprint.cyan('Starting Docker container "' + containerName + '" via external console with bash...');
         }
-        let cmdResult = shell.cmd(['docker'].concat(args));
+        let cmdResult = shell.cmd(['docker'].concat(args), {
+            checkReturnCode: true
+        });
         if (!cmdResult) {
             return;
         }

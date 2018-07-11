@@ -40,11 +40,19 @@ function shellCmd (in_args, in_options) {
         args = [args];
     }
 
+    let afterArgs = [];
+    if (options.checkReturnCode) {
+        afterArgs = afterArgs.concat([
+            ';',
+            'RET=$?; if [[ $RET -ne 0 && $RET -lt 129 ]]; then echo "Error return code ($RET) - hit enter to close..."; read; fi;'
+        ]);
+    }
+
     let shell = getShell();
     if (shell.match(/git-bash/)) {
         args = [
             '-c',
-            ['winpty'].concat(args).join(' ')
+            ['winpty'].concat(args).concat(afterArgs).join(' ')
         ];
     }
 
