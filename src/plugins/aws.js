@@ -2218,10 +2218,12 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         }
     }
 
+    let isProdEnv = ['production', 'prod'].indexOf(environment.toLowerCase()) >= 0;
+
     serviceContainerDefinition.environment = Object.entries(
         serviceConfig.docker.container.environment_variables
             .filter(environmentVariable => !environmentVariable.local && environmentVariable.key && environmentVariable.value)
-            .filter(environmentVariable => environment === 'production' || !environmentVariable.prod)
+            .filter(environmentVariable => isProdEnv || !environmentVariable.prod)
             .map(environmentVariable => {
                 return {
                     key: service.replaceConfigReferences(in_serviceConfig, environmentVariable.key),
