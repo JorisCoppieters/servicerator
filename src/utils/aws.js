@@ -229,8 +229,8 @@ function createClusterService (in_clusterServiceConfig, in_options) {
     let loadBalancers = clusterServiceConfig.loadBalancers || [];
     let desiredCount = clusterServiceConfig.desiredCount || 0;
     let role = clusterServiceConfig.role;
-    let healthCheckGracePeriod = clusterServiceConfig.healthCheckGracePeriod;
-    let maximumPercent = clusterServiceConfig.maximumPercent || 200;
+    let healthCheckGracePeriod = clusterServiceConfig.healthCheckGracePeriod || 300;
+    let maximumHealthyPercent = clusterServiceConfig.maximumHealthyPercent || 200;
     let minimumHealthyPercent = clusterServiceConfig.minimumHealthyPercent || 50;
 
     cprint.cyan('Creating AWS Cluster Service in AWS Cluster "' + awsArnToTitle(clusterArn) +'" for AWS Cluster Service "' + clusterServiceName + '"...');
@@ -243,7 +243,7 @@ function createClusterService (in_clusterServiceConfig, in_options) {
         '--service-name', clusterServiceName,
         '--desired-count', desiredCount,
         '--deployment-configuration', JSON.stringify({
-            maximumPercent: maximumPercent,
+            maximumPercent: maximumHealthyPercent,
             minimumHealthyPercent: minimumHealthyPercent
         })
     ];
@@ -253,8 +253,10 @@ function createClusterService (in_clusterServiceConfig, in_options) {
         args.push(healthCheckGracePeriod);
         args.push('--load-balancers');
         args.push(JSON.stringify(loadBalancers));
-        args.push('--role');
-        args.push(role);
+        if (role) {
+            args.push('--role');
+            args.push(role);
+        }
     }
 
     let cmdResult = awsCmd(args, in_options);
@@ -1259,6 +1261,90 @@ function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, 
 // IAM Role Functions:
 // ******************************
 
+function getTargetGroups (in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'AllTargetGroups';
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving all AWS Target Groups...');
+    }
+
+    let cmdResult = awsCmd([
+        'elbv2',
+        'describe-target-groups'
+    ], {
+        hide: !opts.verbose,
+        profile: opts.profile,
+        region: opts.region
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return;
+    }
+
+    let autoScalingGroups;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.TargetGroups) {
+        autoScalingGroups = awsResult.TargetGroups;
+    }
+
+    if (autoScalingGroups === undefined) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find any AWS Target Groups');
+        }
+        return;
+    }
+
+    awsCache[cacheKey] = {
+        val: autoScalingGroups,
+        expires: date.getTimestamp() + cache.durations.minute
+    };
+
+    return autoScalingGroups;
+}
+
+// ******************************
+
+function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
+    let opts = in_options || {};
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving AWS Target Group for AWS Target Group Name "' + in_targetGroupName + '"...');
+    }
+
+    let targetGroups = getTargetGroups(in_options);
+    if (!targetGroups || !targetGroups.length) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find any AWS Target Groups');
+        }
+        return;
+    }
+
+    let targetGroup = targetGroups
+        .find(g => g.TargetGroupName === in_targetGroupName);
+
+    if (!targetGroup || !targetGroup.TargetGroupArn) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find AWS Target Groups for AWS Target Group Name "' + in_targetGroupName + '"');
+        }
+        return;
+    }
+
+    return targetGroup.TargetGroupArn;
+}
+
+// ******************************
+// IAM Role Functions:
+// ******************************
+
 function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
     let awsRoleArn = getAWSRoleArnForRoleName(awsRoleName, in_options);
     if (!awsRoleArn) {
@@ -2241,7 +2327,7 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         profile: 'STRING',
                         assume_role: 'STRING'
                     },
@@ -2492,7 +2578,7 @@ function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -2972,6 +3058,8 @@ module.exports['getRoleCredentials'] = getAWSRoleCredentials;
 module.exports['getSecretKey'] = getAwsSecretKey;
 module.exports['getServiceConfig'] = getAwsServiceConfig;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;
+module.exports['getTargetGroupArnForTargetGroupName'] = getTargetGroupArnForTargetGroupName;
+module.exports['getTargetGroups'] = getTargetGroups;
 module.exports['getTaskDefinition'] = getTaskDefinition;
 module.exports['getTaskDefinitionArnForClusterService'] = getTaskDefinitionArnForClusterService;
 module.exports['getTaskDetails'] = getTaskDetails;

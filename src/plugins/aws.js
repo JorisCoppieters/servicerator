@@ -9,6 +9,7 @@ let cprint = require('color-print');
 let aws = require('../utils/aws');
 let awsInstanceTypes = require('../utils/aws.instance.types');
 let cache = require('../utils/cache');
+let obj = require('../utils/object');
 let date = require('../utils/date');
 let docker = require('../utils/docker');
 let env = require('../utils/env');
@@ -39,7 +40,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                     },
                     aws: {
                         access_key: 'STRING',
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         profile: 'STRING',
                         region: 'STRING',
                         bucket: {
@@ -337,7 +338,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         region: 'STRING',
                         image: {
                             name: 'STRING'
@@ -465,7 +466,7 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         region: 'STRING',
                         image: {
                             name: 'STRING'
@@ -555,7 +556,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
             clusters: [
                 {
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         profile: 'STRING',
                         region: 'STRING',
                         image: {
@@ -564,7 +565,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
-                    instance: {
+                    tasks: {
                         count: 'NUMBER'
                     },
                     name: 'STRING',
@@ -629,7 +630,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
     let awsClusterName = cluster.name;
     let awsClusterServiceName = cluster.service_name;
-    let awsClusterServiceInstanceCount = cluster.instance.count || 1;
+    let awsClusterServiceTasksCount = cluster.tasks.count || 1;
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -663,7 +664,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
     print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Name', awsClusterServiceName);
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Instance Count', awsClusterServiceInstanceCount);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Tasks Count', awsClusterServiceTasksCount);
 
     print.keyVal('AWS ' + environmentTitle + ' Cluster Tasks', '...', true);
     let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, {
@@ -688,7 +689,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         });
     }
 
-    aws.deployTaskDefinitionToCluster(awsClusterName, awsClusterServiceArn, taskDefinitionArn, awsClusterServiceInstanceCount, {
+    aws.deployTaskDefinitionToCluster(awsClusterName, awsClusterServiceArn, taskDefinitionArn, awsClusterServiceTasksCount, {
         profile: cluster.aws.profile,
         region: cluster.aws.region
     });
@@ -1356,6 +1357,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                 {
                     auto_scaling_group: {
                         health_check_grace_period: 'NUMBER',
+                        count: 'NUMBER',
                         name: 'STRING',
                         subnets: [
                             'STRING'
@@ -1371,7 +1373,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     instance: {
-                        count: 'NUMBER',
                         tags: [
                             {
                                 key: 'STRING',
@@ -1456,10 +1457,10 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
-    let desiredCount = cluster.instance.count || 0;
+    let desiredInstanceCount = obj.positiveNumberOr(cluster.auto_scaling_group.count, 0);
 
     let awsAutoScalingGroupMinSize = 0;
-    let awsAutoScalingGroupMaxSize = desiredCount + 2;
+    let awsAutoScalingGroupMaxSize = desiredInstanceCount + 2;
 
     cprint.magenta('-- Auto Scaling Group --');
 
@@ -2060,7 +2061,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
             clusters: [
                 {
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         bucket: {
                             name: 'STRING'
                         },
@@ -2520,7 +2521,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     auto_scaling_group: {
-                        health_check_grace_period: 'NUMBER'
+                        health_check_grace_period: 'NUMBER',
+                        count: 'NUMBER'
                     },
                     aws: {
                         profile: 'STRING',
@@ -2528,10 +2530,13 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING',
-                    instance: {
+                    tasks: {
                         count: 'NUMBER'
                     },
                     load_balancer: {
+                        name: 'STRING'
+                    },
+                    target_group: {
                         name: 'STRING'
                     },
                     name: 'STRING',
@@ -2582,9 +2587,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let dockerContainerName = serviceName;
-
     let environment = cluster.environment;
+    let oldEnvironment = cluster.role === 'ecsServiceRole';
     let environmentTitle = str.toTitleCase(environment);
 
     let awsClusterName = cluster.name;
@@ -2599,10 +2603,56 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         return false;
     }
 
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+    let desiredInstanceCount = obj.positiveNumberOr(cluster.auto_scaling_group.count, 0);
+
+    let desiredTaskCount = obj.positiveNumberOr(cluster.tasks.count, 10);
+    let minimumTaskCount = obj.positiveNumberOr(cluster.tasks.minimum_count, 1);
+    let maximumTaskCount = obj.positiveNumberOr(cluster.tasks.maximum_count, 20);
+
+    let minimumHealthyPercent = desiredTaskCount ? parseInt(minimumTaskCount / desiredTaskCount * 100) : 0;
+    let maximumHealthyPercent = desiredTaskCount ? parseInt(maximumTaskCount / desiredTaskCount * 100) : 200;
+
+    if (desiredInstanceCount > desiredTaskCount) {
+        cprint.yellow('Your desired instance count is higher than your desired task count');
+        return false;
+    }
+
+    let role = cluster.role || 'ecs-access-elb';
+
+    cprint.magenta('-- AWS ' + environmentTitle + ' Cluster Service --');
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
+    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Desired Task Count', desiredTaskCount);
+    print.keyVal('AWS ' + environmentTitle + ' Role', role);
+
+    let awsTargetGroupName = cluster.target_group.name;
+    let awsTargetGroupArn;
+
+    if (awsTargetGroupName) {
+        print.keyVal('AWS Target Group', '...', true);
+        awsTargetGroupArn = aws.getTargetGroupArnForTargetGroupName(awsTargetGroupName, {
+            cache: awsCache,
+            showWarning: true,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
+        if (!awsTargetGroupArn) {
+            return;
+        }
+
+        print.clearLine();
+        print.keyVal('AWS Target Group', awsTargetGroupName);
+    }
+
     let loadBalancers = [];
 
     let awsLoadBalancerName = cluster.load_balancer.name;
-    if (awsLoadBalancerName) {
+    let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
+
+    let awsContainerName = oldEnvironment ? oldContainerDefinition : 'service'; // TODO - Remove environment specific setting
+
+    if (awsTargetGroupArn || awsLoadBalancerName) {
         serviceConfig.docker.container.ports.forEach(port => {
             if (!port.host || !port.container) {
                 return;
@@ -2613,8 +2663,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             }
 
             loadBalancers.push({
-                loadBalancerName: awsLoadBalancerName,
-                containerName: dockerContainerName,
+                targetGroupArn: awsTargetGroupArn,
+                loadBalancerName: awsTargetGroupArn ? undefined : awsLoadBalancerName,
+                containerName: awsContainerName,
                 containerPort: port.container
             });
         });
@@ -2624,18 +2675,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         loadBalancers = [loadBalancers[0]];
     }
 
-    let desiredCount = cluster.instance.count || 0;
+    print.keyVal('AWS ' + environmentTitle + ' Load Balancers', JSON.stringify(loadBalancers, null, 4));
 
     let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
-    let role = cluster.role || 'ecs-access-elb';
-
-    let awsCache = cache.load(serviceConfig.cwd, 'aws');
-
-    cprint.magenta('-- AWS ' + environmentTitle + ' Cluster Service --');
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Name', awsClusterName);
-    print.keyVal('AWS ' + environmentTitle + ' Cluster Service Desired Count', desiredCount);
-    print.keyVal('AWS ' + environmentTitle + ' Role', role);
-    print.keyVal('AWS ' + environmentTitle + ' Load Balancers', JSON.stringify(loadBalancers, null, 4));
 
     print.keyVal('AWS Task Definition', '...', true);
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
@@ -2667,8 +2709,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         serviceName: awsClusterServiceName,
         taskDefinitionArn: taskDefinitionArn,
         loadBalancers: loadBalancers,
-        desiredCount: desiredCount,
-        role: role,
+        desiredCount: desiredTaskCount,
+        maximumHealthyPercent: maximumHealthyPercent,
+        minimumHealthyPercent: minimumHealthyPercent,
         healthCheckGracePeriod: healthCheckGracePeriod
     }, {
         profile: cluster.aws.profile,
@@ -2940,7 +2983,6 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     instance: {
-                        count: 'NUMBER',
                         tags: [
                             {
                                 key: 'STRING',
@@ -3247,6 +3289,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     auto_scaling_group: {
+                        count: 'NUMBER',
                         health_check_grace_period: 'NUMBER',
                         name: 'STRING',
                         subnets: [
@@ -3263,7 +3306,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     instance: {
-                        count: 'NUMBER',
                         tags: [
                             {
                                 key: 'STRING',
@@ -3348,10 +3390,10 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
-    let desiredCount = cluster.instance.count || 0;
+    let desiredInstanceCount = obj.positiveNumberOr(cluster.auto_scaling_group.count, 0);
 
     let awsAutoScalingGroupMinSize = 0;
-    let awsAutoScalingGroupMaxSize = desiredCount + 2;
+    let awsAutoScalingGroupMaxSize = desiredInstanceCount + 2;
 
     cprint.magenta('-- Auto Scaling Group --');
 
@@ -3509,7 +3551,7 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        account_id: 'NUMBER',
+                        account_id: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -3579,6 +3621,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     auto_scaling_group: {
+                        count: 'NUMBER',
                         name: 'STRING'
                     },
                     aws: {
@@ -3586,10 +3629,7 @@ function awsStartCluster (in_serviceConfig, in_environment) {
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
-                    environment: 'STRING',
-                    instance: {
-                        count: 'NUMBER'
-                    }
+                    environment: 'STRING'
                 }
             ],
             name: 'STRING'
@@ -3628,7 +3668,11 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let instanceCount = cluster.instance.count || 2;
+    let desiredInstanceCount = obj.positiveNumberOr(cluster.auto_scaling_group.count, 0);
+    if (desiredInstanceCount === 0) {
+        cprint.yellow('Your desired instance count is 0');
+        return false;
+    }
 
     let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
         profile: cluster.aws.profile,
@@ -3642,14 +3686,14 @@ function awsStartCluster (in_serviceConfig, in_environment) {
 
     if (autoScalingGroupInstanceCount == 0) {
         cprint.cyan('Starting AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, instanceCount, {
+        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, desiredInstanceCount, {
             cache: awsCache,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
-    } else if (autoScalingGroupInstanceCount != instanceCount) {
+    } else if (autoScalingGroupInstanceCount != desiredInstanceCount) {
         cprint.cyan('Updating AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, instanceCount, {
+        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, desiredInstanceCount, {
             cache: awsCache,
             profile: cluster.aws.profile,
             region: cluster.aws.region
@@ -3751,10 +3795,7 @@ function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
         service: {
             clusters: [
                 {
-                    environment: 'STRING',
-                    instance: {
-                        count: 'NUMBER'
-                    }
+                    environment: 'STRING'
                 }
             ]
         },
@@ -3799,10 +3840,7 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
         service: {
             clusters: [
                 {
-                    environment: 'STRING',
-                    instance: {
-                        count: 'NUMBER'
-                    }
+                    environment: 'STRING'
                 }
             ]
         },
@@ -3830,12 +3868,12 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
             return c.environment === in_environment;
         });
         if (environmentCluster) {
-            environmentCluster.instance.count = count;
+            environmentCluster.auto_scaling_group.count = count;
         }
         service.updateConfig(in_serviceConfig, serviceConfig);
     } else {
         clusters.forEach(c => {
-            c.instance.count = count;
+            c.auto_scaling_group.count = count;
         });
         service.updateConfig(in_serviceConfig, serviceConfig);
     }
@@ -3848,10 +3886,7 @@ function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
         service: {
             clusters: [
                 {
-                    environment: 'STRING',
-                    instance: {
-                        count: 'NUMBER'
-                    }
+                    environment: 'STRING'
                 }
             ]
         },
@@ -3897,7 +3932,7 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
-                        account_id: 'NUMBER'
+                        account_id: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'

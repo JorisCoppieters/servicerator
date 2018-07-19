@@ -106,6 +106,24 @@ function setIfNotSet (in_object, in_field, in_value) {
 
 // ******************************
 
+function isNumber (in_object) {
+    return typeof(in_object) === 'number';
+}
+
+// ******************************
+
+function isPositiveNumber (in_object) {
+    return isNumber(in_object) && in_object >= 0;
+}
+
+// ******************************
+
+function positiveNumberOr (in_object, in_default) {
+    return isPositiveNumber(in_object) ? in_object : in_default || 0;
+}
+
+// ******************************
+
 function isUndefined (in_object) {
     return typeof(in_object) === 'undefined';
 }
@@ -138,13 +156,16 @@ function isEmpty (in_object) {
 // Exports:
 // ******************************
 
-module.exports['unsetMask'] = unsetMaskOnObject;
-module.exports['setMask'] = setMaskOnObject;
-module.exports['setIfNotSet'] = setIfNotSet;
-module.exports['isUndefined'] = isUndefined;
-module.exports['isEmpty'] = isEmpty;
 module.exports['isArray'] = isArray;
+module.exports['isEmpty'] = isEmpty;
+module.exports['isNumber'] = isNumber;
 module.exports['isObject'] = isObject;
 module.exports['isObjectOrArray'] = isObjectOrArray;
+module.exports['isPositiveNumber'] = isPositiveNumber;
+module.exports['isUndefined'] = isUndefined;
+module.exports['positiveNumberOr'] = positiveNumberOr;
+module.exports['setIfNotSet'] = setIfNotSet;
+module.exports['setMask'] = setMaskOnObject;
+module.exports['unsetMask'] = unsetMaskOnObject;
 
 // ******************************

@@ -9,7 +9,7 @@ let cprint = require('color-print');
 let docker = require('./docker');
 let env = require('./env');
 let fs = require('./filesystem');
-let object = require('./object');
+let obj = require('./object');
 let print = require('./print');
 
 // ******************************
@@ -51,14 +51,14 @@ function createServiceConfig (in_folderName, in_initialise) {
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
-    if (!serviceConfig.schema_version) {
-        serviceConfig.schema_version = scriptSchemaVersion;
+    if (!serviceConfig.schema_version_str) {
+        serviceConfig.schema_version_str = _toVersionString(scriptSchemaVersion);
         serviceConfig.$schema = scriptSchema;
     }
 
     let dockerfile = docker.getDockerfile(in_folderName);
     if (dockerfile && fs.fileExists(dockerfile)) {
-        serviceConfig = object.setMask(serviceConfig, {
+        serviceConfig = obj.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -67,7 +67,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     let pythonFolder = path.resolve(sourceFolder, 'python');
     if (pythonFolder && fs.folderExists(pythonFolder)) {
-        serviceConfig = object.setMask(serviceConfig, {
+        serviceConfig = obj.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -76,7 +76,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     let nodeFolder = path.resolve(sourceFolder, 'node');
     if (nodeFolder && fs.folderExists(nodeFolder)) {
-        serviceConfig = object.setMask(serviceConfig, {
+        serviceConfig = obj.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder))
             }
@@ -85,7 +85,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
     if (serviceConfig.docker) {
         if (serviceConfig.aws) {
-            serviceConfig = object.setMask(serviceConfig, {
+            serviceConfig = obj.setMask(serviceConfig, {
                 docker: {
                     image: {
                         log: true
@@ -121,7 +121,7 @@ function createServiceConfig (in_folderName, in_initialise) {
     }
 
     if (modelFolder && fs.folderExists(modelFolder)) {
-        serviceConfig = object.setMask(serviceConfig, {
+        serviceConfig = obj.setMask(serviceConfig, {
             model: {
                 source: path.relative(sourceFolder, modelFolder),
                 type: bundledModel ? 'bundled' : 'model_store'
@@ -143,7 +143,7 @@ function createServiceConfig (in_folderName, in_initialise) {
     }
 
     if (in_initialise) {
-        serviceConfig = object.setMask(serviceConfig, {
+        serviceConfig = obj.setMask(serviceConfig, {
             service: {
                 name: path.basename(path.resolve(sourceFolder)),
             }
@@ -234,7 +234,7 @@ function getServiceConfigSchemaUrl () {
 
 function getServiceConfigSchemaVersion () {
     if (!_schema_version) {
-        _schema_version = require('./service.schema').k_SCHEMA_VERSION;
+        _schema_version = _parseVersion(require('./service.schema').k_SCHEMA_VERSION);
     }
     return _schema_version;
 }
@@ -611,18 +611,18 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options)
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
-        let updatedServiceConfig = object.setMask(in_newServiceConfig, savedServiceConfig);
+        let updatedServiceConfig = obj.setMask(in_newServiceConfig, savedServiceConfig);
         _saveServiceConfig(updatedServiceConfig, opt);
     }
 
-    let updatedServiceConfig = object.setMask(in_newServiceConfig, in_serviceConfig);
+    let updatedServiceConfig = obj.setMask(in_newServiceConfig, in_serviceConfig);
     return updatedServiceConfig;
 }
 
 // ******************************
 
 function combineServiceConfig (in_serviceConfig1, in_serviceConfig2) {
-    let combinedServiceConfig = object.setMask(in_serviceConfig1, in_serviceConfig2);
+    let combinedServiceConfig = obj.setMask(in_serviceConfig1, in_serviceConfig2);
     return combinedServiceConfig;
 }
 
@@ -642,11 +642,11 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
-        let updatedServiceConfig = object.unsetMask(in_removeServiceConfig, savedServiceConfig);
+        let updatedServiceConfig = obj.unsetMask(in_removeServiceConfig, savedServiceConfig);
         _saveServiceConfig(updatedServiceConfig, opt);
     }
 
-    let updatedServiceConfig = object.unsetMask(in_removeServiceConfig, in_serviceConfig);
+    let updatedServiceConfig = obj.unsetMask(in_removeServiceConfig, in_serviceConfig);
     return updatedServiceConfig;
 }
 
@@ -736,14 +736,12 @@ function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_op
             keyValue = true;
         } else if (keyValue.trim().toLowerCase() === 'false') {
             keyValue = false;
+        } else if (keyValue.trim().toLowerCase().match(/s:(.*)/)) {
+            keyValue = keyValue.trim().replace(/s:/,'');
         } else if (keyValue.trim().match(/^-?[0-9]+\.[0-9]+$/)) {
             keyValue = parseFloat(keyValue);
         } else if (keyValue.trim().match(/^-?[0-9]+$/)) {
             keyValue = parseInt(keyValue);
-        } else if (keyValue.trim().toLowerCase() === 's:true') {
-            keyValue = keyValue.trim().replace(/s:/,'');
-        } else if (keyValue.trim().toLowerCase() === 's:false') {
-            keyValue = keyValue.trim().replace(/s:/,'');
         }
     }
 
@@ -858,19 +856,17 @@ function getServiceConfigValue (in_serviceConfig, in_keyPath) {
 // ******************************
 
 function _upgradeServiceConfig (in_serviceConfig) {
-    let serviceConfig = accessServiceConfig(in_serviceConfig, {
-        schema_version: 'NUMBER'
-    });
+    let serviceConfig = in_serviceConfig;
 
     let serviceConfigChanged;
     let newServiceConfig = in_serviceConfig;
     let requiresSave = false;
 
-    let schemaVersion = serviceConfig.schema_version || 0;
+    let schemaVersion = _parseVersion(serviceConfig.schema_version_str || serviceConfig.schema_version || '1.0.0');
 
     _checkSchemaVersion(schemaVersion);
 
-    if (schemaVersion < 1) {
+    if (_versionCompare(schemaVersion, [1,0]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom0To1(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -878,7 +874,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 2) {
+    if (_versionCompare(schemaVersion, [2,0]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom1To2(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -886,7 +882,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 3) {
+    if (_versionCompare(schemaVersion, [3,0]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom2To3(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -894,7 +890,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 3.3) {
+    if (_versionCompare(schemaVersion, [3,3]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom3To3_3(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -902,7 +898,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 3.4) {
+    if (_versionCompare(schemaVersion, [3,4]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom3_3To3_4(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -910,7 +906,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 3.5) {
+    if (_versionCompare(schemaVersion, [3,5]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom3_4To3_5(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -918,7 +914,7 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 3.6) {
+    if (_versionCompare(schemaVersion, [3,6]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom3_5To3_6(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
@@ -926,8 +922,16 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
-    if (schemaVersion < 3.7) {
+    if (_versionCompare(schemaVersion, [3,7]) < 0) {
         serviceConfigChanged = _upgradeServiceConfigFrom3_6To3_7(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
+    if (_versionCompare(schemaVersion, [3,10]) < 0) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_9To3_10(newServiceConfig);
         if (serviceConfigChanged) {
             newServiceConfig = serviceConfigChanged;
             requiresSave = true;
@@ -937,8 +941,8 @@ function _upgradeServiceConfig (in_serviceConfig) {
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
-    if (!schemaVersion || schemaVersion < scriptSchemaVersion) {
-        newServiceConfig.schema_version = scriptSchemaVersion;
+    if (_versionMajorMinorCompare(schemaVersion, scriptSchemaVersion) < 0 || !newServiceConfig.schema_version_str) {
+        newServiceConfig.schema_version_str = _toVersionString(scriptSchemaVersion);
         newServiceConfig.$schema = scriptSchema;
         requiresSave = true;
     }
@@ -954,13 +958,13 @@ function _upgradeServiceConfig (in_serviceConfig) {
 // ******************************
 
 function _checkSchemaVersion (in_configSchemaVersion) {
-    let currentSchemaVersion = getServiceConfigSchemaVersion();
-    if (parseInt(in_configSchemaVersion) > parseInt(currentSchemaVersion)) {
+    let scriptSchemaVersion = getServiceConfigSchemaVersion();
+    if (_versionMajorCompare(scriptSchemaVersion, in_configSchemaVersion) < 0) {
         cprint.red('You are running a majorly out of date servicerator, please update it with: npm install -g servicerator');
         process.exit(-1);
     }
 
-    if (in_configSchemaVersion > currentSchemaVersion) {
+    if (_versionMajorMinorCompare(scriptSchemaVersion, in_configSchemaVersion) < 0) {
         cprint.yellow('You are running a minorly out of date servicerator, please update it with: npm install -g servicerator');
     }
 }
@@ -1059,7 +1063,7 @@ function _upgradeServiceConfigFrom3_3To3_4 (in_serviceConfig) {
     let hasBeenUpdated = false;
 
     if (in_serviceConfig.model) {
-        if (in_serviceConfig.model.bucket && !object.isObject(in_serviceConfig.model.bucket)) {
+        if (in_serviceConfig.model.bucket && !obj.isObject(in_serviceConfig.model.bucket)) {
             let bucketName = in_serviceConfig.model.bucket;
             in_serviceConfig.model.bucket = {};
             in_serviceConfig.model.bucket.name = bucketName;
@@ -1236,8 +1240,10 @@ function _upgradeServiceConfigFrom3_6To3_7 (in_serviceConfig) {
                         in_serviceConfig.service.clusters.forEach(cluster => {
                             cluster.aws = cluster.aws || {};
                             cluster.aws.image = cluster.aws.image || {};
-                            cluster.aws.image.name = in_serviceConfig.docker.image.name;
-                            hasBeenUpdated = true;
+                            if (cluster.aws.image.name !== in_serviceConfig.docker.image.name) {
+                                cluster.aws.image.name = in_serviceConfig.docker.image.name;
+                                hasBeenUpdated = true;
+                            }
                         });
                     }
                 }
@@ -1287,6 +1293,44 @@ function _upgradeServiceConfigFrom3_6To3_7 (in_serviceConfig) {
                 hasBeenUpdated = true;
             }
         }
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _upgradeServiceConfigFrom3_9To3_10 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.clusters && in_serviceConfig.service.clusters.length) {
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                cluster.aws = cluster.aws || {};
+                cluster.aws.account_id = cluster.aws.account_id + '';
+                hasBeenUpdated = true;
+
+                if (cluster.instance) {
+                    if (cluster.instance.count !== 1) {
+                        if (cluster.auto_scaling_group) {
+                            cluster.auto_scaling_group.count = cluster.instance.count;
+                        }
+
+                        cluster.tasks = {
+                            count: cluster.instance.count
+                        };
+
+                        delete cluster.instance.count;
+                        if (obj.isEmpty(cluster.instance)) {
+                            delete cluster.instance;
+                        }
+
+                        hasBeenUpdated = true;
+                    }
+                }
+            });
+        }
+
     }
 
     return hasBeenUpdated ? in_serviceConfig : false;
@@ -1403,6 +1447,81 @@ function _serviceConfigReplacer (in_key, in_val) {
         return undefined;
     }
     return in_val;
+}
+
+// ******************************
+
+function _parseVersion (in_version) {
+    return (in_version + '')
+        .split('.')
+        .map(v => parseInt(v))
+        .concat([0,0,0])
+        .slice(0,3);
+}
+
+// ******************************
+
+function _toVersionString (in_versionParts) {
+    return in_versionParts.join('.');
+}
+
+// ******************************
+
+function _versionCompare (in_versionA, in_versionB) {
+    let versionAMajor = (in_versionA && in_versionA[0]) || 0;
+    let versionAMinor = (in_versionA && in_versionA[1]) || 0;
+    let versionABug =   (in_versionA && in_versionA[2]) || 0;
+
+    let versionBMajor = (in_versionB && in_versionB[0]) || 0;
+    let versionBMinor = (in_versionB && in_versionB[1]) || 0;
+    let versionBBug =   (in_versionB && in_versionB[2]) || 0;
+
+    if (versionAMajor !== versionBMajor) {
+        return versionAMajor - versionBMajor;
+    }
+
+    if (versionAMinor !== versionBMinor) {
+        return versionAMinor - versionBMinor;
+    }
+
+    if (versionABug !== versionBBug) {
+        return versionABug - versionBBug;
+    }
+
+    return 0;
+}
+
+// ******************************
+
+function _versionMajorCompare (in_versionA, in_versionB) {
+    let versionAMajor = (in_versionA && in_versionA[0]) || 0;
+    let versionBMajor = (in_versionB && in_versionB[0]) || 0;
+
+    if (versionAMajor !== versionBMajor) {
+        return versionAMajor - versionBMajor;
+    }
+
+    return 0;
+}
+
+// ******************************
+
+function _versionMajorMinorCompare (in_versionA, in_versionB) {
+    let versionAMajor = (in_versionA && in_versionA[0]) || 0;
+    let versionAMinor = (in_versionA && in_versionA[1]) || 0;
+
+    let versionBMajor = (in_versionB && in_versionB[0]) || 0;
+    let versionBMinor = (in_versionB && in_versionB[1]) || 0;
+
+    if (versionAMajor !== versionBMajor) {
+        return versionAMajor - versionBMajor;
+    }
+
+    if (versionAMinor !== versionBMinor) {
+        return versionAMinor - versionBMinor;
+    }
+
+    return 0;
 }
 
 // ******************************

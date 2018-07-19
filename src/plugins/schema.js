@@ -20,7 +20,7 @@ function printSchema () {
 // Plugin Functions:
 // ******************************
 
-function handleCommand (in_args, in_params) {
+function handleCommand (_, in_params) {
     let command = in_params.length ? in_params.shift().toLowerCase() : '';
     switch(command)
     {

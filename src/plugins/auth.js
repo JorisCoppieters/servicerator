@@ -66,6 +66,8 @@ function printAuthInfo (in_serviceConfig) {
     let serviceCertificateName = serviceConfig.auth.certificate || 'service.crt';
     let serviceCertificate = path.resolve(authFolder, serviceCertificateName);
 
+    rootCACertificate = path.resolve(rootCACertificate);
+
     cprint.cyan('Verifying certificate...');
     let cmdResult = openssl.cmd(['verify', '-CAfile', rootCACertificate, serviceCertificate]);
     if (cmdResult.hasError) {

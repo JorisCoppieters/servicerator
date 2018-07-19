@@ -4,7 +4,7 @@
 // Functions:
 // ******************************
 
-const k_SCHEMA_VERSION = 3.9;
+const k_SCHEMA_VERSION = '3.10';
 
 // ******************************
 
