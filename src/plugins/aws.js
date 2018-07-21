@@ -3840,7 +3840,10 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
         service: {
             clusters: [
                 {
-                    environment: 'STRING'
+                    environment: 'STRING',
+                    auto_scaling_group: {
+                        count: 'NUMBER'
+                    }
                 }
             ]
         },

@@ -1326,6 +1326,8 @@ function _upgradeServiceConfigFrom3_9To3_10 (in_serviceConfig) {
                         }
 
                         hasBeenUpdated = true;
+                    } else {
+                        delete cluster.instance.count;
                     }
                 }
             });
