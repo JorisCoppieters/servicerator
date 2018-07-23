@@ -736,8 +736,8 @@ function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_op
             keyValue = true;
         } else if (keyValue.trim().toLowerCase() === 'false') {
             keyValue = false;
-        } else if (keyValue.trim().toLowerCase().match(/s:(.*)/)) {
-            keyValue = keyValue.trim().replace(/s:/,'');
+        } else if (keyValue.trim().toLowerCase().match(/^s:(.*)/)) {
+            keyValue = keyValue.trim().replace(/^s:/,'');
         } else if (keyValue.trim().match(/^-?[0-9]+\.[0-9]+$/)) {
             keyValue = parseFloat(keyValue);
         } else if (keyValue.trim().match(/^-?[0-9]+$/)) {

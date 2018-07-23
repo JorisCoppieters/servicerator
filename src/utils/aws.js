@@ -624,8 +624,8 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
                     return -1;
                 }
 
-                let aVal = parseInt(aMatch[1]);
-                let bVal = parseInt(bMatch[1]);
+                let aVal = aMatch[1];
+                let bVal = bMatch[1];
 
                 if (aVal === bVal) {
                     return 0;
@@ -693,8 +693,8 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
                     return -1;
                 }
 
-                let aVal = parseInt(aMatch[1]);
-                let bVal = parseInt(bMatch[1]);
+                let aVal = aMatch[1];
+                let bVal = bMatch[1];
 
                 if (aVal === bVal) {
                     return 0;
@@ -2437,7 +2437,7 @@ function getAwsServiceConfig (in_serviceConfig, in_environment) {
     if (awsCredentials[profile]) {
         cluster.aws.access_key = awsCredentials[profile].aws_access_key_id || cluster.aws.access_key;
         cluster.aws.secret_key = awsCredentials[profile].aws_secret_access_key || cluster.aws.secret_key;
-        cluster.aws.account_id = parseInt(awsCredentials[profile].account_id) || cluster.aws.account_id;
+        cluster.aws.account_id = awsCredentials[profile].account_id || cluster.aws.account_id;
     }
 
     service.checkConfigSchema(serviceConfig);
@@ -2874,7 +2874,7 @@ function awsArnToAccountId (in_arn) {
     let title = in_arn || '';
     let match = in_arn.match(/arn:aws:.*:([0-9]+):.*/);
     if (match) {
-        title = parseInt(match[1]);
+        title = match[1];
     }
 
     return title;
