@@ -624,14 +624,9 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
                     return -1;
                 }
 
-                let aVal = aMatch[1];
-                let bVal = bMatch[1];
-
-                if (aVal === bVal) {
-                    return 0;
-                }
-
-                return aVal < bVal ? 1 : -1;
+                let aVal = parseInt(aMatch[1]);
+                let bVal = parseInt(bMatch[1]);
+                return bVal - aVal;
             })
             .find(() => true);
     }
