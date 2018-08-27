@@ -744,6 +744,223 @@ function awsDeployNewLaunchConfiguration (in_serviceConfig, in_environment) {
 
 // ******************************
 
+function awsGetDockerCommand (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        cwd: 'STRING',
+        docker: {
+            image: {
+                name: 'STRING',
+                version: 'STRING'
+            },
+            organization: 'STRING',
+            container: {
+                memory_limit: 'NUMBER',
+                ports: [
+                    {
+                        host: 'NUMBER',
+                        container: 'NUMBER',
+                        local: 'BOOLEAN'
+                    }
+                ],
+                volumes: [
+                    {
+                        host: 'STRING',
+                        container: 'STRING',
+                        local: 'BOOLEAN'
+                    }
+                ],
+                commands: [
+                    {
+                        local: 'BOOLEAN',
+                        val: 'STRING'
+                    }
+                ],
+                environment_variables: [
+                    {
+                        key: 'STRING',
+                        value: 'STRING',
+                        local: 'BOOLEAN'
+                    }
+                ]
+            }
+        },
+        model: {
+            version: 'STRING'
+        },
+        service: {
+            clusters: [
+                {
+                    aws: {
+                        account_id: 'STRING',
+                        bucket: {
+                            name: 'STRING'
+                        },
+                        profile: 'STRING',
+                        region: 'STRING',
+                        image: {
+                            name: 'STRING'
+                        }
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING',
+                    tasks: {
+                        count: 'NUMBER'
+                    },
+                    name: 'STRING',
+                    service_name: 'STRING',
+                    task_definition: {
+                        name: 'STRING'
+                    }
+                }
+            ],
+            name: 'STRING'
+        }
+    });
+    if (!serviceConfig) {
+        return;
+    }
+
+    if (!aws.installed()) {
+        cprint.yellow('AWS-CLI isn\'t installed');
+        return false;
+    }
+
+    let serviceName = serviceConfig.service.name;
+    if (!serviceName) {
+        cprint.yellow('Service name not set');
+        return false;
+    }
+
+    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+        } else {
+            cprint.yellow('No default environment defined');
+        }
+        return false;
+    }
+
+    let memoryLimit = serviceConfig.docker.container.memory_limit || false;
+
+    let awsDockerImageName = cluster.aws.image.name || serviceConfig.docker.image.name;
+    if (!awsDockerImageName) {
+        cprint.yellow('AWS docker image name not set');
+        return false;
+    }
+
+    let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
+
+    let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
+    if (!awsDockerRepositoryUrl) {
+        cprint.yellow('Couldn\'t get aws docker repository');
+        return false;
+    }
+
+    let awsTaskDefinitionImagePath = awsDockerRepositoryUrl + '/' + awsDockerImageName + ':' + dockerImageVersion;
+
+    let args = [];
+    args.push('run');
+    args.push('--rm');
+    args.push('--name');
+    args.push(serviceName);
+    args.push('--interactive');
+    args.push('--tty');
+
+    if (memoryLimit) {
+        args.push('--memory');
+        args.push(parseInt(memoryLimit) + 'm');
+    }
+
+    let localPortArgs = {};
+    let portArgs = {};
+
+    serviceConfig.docker.container.ports.forEach(port => {
+        if (!port.host || !port.container) {
+            return;
+        }
+
+        if (port.local) {
+            localPortArgs[port.container] = port.host;
+        } else {
+            portArgs[port.container] = port.host;
+        }
+    });
+
+    Object.assign(portArgs, localPortArgs);
+
+    Object.keys(portArgs).forEach(containerPort => {
+        let hostPort = portArgs[containerPort];
+        args.push('--publish');
+        args.push(hostPort + ':' + containerPort);
+    });
+
+    let volumeArgs = {};
+
+    serviceConfig.docker.container.volumes.forEach(volume => {
+        if (!volume.host || !volume.container || volume.local) {
+            return;
+        }
+        volumeArgs[volume.container] = volume.host;
+    });
+
+    Object.keys(volumeArgs).forEach(volumeContainer => {
+        let volumeHost = volumeArgs[volumeContainer];
+        volumeHost = '"' + volumeHost + '"';
+        volumeHost = service.replaceConfigReferences(in_serviceConfig, volumeHost);
+        volumeContainer = service.replaceConfigReferences(in_serviceConfig, volumeContainer);
+        args.push('--volume');
+        args.push(volumeHost + ':' + volumeContainer);
+    });
+
+    let environmentVariableArgs = {};
+
+    serviceConfig.docker.container.environment_variables.forEach(environment_variable => {
+        if (!environment_variable.key || !environment_variable.value || environment_variable.local) {
+            return;
+        }
+
+        environmentVariableArgs[environment_variable.key] = environment_variable.value;
+    });
+
+    let environmentVariableReplacements = {};
+
+    if (cluster) {
+        environmentVariableReplacements['MODEL_BUCKET'] = `${cluster.aws.bucket.name}`;
+    }
+
+    environmentVariableReplacements['MODEL_VERSION'] = serviceConfig.model.version;
+
+    Object.keys(environmentVariableArgs).forEach(key => {
+        let value = environmentVariableArgs[key];
+
+        key = service.replaceConfigReferences(in_serviceConfig, key, environmentVariableReplacements);
+        value = service.replaceConfigReferences(in_serviceConfig, value, environmentVariableReplacements);
+
+        args.push('--env');
+        args.push(key + '=' + value);
+    });
+
+    args.push(awsTaskDefinitionImagePath);
+    args.push('bash');
+
+    cprint.white('docker' + args
+        .reduce((s, a, idx) => {
+            if (a.match(/^--.*/)) {
+                return s + ' \\\n  ' + a;
+            } else if (idx == args.length - 1) {
+                return s + ' \\\n    ' + a;
+            } else if (idx == args.length - 2) {
+                return s + ' \\\n    ' + a;
+            } else {
+                return s + ' ' + a;
+            }
+        }, '')
+    );
+}
+
+// ******************************
+
 function awsCreateAll (in_serviceConfig, in_environment) {
     if (!awsCreateInfrastructure(in_serviceConfig, in_environment)) {
         return;
@@ -4558,6 +4775,11 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         awsPushDockerImage(in_serviceConfig, env);
         break;
 
+    case 'docker-command':
+    case 'get-docker-launch-command':
+        awsGetDockerCommand(in_serviceConfig, env);
+        break;
+
     case 'create':
     case 'create-all':
         awsCreateAll(in_serviceConfig, env);
@@ -4778,6 +5000,8 @@ function getCommands () {
         ] },
         { params: ['docker-login'], description: 'Log into AWS docker repository', options: [{param:'environment', description:'Environment'}] },
         { params: ['docker-push'], description: 'Push Docker image to the AWS docker repository', options: [{param:'environment', description:'Environment'}] },
+
+        { params: ['get-docker-launch-command', 'docker-command'], description: 'Get the docker command executed to run the service', options: [{param:'environment', description:'Environment'}] },
 
         { params: ['create-all', 'create'], description: 'Create all infrastructure and delivery structures for the service', options: [{param:'environment', description:'Environment'}] },
 
