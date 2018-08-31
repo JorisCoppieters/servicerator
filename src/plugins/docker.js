@@ -508,6 +508,9 @@ function cleanDockerImages (in_serviceConfig, in_options) {
         return;
     }
 
+    cleanImageTagsAndIds = cleanImageTagsAndIds
+        .reduce((arr, tag) => { if (arr.indexOf(tag) < 0) { arr.push(tag); } return arr; }, []);
+
     args = ['rmi'];
     if (options.force) {
         args.push('--force');
@@ -524,7 +527,14 @@ function cleanDockerImages (in_serviceConfig, in_options) {
         cmdResult.printResult('  ');
     } else {
         docker.cmd(args, {
-            async: true
+            async: true,
+            asyncCb: (result) => {
+                if (result) {
+                    _printSuccessHeader('Clean succeeded!', '  ');
+                } else {
+                    _printErrorHeader('Clean failed!', '  ');
+                }
+            }
         });
     }
 
@@ -618,9 +628,11 @@ function incrementalPushDockerImage (in_serviceConfig, in_noCache) {
         return;
     }
 
-    cleanDockerImages(serviceConfig, {
+    if (!cleanDockerImages(serviceConfig, {
         sync: true
-    });
+    })) {
+        return;
+    }
 
     if (!pushDockerImage(serviceConfig)) {
         return;
