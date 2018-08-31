@@ -527,14 +527,7 @@ function cleanDockerImages (in_serviceConfig, in_options) {
         cmdResult.printResult('  ');
     } else {
         docker.cmd(args, {
-            async: true,
-            asyncCb: (result) => {
-                if (result) {
-                    _printSuccessHeader('Clean succeeded!', '  ');
-                } else {
-                    _printErrorHeader('Clean failed!', '  ');
-                }
-            }
+            async: true
         });
     }
 
