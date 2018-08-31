@@ -152,7 +152,8 @@ function getDockerUsername (in_serviceConfig) {
 function getDockerImageTags (in_serviceConfig, in_options) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         model: {
-            version: 'STRING'
+            version: 'STRING',
+            dynamic: 'BOOLEAN'
         },
         corpus: {
             version: 'STRING'
@@ -188,7 +189,13 @@ function getDockerImageTags (in_serviceConfig, in_options) {
     }
 
     let modelVersion = serviceConfig.model.version;
-    if (modelVersion) {
+    let modelDynamic = serviceConfig.model.dynamic;
+    if (modelDynamic) {
+        let modelVersionTag = 'model-version-dynamic';
+        if (dockerImageTags.indexOf(modelVersionTag) < 0) {
+            dockerImageTags.push(modelVersionTag);
+        }
+    } else if (modelVersion) {
         let modelVersionTag = 'model-version-' + modelVersion;
         if (dockerImageTags.indexOf(modelVersionTag) < 0) {
             dockerImageTags.push(modelVersionTag);

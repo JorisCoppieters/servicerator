@@ -198,7 +198,9 @@ function pullDockerImage (in_serviceConfig) {
 
 // ******************************
 
-function buildDockerImage (in_serviceConfig, in_noCache) {
+function buildDockerImage (in_serviceConfig, in_options) {
+    let options = in_options || {};
+
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
@@ -277,7 +279,7 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
             args.push(tp);
         });
 
-    if (in_noCache) {
+    if (options.noCache) {
         args.push('--no-cache');
     }
 
@@ -305,16 +307,28 @@ function buildDockerImage (in_serviceConfig, in_noCache) {
     args.push(dockerFolder);
 
     cprint.cyan('Building Docker image...');
-    docker.cmd(args, {
-        async: true,
-        asyncCb: (result) => {
-            if (result) {
-                _printSuccessHeader('Docker build succeeded!', '  ');
-            } else {
-                _printErrorHeader('Docker build failed!', '  ');
-            }
+
+    if (options.sync) {
+        let cmdResult = docker.cmd(args);
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+            _printErrorHeader('Docker build failed!', '  ');
+            return;
         }
-    });
+        cmdResult.printResult('  ');
+        _printSuccessHeader('Docker build succeeded!', '  ');
+    } else {
+        docker.cmd(args, {
+            async: true,
+            asyncCb: (result) => {
+                if (result) {
+                    _printSuccessHeader('Docker build succeeded!', '  ');
+                } else {
+                    _printErrorHeader('Docker build failed!', '  ');
+                }
+            }
+        });
+    }
 
     return true;
 }
@@ -414,7 +428,9 @@ function pushDockerImage (in_serviceConfig) {
 
 // ******************************
 
-function cleanDockerImages (in_serviceConfig, in_force) {
+function cleanDockerImages (in_serviceConfig, in_options) {
+    let options = in_options || {};
+
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
             image: {
@@ -493,14 +509,26 @@ function cleanDockerImages (in_serviceConfig, in_force) {
     }
 
     args = ['rmi'];
-    if (in_force) {
+    if (options.force) {
         args.push('--force');
     }
     args = args.concat(cleanImageTagsAndIds);
     cprint.cyan('Removing old Docker images for service...');
-    docker.cmd(args, {
-        async: true
-    });
+
+    if (options.sync) {
+        let cmdResult = docker.cmd(args);
+        if (cmdResult.hasError) {
+            cmdResult.printError('  ');
+            return false;
+        }
+        cmdResult.printResult('  ');
+    } else {
+        docker.cmd(args, {
+            async: true
+        });
+    }
+
+    return true;
 }
 
 // ******************************
@@ -577,15 +605,22 @@ function purgeDockerImages (in_serviceConfig, in_force) {
 
 // ******************************
 
-function incrementalPushDockerImage (in_serviceConfig) {
+function incrementalPushDockerImage (in_serviceConfig, in_noCache) {
     let serviceConfig = setDockerImageVersion(in_serviceConfig, [], ['+b']);
     if (!serviceConfig) {
         return;
     }
 
-    if (!buildDockerImage(serviceConfig)) {
+    if (!buildDockerImage(serviceConfig, {
+        noCache: in_noCache,
+        sync: true
+    })) {
         return;
     }
+
+    cleanDockerImages(serviceConfig, {
+        sync: true
+    });
 
     if (!pushDockerImage(serviceConfig)) {
         return;
@@ -1666,19 +1701,23 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         pullDockerImage(in_serviceConfig);
         break;
     case 'build':
-        buildDockerImage(in_serviceConfig, no_cache);
+        buildDockerImage(in_serviceConfig, {
+            noCache: no_cache
+        });
         break;
     case 'push':
         pushDockerImage(in_serviceConfig);
         break;
     case 'clean':
-        cleanDockerImages(in_serviceConfig, force);
+        cleanDockerImages(in_serviceConfig, {
+            force: force
+        });
         break;
     case 'purge':
         purgeDockerImages(in_serviceConfig, force);
         break;
     case 'incremental-push':
-        incrementalPushDockerImage(in_serviceConfig);
+        incrementalPushDockerImage(in_serviceConfig, no_cache);
         break;
 
     case 'version':
