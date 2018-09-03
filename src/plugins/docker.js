@@ -198,8 +198,9 @@ function pullDockerImage (in_serviceConfig) {
 
 // ******************************
 
-function buildDockerImage (in_serviceConfig, in_options) {
+function buildDockerImage (in_serviceConfig, in_options, in_doneCb) {
     let options = in_options || {};
+    let doneCb = in_doneCb || (() => {});
 
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
@@ -313,18 +314,22 @@ function buildDockerImage (in_serviceConfig, in_options) {
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
             _printErrorHeader('Docker build failed!', '  ');
+            doneCb(false);
             return;
         }
         cmdResult.printResult('  ');
         _printSuccessHeader('Docker build succeeded!', '  ');
+        doneCb(true);
     } else {
         docker.cmd(args, {
             async: true,
             asyncCb: (result) => {
                 if (result) {
                     _printSuccessHeader('Docker build succeeded!', '  ');
+                    doneCb(true);
                 } else {
                     _printErrorHeader('Docker build failed!', '  ');
+                    doneCb(false);
                 }
             }
         });
@@ -428,8 +433,9 @@ function pushDockerImage (in_serviceConfig) {
 
 // ******************************
 
-function cleanDockerImages (in_serviceConfig, in_options) {
+function cleanDockerImages (in_serviceConfig, in_options, in_doneCb) {
     let options = in_options || {};
+    let doneCb = in_doneCb || (() => {});
 
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         docker: {
@@ -522,12 +528,17 @@ function cleanDockerImages (in_serviceConfig, in_options) {
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
             cmdResult.printError('  ');
-            return false;
+            doneCb(false);
+            return;
         }
         cmdResult.printResult('  ');
+        doneCb(true);
     } else {
         docker.cmd(args, {
-            async: true
+            async: true,
+            asyncCb: (result) => {
+                doneCb(result);
+            }
         });
     }
 
@@ -614,22 +625,20 @@ function incrementalPushDockerImage (in_serviceConfig, in_noCache) {
         return;
     }
 
-    if (!buildDockerImage(serviceConfig, {
-        noCache: in_noCache,
-        sync: true
-    })) {
-        return;
-    }
-
-    if (!cleanDockerImages(serviceConfig, {
-        sync: true
-    })) {
-        return;
-    }
-
-    if (!pushDockerImage(serviceConfig)) {
-        return;
-    }
+    buildDockerImage(serviceConfig, {
+        noCache: in_noCache
+    }, result => {
+        if (!result) {
+            return;
+        }
+        cleanDockerImages(serviceConfig, {
+        }, result => {
+            if (!result) {
+                return;
+            }
+            pushDockerImage(serviceConfig);
+        });
+    });
 }
 
 // ******************************
@@ -1827,7 +1836,9 @@ function getCommands () {
         { params: ['verify-container', 'verify', 'test-container', 'test', 'tests'], description: 'Verify the service docker container' },
         { params: ['container', 'stats', 'state', 'running'], description: 'Print the current state of the service docker container' },
         { params: ['login'], description: 'Log into docker' },
-        { params: ['incremental-push'], description: 'Increment docker image version, build image and push' },
+        { params: ['incremental-push'], description: 'Increment docker image version, build image and push', options: [
+            {param:'no-cache', description:'Don\'t use cached images'}
+        ] },
         { params: ['pull'], description: 'Pull the service docker image' },
         { params: ['build'], description: 'Build the service docker image', options: [
             {param:'no-cache', description:'Don\'t use cached images'}
