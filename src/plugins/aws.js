@@ -2408,14 +2408,13 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
             return false;
         }
 
-        let taskDefinitionArns = aws.getPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
+        let lastTaskDefinitionArn = aws.getCurrentTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
             cache: awsCache,
             verbose: true,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
 
-        let lastTaskDefinitionArn = taskDefinitionArns[0];
         if (lastTaskDefinitionArn) {
             let lastTaskDefinition = aws.getTaskDefinition(lastTaskDefinitionArn, {
                 cache: awsCache,

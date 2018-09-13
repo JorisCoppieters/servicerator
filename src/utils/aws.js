@@ -715,6 +715,74 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
 
 // ******************************
 
+function getCurrentTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'CurrentTaskDefinitionArn_' + in_taskDefinitionName;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving current AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"...');
+    }
+
+    let cmdResult = awsCmd([
+        'ecs',
+        'list-task-definitions',
+        '--family-prefix',
+        in_taskDefinitionName
+    ], {
+        hide: !opts.verbose,
+        profile: opts.profile,
+        region: opts.region
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return false;
+    }
+
+    let currentTaskDefinitionArn;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.taskDefinitionArns) {
+        currentTaskDefinitionArn = awsResult.taskDefinitionArns
+            .sort((a,b) => {
+                let aMatch = a.match(/^arn:aws:.*:([0-9]+)$/);
+                let bMatch = b.match(/^arn:aws:.*:([0-9]+)$/);
+                if (!aMatch || !bMatch) {
+                    return -1;
+                }
+
+                let aVal = parseInt(aMatch[1]);
+                let bVal = parseInt(bMatch[1]);
+
+                if (aVal === bVal) {
+                    return 0;
+                }
+
+                return aVal < bVal ? 1 : -1;
+            })[0];
+    }
+
+    if (!currentTaskDefinitionArn) {
+        cprint.yellow('Couldn\'t find current AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
+        return;
+    }
+
+    awsCache[cacheKey] = {
+        val: currentTaskDefinitionArn,
+        expires: date.getTimestamp() + cache.durations.second
+    };
+
+    return currentTaskDefinitionArn;
+}
+
+// ******************************
+
 function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
     let opts = in_options || {};
 
@@ -3036,6 +3104,7 @@ module.exports['getClusterServiceArnForClusterName'] = getClusterServiceArnForCl
 module.exports['getClusterServiceVersionForTaskDefinition'] = getClusterServiceVersionForTaskDefinition;
 module.exports['getClusterTaskArnsForCluster'] = getClusterTaskArnsForCluster;
 module.exports['getContainerInstance'] = getContainerInstance;
+module.exports['getCurrentTaskDefinitionArnForTaskDefinition'] = getCurrentTaskDefinitionArnForTaskDefinition;
 module.exports['getDefaultVpcSecurityGroupIdForVpc'] = getDefaultVpcSecurityGroupIdForVpc;
 module.exports['getDockerCredentials'] = getAwsDockerCredentials;
 module.exports['getDockerRepositoryForDockerImageName'] = getDockerRepositoryForDockerImageName;
