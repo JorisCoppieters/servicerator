@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 
+let aws = require('../utils/aws');
 let docker = require('../utils/docker');
 let env = require('../utils/env');
 let print = require('../utils/print');
@@ -34,9 +35,14 @@ function printServiceInfo (in_serviceConfig) {
 
     let serviceConfigFile = env.getServiceConfigFile();
 
+    let dockerImageName = aws.getDockerImageName(in_serviceConfig);
+    if (!dockerImageName) {
+        cprint.yellow('Docker image name not set');
+        return false;
+    }
+
     let serviceName = serviceConfig.service.name || false;
     let dockerUsername = serviceConfig.docker.username || false;
-    let dockerImageName = serviceConfig.docker.image.name || false;
     let dockerImageVersion = serviceConfig.docker.image.version || false;
     let dockerImageTags = docker.getImageTags(in_serviceConfig);
     let dockerfile = docker.getDockerfile(sourceFolder);

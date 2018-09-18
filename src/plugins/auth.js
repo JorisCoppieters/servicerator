@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 
+let date = require('../utils/date');
 let docker = require('../utils/docker');
 let env = require('../utils/env');
 let fs = require('../utils/filesystem');
@@ -126,8 +127,7 @@ function generateAuthFiles (in_serviceConfig) {
     }
 
     let tempFolder = env.getTemp();
-    let tmpAuthFolder = path.resolve(tempFolder, 'servicerator-auth-tmp');
-    fs.deleteFolder(tmpAuthFolder);
+    let tmpAuthFolder = path.resolve(tempFolder, 'servicerator-auth-tmp-' + date.getTimestampTag());
     fs.createFolder(tmpAuthFolder);
 
     let caSignDB = path.resolve(tmpAuthFolder, 'tmp-db');
@@ -174,7 +174,7 @@ function generateAuthFiles (in_serviceConfig) {
 
     let urls = serviceConfig.service.clusters
         .filter(c => c.url)
-        .map(c => c.url) || [];
+        .map(c => service.replaceConfigReferences(in_serviceConfig, c.url)) || [];
 
     let firstUrl = urls[0] || false;
     let otherUrls = urls.slice(1);
@@ -303,6 +303,11 @@ function generateAuthFiles (in_serviceConfig) {
 
         if (cmdResult.hasError) {
             cmdResult.printError();
+            cprint.yellow(['\n  There may be a fault in config file - ' + reqCrtConfig + ':']
+                .concat(reqCaCrtConfigContents)
+                .join('\n    ')
+            );
+            cprint.yellow('\n  Otherwise try generating the auth files again...\n');
             return;
         }
 
@@ -316,6 +321,15 @@ function generateAuthFiles (in_serviceConfig) {
 
         if (cmdResult.hasError) {
             cmdResult.printError();
+            cprint.yellow(['\n  There may be a fault in config file - ' + caSignConfig + ':']
+                .concat(caSignConfigContents)
+                .join('\n    ')
+            );
+            cprint.yellow(['\n  There may be a fault in config file - ' + caSignExtConfig + ':']
+                .concat(caSignExtConfigContents)
+                .join('\n    ')
+            );
+            cprint.yellow('\n  Otherwise try generating the auth files again...\n');
             return;
         }
 
@@ -348,12 +362,17 @@ function generateAuthFiles (in_serviceConfig) {
             }
         }
 
-        cprint.cyan('Cleaning up...');
-        fs.deleteFolder(tmpAuthFolder);
+        return true;
     };
 
     fs.copyFile(serviceConfig.auth.rootCAKey, rootCAKey, () => {
-        fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate, afterCopy);
+        fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate, () => {
+            setTimeout(() => { // To prevent race condition
+                afterCopy();
+                cprint.cyan('Cleaning up...');
+                fs.deleteFolder(tmpAuthFolder);
+            }, 200);
+        });
     });
 }
 

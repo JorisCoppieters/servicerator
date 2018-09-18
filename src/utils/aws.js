@@ -1408,13 +1408,13 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 // IAM Role Functions:
 // ******************************
 
-function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
-    let awsRoleArn = getAWSRoleArnForRoleName(awsRoleName, in_options);
+function getAssumedRoleCredentials(awsRoleName, in_options) {
+    let awsRoleArn = getRoleArnForRoleName(awsRoleName, in_options);
     if (!awsRoleArn) {
         return;
     }
 
-    let roleCredentials = getAWSRoleCredentials(awsRoleArn, in_options);
+    let roleCredentials = getRoleCredentials(awsRoleArn, in_options);
     if (!roleCredentials) {
         return;
     }
@@ -1424,7 +1424,7 @@ function getAWSAssumedRoleCredentials(awsRoleName, in_options) {
 
 // ******************************
 
-function getAWSRoleCredentials (in_roleArn, in_options) {
+function getRoleCredentials (in_roleArn, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
@@ -1478,7 +1478,7 @@ function getAWSRoleCredentials (in_roleArn, in_options) {
 
 // ******************************
 
-function getAWSRoleArnForRoleName (in_roleName, in_options) {
+function getRoleArnForRoleName (in_roleName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
@@ -1493,32 +1493,10 @@ function getAWSRoleArnForRoleName (in_roleName, in_options) {
         cprint.cyan('Retrieving AWS Role ARN for Role "' + in_roleName + '"...');
     }
 
-    let cmdResult = awsCmd([
-        'iam',
-        'list-roles'
-    ], {
-        hide: !opts.verbose,
-        profile: opts.profile,
-        region: opts.region
-    });
-
-    if (cmdResult.hasError) {
-        cmdResult.printError('  ');
-        return false;
-    }
-
-    let awsRoleArn;
-    let awsResult = parseAwsCmdResult(cmdResult);
-    if (awsResult && awsResult.Roles) {
-        awsRoleArn = awsResult.Roles
-            .sort()
-            .reverse()
-            .find(obj => obj.RoleName === in_roleName);
-
-        if (awsRoleArn) {
-            awsRoleArn = awsRoleArn.Arn;
-        }
-    }
+    let awsRoleArn = _getRoleArns(in_options)
+        .filter(obj => obj.RoleName === in_roleName)
+        .map(obj => obj.Arn)
+        .find(() => true);
 
     if (!awsRoleArn) {
         if (opts.showWarning) {
@@ -1533,6 +1511,43 @@ function getAWSRoleArnForRoleName (in_roleName, in_options) {
     };
 
     return awsRoleArn;
+}
+
+// ******************************
+
+function getRoleNameForRoleName (in_roleName, in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'RoleName_' + in_roleName;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving AWS Role Name for Role "' + in_roleName + '"...');
+    }
+
+    let awsRoleName = _getRoleArns(in_options)
+        .filter(obj => opts.partialMatch ? _partialStrMatch(obj.RoleName, in_roleName) : obj.RoleName === in_roleName)
+        .map(obj => obj.RoleName)
+        .find(() => true);
+
+    if (!awsRoleName) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find AWS Role ARN for Role "' + in_roleName + '"');
+        }
+        return false;
+    }
+
+    awsCache[cacheKey] = {
+        val: awsRoleName,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return awsRoleName;
 }
 
 // ******************************
@@ -1650,7 +1665,7 @@ function getMultiFactorAuthDevice (in_options) {
         return;
     }
 
-    let username = getAwsUsername(in_options);
+    let username = getUsername(in_options);
     if (!username) {
         return;
     }
@@ -1709,7 +1724,7 @@ function getMultiFactorAuthDevice (in_options) {
 
 // ******************************
 
-function getAwsUsername(in_options) {
+function getUsername(in_options) {
     let opts = in_options || {};
 
     let profile = opts.profile;
@@ -1964,43 +1979,10 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
         cprint.cyan('Retrieving Bucket Path for Bucket "' + in_bucketName + '"...');
     }
 
-    let cmdResult = awsCmd([
-        's3',
-        'ls'
-    ], {
-        hide: !opts.verbose,
-        profile: opts.profile,
-        region: opts.region
-    });
-
-    if (cmdResult.hasError) {
-        cmdResult.printError('  ');
-        return false;
-    }
-
-    let awsBucketPath;
-    let awsResult = cmdResult.result;
-    if (awsResult) {
-        awsBucketPath = awsResult
-            .trim()
-            .split(/[\r\n]+/)
-            .map(obj => {
-                let objMatch = obj.match(/([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}) (.*)/);
-                if (!objMatch) {
-                    return false;
-                }
-
-                return {
-                    bucketCreatedDate: objMatch[1],
-                    bucketCreatedTime: objMatch[2],
-                    bucketName: objMatch[3],
-                    bucketPath: 's3://' + objMatch[3]
-                };
-            })
-            .filter(obj => obj && obj.bucketName === in_bucketName)
-            .map(obj => obj.bucketPath)
-            .find(() => true);
-    }
+    let awsBucketPath = _getBucketPaths(in_options)
+        .filter(obj => obj.bucketName === in_bucketName)
+        .map(obj => obj.bucketPath)
+        .find(() => true);
 
     if (!awsBucketPath) {
         if (opts.showWarning) {
@@ -2015,6 +1997,43 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
     };
 
     return awsBucketPath;
+}
+
+// ******************************
+
+function getBucketNameForBucketName (in_bucketName, in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'BucketName_' + in_bucketName;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving Bucket Name for Bucket "' + in_bucketName + '"...');
+    }
+
+    let awsBucketName = _getBucketPaths(in_options)
+        .filter(obj => opts.partialMatch ? _partialStrMatch(obj.bucketName, in_bucketName) : obj.bucketName === in_bucketName)
+        .map(obj => obj.bucketPath.replace(/s3:\/\//, ''))
+        .find(() => true);
+
+    if (!awsBucketName) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find Bucket Path for Bucket "' + in_bucketName + '"');
+        }
+        return false;
+    }
+
+    awsCache[cacheKey] = {
+        val: awsBucketName,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return awsBucketName;
 }
 
 // ******************************
@@ -2384,7 +2403,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
 // Config Functions:
 // ******************************
 
-function getAwsServiceConfig (in_serviceConfig, in_environment) {
+function getServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         service: {
             clusters: [
@@ -2603,7 +2622,7 @@ function configureProfileAsRole(in_options) {
         return;
     }
 
-    let roleCredentials = getAWSRoleCredentials(assumeRoleArn, in_options);
+    let roleCredentials = getRoleCredentials(assumeRoleArn, in_options);
     if (!roleCredentials) {
         return;
     }
@@ -2625,7 +2644,7 @@ function configureProfileAsRole(in_options) {
 
 function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = in_serviceConfig || {};
-    let awsServiceConfig = getAwsServiceConfig(in_serviceConfig, in_environment);
+    let awsServiceConfig = getServiceConfig(in_serviceConfig, in_environment);
     if (!awsServiceConfig) {
         return;
     }
@@ -2635,7 +2654,7 @@ function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
+function getDockerRepositoryUrl (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(getMergedAwsServiceConfig(in_serviceConfig, in_environment), {
         service: {
             clusters: [
@@ -2671,7 +2690,7 @@ function getAwsDockerRepositoryUrl (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function getAwsDockerCredentials (in_serviceConfig, in_options) {
+function getDockerCredentials (in_serviceConfig, in_options) {
     let opts = in_options || {};
     let environment = opts.environment;
 
@@ -2744,7 +2763,7 @@ function getAwsDockerCredentials (in_serviceConfig, in_options) {
 
 // ******************************
 
-function getAwsSecretKey (in_serviceConfig, in_environment) {
+function getSecretKey (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         service: {
             clusters: [
@@ -2783,6 +2802,88 @@ function getAwsSecretKey (in_serviceConfig, in_environment) {
     }
 
     return awsSecretKey;
+}
+
+// ******************************
+
+function getDockerImageName(in_serviceConfig, in_cluster) {
+    let serviceConfig = service.accessConfig(in_serviceConfig, {
+        cwd: 'STRING',
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        }
+    });
+    if (!serviceConfig) {
+        return;
+    }
+
+    let awsDockerImageName = undefined;
+    if (!awsDockerImageName && in_cluster) {
+        awsDockerImageName = in_cluster.aws.image.name;
+    }
+
+    if (!awsDockerImageName) {
+        awsDockerImageName = serviceConfig.docker.image.name;
+    }
+
+    if (!awsDockerImageName) {
+        return false;
+    }
+
+    awsDockerImageName = service.replaceConfigReferences(in_serviceConfig, awsDockerImageName);
+    return awsDockerImageName;
+}
+
+// ******************************
+
+function getServiceRole(in_serviceConfig, in_cluster) {
+    let serviceRole = in_cluster.aws.service_role;
+    serviceRole = service.replaceConfigReferences(in_serviceConfig, serviceRole);
+
+    if (serviceRole.match(/.*-\*/)) {
+        let serviceConfig = service.accessConfig(in_serviceConfig, {
+            cwd: 'STRING',
+        });
+        if (!serviceConfig) {
+            return;
+        }
+        let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+        serviceRole = getRoleNameForRoleName(serviceRole.replace(/\*/,''), {
+            cache: awsCache,
+            profile: in_cluster.aws.profile,
+            region: in_cluster.aws.region,
+            partialMatch: true,
+            verbose: true
+        });
+    }
+    return serviceRole;
+}
+
+// ******************************
+
+function getAwsBucketName(in_serviceConfig, in_cluster) {
+    let bucketName = in_cluster.aws.bucket.name;
+    bucketName = service.replaceConfigReferences(in_serviceConfig, bucketName);
+    if (bucketName.match(/.*-\*/)) {
+        let serviceConfig = service.accessConfig(in_serviceConfig, {
+            cwd: 'STRING',
+        });
+        if (!serviceConfig) {
+            return;
+        }
+        let awsCache = cache.load(serviceConfig.cwd, 'aws');
+
+        bucketName = getBucketNameForBucketName(bucketName.replace(/\*/,''), {
+            cache: awsCache,
+            profile: in_cluster.aws.profile,
+            region: in_cluster.aws.region,
+            partialMatch: true
+        });
+    }
+    return bucketName;
 }
 
 // ******************************
@@ -2826,7 +2927,7 @@ function awsLogin (in_serviceConfig, in_environment) {
         return false;
     }
 
-    let awsSecretKey = getAwsSecretKey(in_serviceConfig);
+    let awsSecretKey = getSecretKey(in_serviceConfig);
     if (!awsSecretKey) {
         cprint.yellow('AWS secret key not set');
         return false;
@@ -3040,6 +3141,114 @@ function awsVersion (awsCmd) {
 // Helper Functions:
 // ******************************
 
+function _getRoleArns (in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'RoleArns';
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving AWS Role ARNs...');
+    }
+
+    let cmdResult = awsCmd([
+        'iam',
+        'list-roles'
+    ], {
+        hide: !opts.verbose,
+        profile: opts.profile,
+        region: opts.region
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return [];
+    }
+
+    let awsRoleArns = [];
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.Roles) {
+        awsRoleArns = awsResult.Roles
+            .sort()
+            .reverse();
+    }
+
+    awsCache[cacheKey] = {
+        val: awsRoleArns,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return awsRoleArns;
+}
+
+// ******************************
+
+function _getBucketPaths (in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'BucketPaths';
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving all Bucket Paths...');
+    }
+
+    let cmdResult = awsCmd([
+        's3',
+        'ls'
+    ], {
+        hide: !opts.verbose,
+        profile: opts.profile,
+        region: opts.region
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.printError('  ');
+        return [];
+    }
+
+    let awsBucketPaths = [];
+    let awsResult = cmdResult.result;
+    if (awsResult) {
+        awsBucketPaths = awsResult
+            .trim()
+            .split(/[\r\n]+/)
+            .map(obj => {
+                let objMatch = obj.match(/([0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2}:[0-9]{2}) (.*)/);
+                if (!objMatch) {
+                    return false;
+                }
+
+                return {
+                    bucketCreatedDate: objMatch[1],
+                    bucketCreatedTime: objMatch[2],
+                    bucketName: objMatch[3],
+                    bucketPath: 's3://' + objMatch[3]
+                };
+            })
+            .filter(obj => obj);
+    }
+
+    awsCache[cacheKey] = {
+        val: awsBucketPaths,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return awsBucketPaths;
+}
+
+// ******************************
+
 function _isProfileExpired(profile) {
     if (!profile) {
         return true;
@@ -3062,6 +3271,12 @@ function _formatSessionExpiration(in_expiration) {
     // Returns an ISO 8601 formatted date string sans the time zone Z and T date and time separator
     let isoFormattedExpiration = new Date(in_expiration).toISOString();
     return isoFormattedExpiration.replace('T', ' ').replace('.000Z', '');
+}
+
+// ******************************
+
+function _partialStrMatch(in_str1, in_str2) {
+    return (in_str1 || '').trim().toLowerCase().indexOf((in_str2 || '').trim().toLowerCase()) > -1;
 }
 
 // ******************************
@@ -3094,10 +3309,11 @@ module.exports['deleteDockerRepositoryImages'] = deleteDockerRepositoryImages;
 module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
-module.exports['getAssumedRoleCredentials'] = getAWSAssumedRoleCredentials;
+module.exports['getAssumedRoleCredentials'] = getAssumedRoleCredentials;
 module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
 module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
+module.exports['getBucketNameForBucketName'] = getBucketNameForBucketName;
 module.exports['getBucketPathForBucketName'] = getBucketPathForBucketName;
 module.exports['getClusterArnForClusterName'] = getClusterArnForClusterName;
 module.exports['getClusterServiceArnForClusterName'] = getClusterServiceArnForClusterName;
@@ -3106,10 +3322,11 @@ module.exports['getClusterTaskArnsForCluster'] = getClusterTaskArnsForCluster;
 module.exports['getContainerInstance'] = getContainerInstance;
 module.exports['getCurrentTaskDefinitionArnForTaskDefinition'] = getCurrentTaskDefinitionArnForTaskDefinition;
 module.exports['getDefaultVpcSecurityGroupIdForVpc'] = getDefaultVpcSecurityGroupIdForVpc;
-module.exports['getDockerCredentials'] = getAwsDockerCredentials;
+module.exports['getDockerCredentials'] = getDockerCredentials;
+module.exports['getDockerImageName'] = getDockerImageName;
 module.exports['getDockerRepositoryForDockerImageName'] = getDockerRepositoryForDockerImageName;
 module.exports['getDockerRepositoryImagesForRepositoryName'] = getDockerRepositoryImagesForRepositoryName;
-module.exports['getDockerRepositoryUrl'] = getAwsDockerRepositoryUrl;
+module.exports['getDockerRepositoryUrl'] = getDockerRepositoryUrl;
 module.exports['getEnvironmentCluster'] = getEnvironmentCluster;
 module.exports['getInstanceIdsWithTags'] = getInstanceIdsWithTags;
 module.exports['getLatestTaskDefinitionArnForTaskDefinition'] = getLatestTaskDefinitionArnForTaskDefinition;
@@ -3117,10 +3334,13 @@ module.exports['getLaunchConfigurationLike'] = getLaunchConfigurationLike;
 module.exports['getLaunchConfigurationsLike'] = getLaunchConfigurationsLike;
 module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
-module.exports['getRoleArnForRoleName'] = getAWSRoleArnForRoleName;
-module.exports['getRoleCredentials'] = getAWSRoleCredentials;
-module.exports['getSecretKey'] = getAwsSecretKey;
-module.exports['getServiceConfig'] = getAwsServiceConfig;
+module.exports['getRoleArnForRoleName'] = getRoleArnForRoleName;
+module.exports['getRoleCredentials'] = getRoleCredentials;
+module.exports['getRoleNameForRoleName'] = getRoleNameForRoleName;
+module.exports['getSecretKey'] = getSecretKey;
+module.exports['getServiceConfig'] = getServiceConfig;
+module.exports['getServiceRole'] = getServiceRole;
+module.exports['getAwsBucketName'] = getAwsBucketName;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;
 module.exports['getTargetGroupArnForTargetGroupName'] = getTargetGroupArnForTargetGroupName;
 module.exports['getTargetGroups'] = getTargetGroups;

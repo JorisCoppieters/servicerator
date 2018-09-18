@@ -69,18 +69,28 @@ function execCmdSync (in_cmd, in_args, in_options) {
         }
     }
 
+    let knownErrors = opt.knownErrors || [];
+
     cmdErrorResult = cmdErrorResult
         .split(/(\r\n?|\n)/)
-        .filter(errorLine => !(opt.knownErrors || []).find(e => errorLine.match(e)))
+        .filter(line => !knownErrors.find(e => line.match(e)))
         .join('\n')
         .trim();
+
+    if (!cmdErrorResult) {
+        cmdErrorResult = cmdResult
+            .split(/(\r\n?|\n)/)
+            .filter(_isError)
+            .join('\n')
+            .trim();
+    }
 
     return {
         error: cmdErrorResult,
         result: cmdResult,
         resultObj: cmdResultObj,
-        printError: (in_indent) => _printLogLines(cmdErrorResult, _defaultIndent(in_indent, indent), opt.knownErrors),
-        printResult: (in_indent) => _printLogLines(cmdResult, _defaultIndent(in_indent, indent), opt.knownErrors),
+        printError: (in_indent) => _printLogLines(cmdErrorResult, _defaultIndent(in_indent, indent), knownErrors),
+        printResult: (in_indent) => _printLogLines(cmdResult, _defaultIndent(in_indent, indent), knownErrors),
         rows: rows,
         hasError: !!cmdErrorResult.trim(),
         toString: () => cmdErrorResult.trim() ? cmdErrorResult : cmdResult
@@ -197,11 +207,7 @@ function _printLogLine (in_line, in_indent, in_knownErrors) {
         return;
     }
 
-    if (line.match(/error[:=-]? /i)) {
-        print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
-    } else if (line.match(/error:[0-9]/i)) {
-        print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
-    } else if (line.match(/denied/i)) {
+    if (_isError(line, in_knownErrors)) {
         print.out(cprint.toRed(str.indentContents(line, indent) + '\n'));
 
     } else if (line.match(/unable to/i)) {
@@ -237,6 +243,25 @@ function _printLogLine (in_line, in_indent, in_knownErrors) {
     } else {
         print.out(cprint.toLightBlue(str.indentContents(line, indent) + '\n'));
     }
+}
+
+// ******************************
+
+function _isError (in_line) {
+    let line = in_line.toString();
+    if (!line.trim()) {
+        return;
+    }
+
+    if (line.match(/error[:=-]? /i)) {
+        return true;
+    } else if (line.match(/error:[0-9]/i)) {
+        return true;
+    } else if (line.match(/denied/i)) {
+        return true;
+    }
+
+    return false;
 }
 
 // ******************************

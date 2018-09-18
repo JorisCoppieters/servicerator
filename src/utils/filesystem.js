@@ -147,15 +147,27 @@ function linkFile (in_source, in_destination) {
 
 // ******************************
 
-function deleteFolder (in_folderName) {
+function deleteFolder (in_folderName, in_cb) {
     let fs = require('fs');
     let path = require('path');
+    let cb = in_cb || (() => {});
 
     let folder = path.resolve(cwd(), in_folderName);
-    if (fs.existsSync(folder)) {
+    fs.exists(folder, exists => {
+        if (!exists) {
+            cb(true);
+            return;
+        }
         let rimraf = require('rimraf');
-        rimraf(folder, () => {});
-    }
+        rimraf(folder, err => {
+            if (err) {
+                cprint.red('Failed to delete folder: ' + in_folderName);
+                cprint.red(err);
+                cb(false);
+            }
+            cb(true);
+        });
+    });
 }
 
 // ******************************

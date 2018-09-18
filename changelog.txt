@@ -1,3 +1,23 @@
+0.17.0
+- Added support for partial AWS resource names
+
+0.16.0
+- Added docker command option
+- Fixes to docker-incremental-push command
+- Various fixes
+
+0.15.0
+- More verbose statements
+- Error codes handling for docker , better logging for fs setup
+- Added more bailouts
+- Added add-volume function
+- Cache clean up
+- Role assumption fixes
+- Pass through region into all AWS commands, bug fixes
+- Added support for running docker enter from git-bash
+- Added AWS environment key support
+- Various fixes
+
 0.14.0
 - Split AWS config into service clusters
 - Shifted bucket config into service cluster

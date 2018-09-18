@@ -6,6 +6,7 @@
 
 let cprint = require('color-print');
 
+let aws = require('../utils/aws');
 let env = require('../utils/env');
 let docker = require('../utils/docker');
 let print = require('../utils/print');
@@ -42,13 +43,14 @@ function printServiceSummary (in_serviceConfig) {
         output += cprint.toCyan('[service - ' + serviceConfig.service.name + ']');
     }
 
-    if (serviceConfig.docker.image.name) {
+    let dockerImageName = aws.getDockerImageName(in_serviceConfig);
+    if (dockerImageName) {
         if (output) { output += ' '; }
 
         let dockerImageTags = docker.getImageTags(in_serviceConfig);
         let tag = dockerImageTags[0];
 
-        output += cprint.toLightBlue('[image - ' + serviceConfig.docker.image.name + ':' + tag + ']');
+        output += cprint.toLightBlue('[image - ' + dockerImageName + ':' + tag + ']');
     }
 
     if (serviceConfig.model.version) {
