@@ -78,11 +78,19 @@ function execCmdSync (in_cmd, in_args, in_options) {
         .trim();
 
     if (!cmdErrorResult) {
-        cmdErrorResult = cmdResult
-            .split(/(\r\n?|\n)/)
-            .filter(_isError)
-            .join('\n')
-            .trim();
+        if (cmdResultObj) {
+            if (cmdResultObj.error) {
+                cmdErrorResult = JSON.stringify(cmdResultObj.error);
+            } else if (cmdResultObj.errors) {
+                cmdErrorResult = JSON.stringify(cmdResultObj.errors);
+            }
+        } else {
+            cmdErrorResult = cmdResult
+                .split(/(\r\n?|\n)/)
+                .filter(_isError)
+                .join('\n')
+                .trim();
+        }
     }
 
     return {
