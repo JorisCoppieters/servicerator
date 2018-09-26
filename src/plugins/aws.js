@@ -4023,7 +4023,10 @@ function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
         service: {
             clusters: [
                 {
-                    environment: 'STRING'
+                    environment: 'STRING',
+                    instance: {
+                        ami: 'STRING'
+                    }
                 }
             ]
         },
@@ -4117,7 +4120,10 @@ function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
         service: {
             clusters: [
                 {
-                    environment: 'STRING'
+                    environment: 'STRING',
+                    instance: {
+                        type: 'STRING'
+                    }
                 }
             ]
         },
