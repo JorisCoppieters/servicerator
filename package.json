@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/JorisCoppieters/servicerator#readme",
   "dependencies": {
-    "bluebird": "^3.5.0",
+    "bluebird": "^3.5.2",
     "clone": "^2.1.2",
     "color-print": "^1.0.2",
     "deasync": "^0.1.13",
@@ -29,7 +29,7 @@
     "minimist": "^1.2.0",
     "open": "0.0.5",
     "querystring": "^0.2.0",
-    "request": "^2.87.0",
+    "request": "^2.88.0",
     "rimraf": "^2.6.1"
   }
 }
