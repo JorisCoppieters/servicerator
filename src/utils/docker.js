@@ -345,7 +345,7 @@ function dockerLogin (in_username, in_password, in_repositoryStore) {
     let cmdResult = dockerCmd(args);
 
     if (cmdResult.hasError) {
-        cmdResult.printError();
+        cmdResult.throwError();
     } else {
         cmdResult.printResult();
     }
@@ -365,7 +365,7 @@ function dockerInfo () {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError();
+        cmdResult.throwError();
         return false;
     }
 
@@ -494,7 +494,7 @@ function _getDockerImageVersionControlTags (in_serviceConfig) {
             });
 
             if (cmdResult.hasError) {
-                cmdResult.printError('  ');
+                cmdResult.throwError();
                 return;
             }
 
@@ -521,7 +521,7 @@ function _getDockerImageVersionControlTags (in_serviceConfig) {
             });
 
             if (cmdResult.hasError) {
-                cmdResult.printError('  ');
+                cmdResult.throwError();
                 return;
             }
 

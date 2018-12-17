@@ -22,8 +22,10 @@ function readLineSync (in_question) {
     });
     while(!input) {require('deasync').sleep(100);}
     process.stdin.pause();
+    print.out('\n');
     return input.trim();
 }
+
 // ******************************
 // Exports:
 // ******************************

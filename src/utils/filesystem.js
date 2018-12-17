@@ -172,6 +172,14 @@ function deleteFolder (in_folderName, in_cb) {
 
 // ******************************
 
+function deleteFile (in_fileName, in_cb) {
+    let fs = require('fs');
+    let cb = in_cb || (() => {});
+    fs.unlink(in_fileName, cb);
+}
+
+// ******************************
+
 function writeFile (in_fileName, in_fileContents, in_overwrite) {
     let fs = require('fs');
     let path = require('path');
@@ -300,24 +308,25 @@ function getExtensionForType (in_fileType) {
 // Exports:
 // ******************************
 
-module.exports['setupFile'] = setupFile;
-module.exports['setupFolder'] = setupFolder;
-module.exports['setupFolderLink'] = setupFolderLink;
-module.exports['setupFileLink'] = setupFileLink;
-module.exports['setupFileCopy'] = setupFileCopy;
-module.exports['linkFolder'] = linkFolder;
-module.exports['linkFile'] = linkFile;
+module.exports['copyFile'] = copyFile;
 module.exports['createFolder'] = createFolder;
-module.exports['deleteFolder'] = deleteFolder;
 module.exports['cwd'] = cwd;
+module.exports['deleteFile'] = deleteFile;
+module.exports['deleteFolder'] = deleteFolder;
 module.exports['fileExists'] = fileExists;
 module.exports['files'] = files;
 module.exports['folderExists'] = fileExists;
 module.exports['folders'] = files;
-module.exports['isFolder'] = isFolder;
-module.exports['readFile'] = readFile;
-module.exports['copyFile'] = copyFile;
-module.exports['writeFile'] = writeFile;
 module.exports['getExtensionForType'] = getExtensionForType;
+module.exports['isFolder'] = isFolder;
+module.exports['linkFile'] = linkFile;
+module.exports['linkFolder'] = linkFolder;
+module.exports['readFile'] = readFile;
+module.exports['setupFile'] = setupFile;
+module.exports['setupFileCopy'] = setupFileCopy;
+module.exports['setupFileLink'] = setupFileLink;
+module.exports['setupFolder'] = setupFolder;
+module.exports['setupFolderLink'] = setupFolderLink;
+module.exports['writeFile'] = writeFile;
 
 // ******************************

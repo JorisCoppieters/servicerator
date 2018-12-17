@@ -30,7 +30,7 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'Cluster_' + in_clusterName;
+    let cacheKey = `Cluster_${opts.profile}_${opts.region}_${in_clusterName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -51,7 +51,7 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -89,7 +89,7 @@ function createCluster (in_clusterName, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -119,7 +119,7 @@ function deployTaskDefinitionToCluster (in_clusterName, in_serviceArn, in_taskDe
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -163,7 +163,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'Cluster_' + in_clusterArn;
+    let cacheKey = `Cluster_${opts.profile}_${opts.region}_${in_clusterArn}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -192,7 +192,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -262,7 +262,7 @@ function createClusterService (in_clusterServiceConfig, in_options) {
     let cmdResult = awsCmd(args, in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -288,7 +288,7 @@ function stopClusterTask (in_clusterName, in_taskArn, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -303,7 +303,7 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'TaskDefinition_' + in_clusterName;
+    let cacheKey = `TaskDefinition_${opts.profile}_${opts.region}${in_clusterName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -337,7 +337,7 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -397,7 +397,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'ClusterTaskArns_' + in_clusterName;
+    let cacheKey = `ClusterTaskArns_${opts.profile}_${opts.region}_${in_clusterName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -420,7 +420,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -448,7 +448,7 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'TaskDefinition_' + in_taskDefinitionArn;
+    let cacheKey = `TaskDefinition_${opts.profile}_${opts.region}_${in_taskDefinitionArn}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -471,7 +471,7 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -528,7 +528,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'TaskDefinitionArn_' + in_clusterServiceArn;
+    let cacheKey = `TaskDefinitionArn_${opts.profile}_${opts.region}_${in_clusterServiceArn}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -553,7 +553,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -586,7 +586,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'LatestTaskDefinitionArn_' + in_taskDefinitionName;
+    let cacheKey = `LatestTaskDefinitionArn_${opts.profile}_${opts.region}_${in_taskDefinitionName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -609,7 +609,7 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -650,7 +650,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'PreviousTaskDefinitionArns_' + in_taskDefinitionName;
+    let cacheKey = `PreviousTaskDefinitionArns_${opts.profile}_${opts.region}_${in_taskDefinitionName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -673,7 +673,7 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -719,7 +719,7 @@ function getCurrentTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'CurrentTaskDefinitionArn_' + in_taskDefinitionName;
+    let cacheKey = `CurrentTaskDefinitionArn_${opts.profile}_${opts.region}_${in_taskDefinitionName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -742,7 +742,7 @@ function getCurrentTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -796,7 +796,7 @@ function deregisterTaskDefinition (in_taskDefinitionArn, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -815,7 +815,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'ContainerInstance_' + in_containerInstanceArn;
+    let cacheKey = `ContainerInstance_${opts.profile}_${opts.region}_${in_containerInstanceArn}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -840,7 +840,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -872,7 +872,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'DockerRepository_' + in_dockerImageName;
+    let cacheKey = `DockerRepository_${opts.profile}_${opts.region}_${in_dockerImageName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -893,7 +893,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -926,7 +926,7 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'DockerRepositoryImages_' + in_dockerRepositoryName;
+    let cacheKey = `DockerRepositoryImages_${opts.profile}_${opts.region}_${in_dockerRepositoryName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -948,7 +948,7 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -990,12 +990,12 @@ function deleteDockerRepositoryImages (in_dockerRepositoryName, in_dockerReposit
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
     if (cmdResult.resultObj && cmdResult.resultObj.failures) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1016,7 +1016,7 @@ function createDockerRepository (in_dockerImageName, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1033,7 +1033,7 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'LaunchConfiguration_' + in_launchConfigurationTemplate;
+    let cacheKey = `LaunchConfiguration_${opts.profile}_${opts.region}_${in_launchConfigurationTemplate}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1072,7 +1072,7 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'LaunchConfigurations_' + in_launchConfigurationTemplate;
+    let cacheKey = `LaunchConfigurations_${opts.profile}_${opts.region}_${in_launchConfigurationTemplate}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1093,7 +1093,7 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -1137,7 +1137,7 @@ function deleteLaunchConfiguration (in_launchConfiguration, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1180,7 +1180,7 @@ function setAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_autoScali
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1196,7 +1196,7 @@ function getAutoScalingGroups (in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'AllAutoScalingGroups';
+    let cacheKey = `AllAutoScalingGroups_${opts.profile}_${opts.region}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1217,7 +1217,7 @@ function getAutoScalingGroups (in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -1248,7 +1248,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'AutoScalingGroupInstanceCount_' + in_autoScalingGroupName;
+    let cacheKey = `AutoScalingGroupInstanceCount_${opts.profile}_${opts.region}_${in_autoScalingGroupName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1270,7 +1270,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -1328,7 +1328,7 @@ function getTargetGroups (in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'AllTargetGroups';
+    let cacheKey = `AllTargetGroups_${opts.profile}_${opts.region}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1349,7 +1349,7 @@ function getTargetGroups (in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -1405,6 +1405,117 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 }
 
 // ******************************
+// SAML Functions:
+// ******************************
+
+function getSamlAssertion(in_options) {
+    let opts = in_options || {};
+
+    let policyUrl = opts.policyUrl;
+    if (!policyUrl) {
+        if (opts.showWarning) {
+            cprint.yellow('Policy url is not set');
+        }
+        return;
+    }
+
+    let awsCache = opts.cache || {};
+    let cacheKey = `SamlAssertion_${policyUrl}`;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    cprint.cyan('Using federated login to get AWS credentials...');
+
+    let cookieString = '';
+
+    let sessionUrl = opts.sessionUrl;
+    if (sessionUrl) {
+        let cmdArgs = [
+            '-s',
+            '-L',
+            '-o', '/dev/null',
+            '-c', '-'
+        ];
+
+        if (opts.sessionHeaders) {
+            opts.sessionHeaders
+                .forEach(header => {
+                    cmdArgs.push('-H');
+                    cmdArgs.push(`${header.header}: ${header.value}`);
+                });
+        }
+
+        cmdArgs.push(sessionUrl);
+
+        let cmdResult = exec.cmdSync('curl', cmdArgs, {
+            hide: true
+        });
+
+        if (cmdResult.hasError) {
+            cmdResult.throwError();
+            return;
+        }
+
+        let reponseRows =
+            cmdResult.result
+                .split(/[\r\n]+/)
+                .map(line => line.trim())
+                .filter(line => line && !line.match(/^#.*/));
+
+        cookieString = reponseRows
+            .map(line => {
+                let parts = line.split(/\t/);
+                let cookieName = parts[5];
+                let cookieValue = parts[6];
+                return `${cookieName}=${cookieValue};`;
+            })
+            .join(' ');
+    }
+
+    let samlUsername = readline.sync('Please enter your SAML username: ');
+    let samlPassword = readline.sync('Please enter your SAML password: ');
+    let formData = `username=${samlUsername}&password=${samlPassword}`;
+
+    let cmdResult = exec.cmdSync('curl', [
+        '-X', 'POST',
+        '-s',
+        '-L',
+        '-c', '-',
+        '-d', formData,
+        '--cookie', cookieString,
+        policyUrl
+    ], {
+        hide: true
+    });
+
+    if (cmdResult.hasError) {
+        cmdResult.throwError();
+        return;
+    }
+
+    let samlRegExp = new RegExp(/name="SAMLResponse" value="(.+?)"/, 'i');
+    let samlRegExpMatch = cmdResult.result.match(samlRegExp);
+    if (!samlRegExpMatch) {
+        if (opts.showWarning) {
+            cprint.yellow('SAML login failed! Did you type in the correct password?');
+        }
+        return;
+    }
+
+    let samlResponse = samlRegExpMatch[1];
+
+    awsCache[cacheKey] = {
+        val: samlResponse,
+        expires: date.getTimestamp() + cache.durations.minute * 4.5
+    };
+
+    return samlResponse;
+}
+
+// ******************************
 // IAM Role Functions:
 // ******************************
 
@@ -1428,7 +1539,7 @@ function getRoleCredentials (in_roleArn, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'RoleAssumedCredentials_' + in_roleArn;
+    let cacheKey = `RoleAssumedCredentials_${opts.profile}_${opts.region}_${in_roleArn}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1451,7 +1562,66 @@ function getRoleCredentials (in_roleArn, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
+        return false;
+    }
+
+    let awsRoleAssumedCredentials;
+    let awsResult = parseAwsCmdResult(cmdResult);
+    if (awsResult && awsResult.Credentials) {
+        awsRoleAssumedCredentials = awsResult.Credentials;
+    }
+
+    if (!awsRoleAssumedCredentials) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t assume credentials for AWS Role ARN "' + in_roleArn + '"');
+        }
+        return false;
+    }
+
+    awsCache[cacheKey] = {
+        val: awsRoleAssumedCredentials,
+        expires: date.getTimestamp() + cache.durations.halfHour
+    };
+
+    return awsRoleAssumedCredentials;
+}
+
+// ******************************
+
+function getRoleSamlCredentials (in_roleArn, in_principalArn, in_samlAssertion, in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = `RoleAssumedCredentials_${in_roleArn}`;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Assuming credentials for AWS Role ARN "' + in_roleArn + '"...');
+    }
+
+    let samlAssertionFile = '.saml';
+    fs.writeFile(samlAssertionFile, in_samlAssertion, true);
+
+    let cmdResult = awsCmd([
+        'sts',
+        'assume-role-with-saml',
+        '--role-arn', in_roleArn,
+        '--principal-arn', in_principalArn,
+        '--saml-assertion', `fileb://${samlAssertionFile}`
+    ], {
+        hide: !opts.verbose,
+        no_profile: true
+    });
+
+    fs.deleteFile(samlAssertionFile);
+
+    if (cmdResult.hasError) {
+        cmdResult.throwError();
         return false;
     }
 
@@ -1482,7 +1652,7 @@ function getRoleArnForRoleName (in_roleName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'RoleArn_' + in_roleName;
+    let cacheKey = `RoleArn_${opts.profile}_${opts.region}_${in_roleName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1519,7 +1689,7 @@ function getRoleNameForRoleName (in_roleName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'RoleName_' + in_roleName;
+    let cacheKey = `RoleName_${opts.profile}_${opts.region}_${in_roleName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1564,7 +1734,7 @@ function createRole (in_roleName, in_roleDescription, in_rolePolicyDocument, in_
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1586,7 +1756,7 @@ function attachRolePolicy (in_roleName, in_rolePolicyArn, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1607,7 +1777,7 @@ function createInstanceProfile (in_instanceProfileName, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1629,7 +1799,7 @@ function addRoleToInstanceProfile (in_instanceProfileName, in_roleName, in_optio
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1650,7 +1820,7 @@ function getMultiFactorAuthDevice (in_options) {
     let awsCredentials = opts.awsCredentials;
 
     let awsCache = opts.cache || {};
-    let cacheKey = profile + '-mfa-device';
+    let cacheKey = `MFADevice_${opts.profile}_${opts.region}`;
     if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
         return awsCache[cacheKey].val;
     }
@@ -1701,7 +1871,7 @@ function getMultiFactorAuthDevice (in_options) {
     }
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.printError('  ');
+        awsCmdResult.throwError();
         return;
     }
 
@@ -1731,7 +1901,7 @@ function getUsername(in_options) {
     let longTermProfile = opts.longTermProfile;
 
     let awsCache = opts.cache || {};
-    let cacheKey = profile + '-username';
+    let cacheKey = `Username_${opts.profile}_${opts.region}`;
     if (awsCache[cacheKey] && awsCache[cacheKey].val !== undefined) {
         return awsCache[cacheKey].val;
     }
@@ -1765,7 +1935,7 @@ function getUsername(in_options) {
     }
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.printError('  ');
+        awsCmdResult.throwError();
         return;
     }
 
@@ -1791,7 +1961,7 @@ function getUserArnForUsername (in_username, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'UserArn_' + in_username;
+    let cacheKey = `UserArn_${opts.profile}_${opts.region}_${in_username}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1812,7 +1982,7 @@ function getUserArnForUsername (in_username, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1852,7 +2022,7 @@ function createUser (in_username, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1873,7 +2043,7 @@ function createUserAccessKey (in_username, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1914,7 +2084,7 @@ function attachInlinePolicyToUser (in_username, in_inlinePolicyName, in_inlinePo
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -1950,7 +2120,7 @@ function getSessionToken (in_profile, in_options) {
     });
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.printError('  ');
+        awsCmdResult.throwError();
         return;
     }
 
@@ -1968,7 +2138,7 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'BucketPath_' + in_bucketName;
+    let cacheKey = `BucketPath_${opts.profile}_${opts.region}_${in_bucketName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2005,7 +2175,7 @@ function getBucketNameForBucketName (in_bucketName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'BucketName_' + in_bucketName;
+    let cacheKey = `BucketName_${opts.profile}_${opts.region}_${in_bucketName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2049,7 +2219,7 @@ function createBucket (in_bucketName, in_options) {
     ], in_options);
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -2066,7 +2236,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'VpcId_' + in_vpcName;
+    let cacheKey = `VpcId_${opts.profile}_${opts.region}_${in_vpcName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2088,7 +2258,7 @@ function getVpcIdForVpc (in_vpcName, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -2135,7 +2305,7 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'VpcDefaultSecurityGroupId_' + in_vpcId;
+    let cacheKey = `VpcDefaultSecurityGroupId_${opts.profile}_${opts.region}_${in_vpcId}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2159,7 +2329,7 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -2192,7 +2362,7 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'VpcSecurityGroupId_' + in_vpcId + '_' + in_groupName;
+    let cacheKey = `VpcSecurityGroupId_${opts.profile}_${opts.region}_${in_vpcId}` + `_${in_groupName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2215,7 +2385,7 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -2247,7 +2417,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'VpcSubnetId_' + in_vpcSubnetName;
+    let cacheKey = `VpcSubnetId_${opts.profile}_${opts.region}_${in_vpcSubnetName}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2270,7 +2440,7 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -2323,7 +2493,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
     let tagsStr = JSON.stringify(tags);
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'InstanceIds_' + tagsStr;
+    let cacheKey = `InstanceIds_${opts.profile}_${opts.region}_${tagsStr}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -2354,7 +2524,7 @@ function getInstanceIdsWithTags (in_tags, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     }
 
@@ -2411,7 +2581,19 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                     aws: {
                         account_id: 'STRING',
                         profile: 'STRING',
-                        assume_role: 'STRING'
+                        assume_role: 'STRING',
+                        federated_login: {
+                            session_url: 'STRING',
+                            session_headers: [
+                                {
+                                    header: 'STRING',
+                                    value: 'STRING'
+                                }
+                            ],
+                            policy_url: 'STRING',
+                            role_arn: 'STRING',
+                            principal_arn: 'STRING'
+                        }
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -2456,54 +2638,109 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let awsCache = cache.load(in_serviceConfig.cwd, 'aws') || {};
 
-    let mfaDevice = getMultiFactorAuthDevice({
-        profile: profile,
-        longTermProfile: longTermProfile,
-        awsCredentials: awsCredentials,
-        cache: awsCache,
-        verbose: true
-    });
+    let reloadConfigFiles = false;
+
+    let federatedLoginPolicyUrl = cluster.aws.federated_login.policy_url || '';
+    let federatedLoginRoleArn = cluster.aws.federated_login.role_arn || '';
+    let federatedLoginPrincipalArn = cluster.aws.federated_login.principal_arn || '';
+    if (federatedLoginPolicyUrl && federatedLoginRoleArn && federatedLoginPrincipalArn && assumeRoleArn) {
+        let samlAssertion = getSamlAssertion({
+            sessionUrl: cluster.aws.federated_login.session_url || '',
+            policyUrl: federatedLoginPolicyUrl,
+            sessionHeaders: cluster.aws.federated_login.session_headers,
+            cache: awsCache,
+            showWarning: true,
+            verbose: true
+        });
+        if (!samlAssertion) {
+            return;
+        }
+
+        let configured = configureProfileAsRoleWithSaml({
+            roleArn: federatedLoginRoleArn,
+            principalArn: federatedLoginPrincipalArn,
+            samlAssertion: samlAssertion,
+            credentialsFile: awsCredentialsFile,
+            cache: awsCache,
+            showWarning: true,
+            verbose: true
+        });
+
+        if (configured) {
+            reloadConfigFiles = true;
+        }
+
+        profile = federatedLoginRoleArn;
+        cluster.aws.profile = federatedLoginRoleArn;
+
+        if (assumeRoleArn) {
+            let profileAsRole = profile + '-as-' + assumeRoleArn;
+
+            let configured = configureProfileAsRole({
+                profile: profile,
+                profileAsRole: profileAsRole,
+                assumeRoleArn: assumeRoleArn,
+                accountId: cluster.aws.account_id,
+                credentialsFile: awsCredentialsFile,
+                verbose: true
+            });
+
+            if (configured) {
+                reloadConfigFiles = true;
+            }
+
+            // Set the profile to the profileAsRole since we'll use those credentials now
+            profile = profileAsRole;
+            cluster.aws.profile = profileAsRole;
+        }
+    } else {
+        let mfaDevice = getMultiFactorAuthDevice({
+            profile: profile,
+            longTermProfile: longTermProfile,
+            awsCredentials: awsCredentials,
+            cache: awsCache,
+            verbose: true
+        });
+
+        if(mfaDevice && mfaDevice.SerialNumber) {
+            let configured = configureMultiFactorAuth({
+                serialNumber: mfaDevice.SerialNumber,
+                profile: profile,
+                accountId: cluster.aws.account_id,
+                longTermProfile: longTermProfile,
+                credentialsFile: awsCredentialsFile,
+                verbose: true
+            });
+
+            if (configured) {
+                reloadConfigFiles = true;
+            }
+        }
+
+        if (assumeRoleArn) {
+            let profileAsRole = profile + '-as-' + assumeRoleArn;
+
+            let configured = configureProfileAsRole({
+                profile: profile,
+                profileAsRole: profileAsRole,
+                assumeRoleArn: assumeRoleArn,
+                accountId: cluster.aws.account_id,
+                credentialsFile: awsCredentialsFile,
+                verbose: true
+            });
+
+            // Set the profile to the profileAsRole since we'll use those credentials now
+            profile = profileAsRole;
+            cluster.aws.profile = profile;
+
+            if (configured) {
+                reloadConfigFiles = true;
+            }
+        }
+    }
 
     if (service.hasConfigFile(in_serviceConfig.cwd)) {
         cache.save(in_serviceConfig.cwd, 'aws', awsCache);
-    }
-
-    let reloadConfigFiles = false;
-
-    if(mfaDevice && mfaDevice.SerialNumber) {
-        let configured = configureMultiFactorAuth({
-            serialNumber: mfaDevice.SerialNumber,
-            profile: profile,
-            accountId: cluster.aws.account_id,
-            longTermProfile: longTermProfile,
-            credentialsFile: awsCredentialsFile,
-            verbose: true
-        });
-
-        if (configured) {
-            reloadConfigFiles = true;
-        }
-    }
-
-    if (assumeRoleArn) {
-        let profileAsRole = profile + '-as-' + assumeRoleArn;
-
-        let configured = configureProfileAsRole({
-            profile: profile,
-            profileAsRole: profileAsRole,
-            assumeRoleArn: assumeRoleArn,
-            accountId: cluster.aws.account_id,
-            credentialsFile: awsCredentialsFile,
-            verbose: true
-        });
-
-        // Set the profile to the profileAsRole since we'll use those credentials now
-        profile = profileAsRole;
-        cluster.aws.profile = profile;
-
-        if (configured) {
-            reloadConfigFiles = true;
-        }
     }
 
     if (reloadConfigFiles) {
@@ -2642,6 +2879,50 @@ function configureProfileAsRole(in_options) {
 
 // ******************************
 
+function configureProfileAsRoleWithSaml(in_options) {
+    let opts = in_options || {};
+
+    let roleArn = opts.roleArn;
+    if (!roleArn) {
+        cprint.yellow('No role to assume!');
+        return;
+    }
+
+    let principalArn = opts.principalArn;
+    if (!principalArn) {
+        cprint.yellow('No principal defined!');
+        return;
+    }
+
+    let samlAssertion = opts.samlAssertion;
+    if (!samlAssertion) {
+        cprint.yellow('No SAML assertion defined!');
+        return;
+    }
+
+    let awsCredentials =  ini.parseFile(opts.credentialsFile);
+
+    let roleCredentials = getRoleSamlCredentials(roleArn, principalArn, samlAssertion, in_options);
+    if (!roleCredentials) {
+        return;
+    }
+
+    let profileAsRole = roleArn;
+    awsCredentials[profileAsRole] = {};
+    awsCredentials[profileAsRole].assumed_role = 'True';
+    awsCredentials[profileAsRole].assumed_role_arn = roleArn;
+    awsCredentials[profileAsRole].account_id = awsArnToAccountId(roleArn);
+    awsCredentials[profileAsRole].aws_access_key_id = roleCredentials.AccessKeyId;
+    awsCredentials[profileAsRole].aws_secret_access_key = roleCredentials.SecretAccessKey;
+    awsCredentials[profileAsRole].aws_session_token = roleCredentials.SessionToken;
+    awsCredentials[profileAsRole].aws_security_token = roleCredentials.SessionToken;
+    awsCredentials[profileAsRole].expiration = _formatSessionExpiration(roleCredentials.Expiration);
+    ini.writeFile(opts.credentialsFile, awsCredentials);
+    return true;
+}
+
+// ******************************
+
 function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = in_serviceConfig || {};
     let awsServiceConfig = getServiceConfig(in_serviceConfig, in_environment);
@@ -2731,8 +3012,8 @@ function getDockerCredentials (in_serviceConfig, in_options) {
     });
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.printError();
         cprint.red('\nCheck your ~/.aws/credentials file...');
+        awsCmdResult.throwError();
         return false;
     }
 
@@ -2764,7 +3045,7 @@ function getDockerCredentials (in_serviceConfig, in_options) {
 // ******************************
 
 function getSecretKey (in_serviceConfig, in_environment) {
-    let serviceConfig = service.accessConfig(in_serviceConfig, {
+    let serviceConfig = service.accessConfig(getMergedAwsServiceConfig(in_serviceConfig, in_environment), {
         service: {
             clusters: [
                 {
@@ -3065,12 +3346,14 @@ function awsCmd (in_args, in_options) {
         args = [args];
     }
 
-    args.push('--profile');
+    if (!opts.no_profile) {
+        args.push('--profile');
 
-    if (opts.profile) {
-        args.push(opts.profile);
-    } else {
-        args.push('default');
+        if (opts.profile) {
+            args.push(opts.profile);
+        } else {
+            args.push('default');
+        }
     }
 
     if (opts.region) {
@@ -3088,7 +3371,7 @@ function awsCmd (in_args, in_options) {
 
 function parseAwsCmdResult (in_cmdResult) {
     if (in_cmdResult.hasError) {
-        in_cmdResult.printError('  ');
+        in_cmdResult.throwError();
     }
 
     if (! in_cmdResult.result) {
@@ -3145,7 +3428,7 @@ function _getRoleArns (in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'RoleArns';
+    let cacheKey = `RoleArns_${opts.profile}_${opts.region}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -3166,7 +3449,7 @@ function _getRoleArns (in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return [];
     }
 
@@ -3192,7 +3475,7 @@ function _getBucketPaths (in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'BucketPaths';
+    let cacheKey = `BucketPaths_${opts.profile}_${opts.region}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -3213,7 +3496,7 @@ function _getBucketPaths (in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return [];
     }
 

@@ -420,7 +420,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
             cprint.cyan('Tagging Docker image...');
             let cmdResult = docker.cmd(args);
             if (cmdResult.hasError) {
-                cmdResult.printError();
+                cmdResult.throwError();
                 noErrors = false;
             }
         });
@@ -432,7 +432,7 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return;
     }
 
@@ -1245,7 +1245,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     } else {
         cmdResult.printResult('  ');
@@ -1517,7 +1517,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         region: cluster.aws.region
     });
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     } else {
         cmdResult.printResult('  ');
@@ -1548,7 +1548,7 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             region: cluster.aws.region
         });
         if (cmdResult.hasError) {
-            cmdResult.printError('  ');
+            cmdResult.throwError();
             return false;
         } else {
             cmdResult.printResult('  ');
@@ -1803,7 +1803,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         region: cluster.aws.region
     });
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     } else {
         cmdResult.printResult('  ');
@@ -1827,7 +1827,7 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             region: cluster.aws.region
         });
         if (cmdResult.hasError) {
-            cmdResult.printError('  ');
+            cmdResult.throwError();
             return false;
         } else {
             cmdResult.printResult('  ');
@@ -2621,7 +2621,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     });
 
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     } else {
         cmdResult.printResult('  ');
@@ -3728,7 +3728,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
         region: cluster.aws.region
     });
     if (cmdResult.hasError) {
-        cmdResult.printError('  ');
+        cmdResult.throwError();
         return false;
     } else {
         cmdResult.printResult('  ');
@@ -3752,7 +3752,7 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             region: cluster.aws.region
         });
         if (cmdResult.hasError) {
-            cmdResult.printError('  ');
+            cmdResult.throwError();
             return false;
         } else {
             cmdResult.printResult('  ');
