@@ -1,3 +1,6 @@
+0.18.0
+- Added support for AWS federated login with SSO
+
 0.17.0
 - Added support for partial AWS resource names
 
