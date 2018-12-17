@@ -29,6 +29,7 @@
     "minimist": "^1.2.0",
     "open": "0.0.5",
     "querystring": "^0.2.0",
+    "readline-sync": "^1.4.9",
     "request": "^2.88.0",
     "rimraf": "^2.6.1"
   }

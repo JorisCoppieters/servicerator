@@ -140,6 +140,10 @@ function getEnvironmentCluster (in_clusters, in_environment) {
             return c.environment === in_environment;
         });
 
+        if (!environmentCluster) {
+            cprint.yellow(`Service doesn't have a ${in_environment} environment configured`);
+        }
+
         return environmentCluster;
     }
 
@@ -1408,7 +1412,7 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 // SAML Functions:
 // ******************************
 
-function getSamlAssertion(in_options) {
+function getSamlAssertion (in_options) {
     let opts = in_options || {};
 
     let policyUrl = opts.policyUrl;
@@ -1476,7 +1480,7 @@ function getSamlAssertion(in_options) {
     }
 
     let samlUsername = readline.sync('Please enter your SAML username: ');
-    let samlPassword = readline.sync('Please enter your SAML password: ');
+    let samlPassword = readline.hiddenSync('Please enter your SAML password: ');
     let formData = `username=${samlUsername}&password=${samlPassword}`;
 
     let cmdResult = exec.cmdSync('curl', [
@@ -1519,7 +1523,7 @@ function getSamlAssertion(in_options) {
 // IAM Role Functions:
 // ******************************
 
-function getAssumedRoleCredentials(awsRoleName, in_options) {
+function getAssumedRoleCredentials (awsRoleName, in_options) {
     let awsRoleArn = getRoleArnForRoleName(awsRoleName, in_options);
     if (!awsRoleArn) {
         return;
@@ -1589,7 +1593,7 @@ function getRoleCredentials (in_roleArn, in_options) {
 
 // ******************************
 
-function getRoleSamlCredentials (in_roleArn, in_principalArn, in_samlAssertion, in_options) {
+function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_sessionHeaders, in_policyUrl, in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
@@ -1601,11 +1605,24 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_samlAssertion, 
     }
 
     if (opts.verbose) {
-        cprint.cyan('Assuming credentials for AWS Role ARN "' + in_roleArn + '"...');
+        cprint.cyan('Assuming credentials via SAML for AWS Role ARN "' + in_roleArn + '"...');
+    }
+
+    let samlAssertion = getSamlAssertion({
+        sessionUrl: in_sessionUrl,
+        sessionHeaders: in_sessionHeaders,
+        policyUrl: in_policyUrl,
+        cache: awsCache,
+        showWarning: true,
+        verbose: true
+    });
+
+    if (!samlAssertion) {
+        return;
     }
 
     let samlAssertionFile = '.saml';
-    fs.writeFile(samlAssertionFile, in_samlAssertion, true);
+    fs.writeFile(samlAssertionFile, samlAssertion, true);
 
     let cmdResult = awsCmd([
         'sts',
@@ -1640,7 +1657,7 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_samlAssertion, 
 
     awsCache[cacheKey] = {
         val: awsRoleAssumedCredentials,
-        expires: date.getTimestamp() + cache.durations.halfHour
+        expires: date.getTimestamp() + cache.durations.hour * 11
     };
 
     return awsRoleAssumedCredentials;
@@ -1894,7 +1911,7 @@ function getMultiFactorAuthDevice (in_options) {
 
 // ******************************
 
-function getUsername(in_options) {
+function getUsername (in_options) {
     let opts = in_options || {};
 
     let profile = opts.profile;
@@ -2644,22 +2661,12 @@ function getServiceConfig (in_serviceConfig, in_environment) {
     let federatedLoginRoleArn = cluster.aws.federated_login.role_arn || '';
     let federatedLoginPrincipalArn = cluster.aws.federated_login.principal_arn || '';
     if (federatedLoginPolicyUrl && federatedLoginRoleArn && federatedLoginPrincipalArn && assumeRoleArn) {
-        let samlAssertion = getSamlAssertion({
-            sessionUrl: cluster.aws.federated_login.session_url || '',
-            policyUrl: federatedLoginPolicyUrl,
-            sessionHeaders: cluster.aws.federated_login.session_headers,
-            cache: awsCache,
-            showWarning: true,
-            verbose: true
-        });
-        if (!samlAssertion) {
-            return;
-        }
-
         let configured = configureProfileAsRoleWithSaml({
+            sessionUrl: cluster.aws.federated_login.session_url,
+            sessionHeaders: cluster.aws.federated_login.session_headers,
+            policyUrl: federatedLoginPolicyUrl,
             roleArn: federatedLoginRoleArn,
             principalArn: federatedLoginPrincipalArn,
-            samlAssertion: samlAssertion,
             credentialsFile: awsCredentialsFile,
             cache: awsCache,
             showWarning: true,
@@ -2765,7 +2772,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function configureMultiFactorAuth(in_options) {
+function configureMultiFactorAuth (in_options) {
     let opts = in_options || {};
 
     let profile = opts.profile;
@@ -2826,7 +2833,7 @@ function configureMultiFactorAuth(in_options) {
 
 // ******************************
 
-function configureProfileAsRole(in_options) {
+function configureProfileAsRole (in_options) {
     let opts = in_options || {};
 
     let profile = opts.profile;
@@ -2840,8 +2847,7 @@ function configureProfileAsRole(in_options) {
         return;
     }
 
-    if (!assumeRoleArn)
-    {
+    if (!assumeRoleArn) {
         cprint.yellow('No role to assume!');
         return;
     }
@@ -2879,7 +2885,7 @@ function configureProfileAsRole(in_options) {
 
 // ******************************
 
-function configureProfileAsRoleWithSaml(in_options) {
+function configureProfileAsRoleWithSaml (in_options) {
     let opts = in_options || {};
 
     let roleArn = opts.roleArn;
@@ -2894,15 +2900,18 @@ function configureProfileAsRoleWithSaml(in_options) {
         return;
     }
 
-    let samlAssertion = opts.samlAssertion;
-    if (!samlAssertion) {
-        cprint.yellow('No SAML assertion defined!');
+    let sessionUrl = opts.sessionUrl || '';
+    let sessionHeaders = opts.sessionHeaders || {};
+
+    let policyUrl = opts.policyUrl;
+    if (!policyUrl) {
+        cprint.yellow('No policy URL defined!');
         return;
     }
 
     let awsCredentials =  ini.parseFile(opts.credentialsFile);
 
-    let roleCredentials = getRoleSamlCredentials(roleArn, principalArn, samlAssertion, in_options);
+    let roleCredentials = getRoleSamlCredentials(roleArn, principalArn, sessionUrl, sessionHeaders, policyUrl, in_options);
     if (!roleCredentials) {
         return;
     }
@@ -3087,7 +3096,7 @@ function getSecretKey (in_serviceConfig, in_environment) {
 
 // ******************************
 
-function getDockerImageName(in_serviceConfig, in_cluster) {
+function getDockerImageName (in_serviceConfig, in_cluster) {
     let serviceConfig = service.accessConfig(in_serviceConfig, {
         cwd: 'STRING',
         docker: {
@@ -3119,7 +3128,7 @@ function getDockerImageName(in_serviceConfig, in_cluster) {
 
 // ******************************
 
-function getServiceRole(in_serviceConfig, in_cluster) {
+function getServiceRole (in_serviceConfig, in_cluster) {
     let serviceRole = in_cluster.aws.service_role;
     serviceRole = service.replaceConfigReferences(in_serviceConfig, serviceRole);
 
@@ -3145,7 +3154,7 @@ function getServiceRole(in_serviceConfig, in_cluster) {
 
 // ******************************
 
-function getAwsBucketName(in_serviceConfig, in_cluster) {
+function getAwsBucketName (in_serviceConfig, in_cluster) {
     let bucketName = in_cluster.aws.bucket.name;
     bucketName = service.replaceConfigReferences(in_serviceConfig, bucketName);
     if (bucketName.match(/.*-\*/)) {
@@ -3532,7 +3541,7 @@ function _getBucketPaths (in_options) {
 
 // ******************************
 
-function _isProfileExpired(profile) {
+function _isProfileExpired (profile) {
     if (!profile) {
         return true;
     }
@@ -3550,7 +3559,7 @@ function _isProfileExpired(profile) {
 
 // ******************************
 
-function _formatSessionExpiration(in_expiration) {
+function _formatSessionExpiration (in_expiration) {
     // Returns an ISO 8601 formatted date string sans the time zone Z and T date and time separator
     let isoFormattedExpiration = new Date(in_expiration).toISOString();
     return isoFormattedExpiration.replace('T', ' ').replace('.000Z', '');
@@ -3558,7 +3567,7 @@ function _formatSessionExpiration(in_expiration) {
 
 // ******************************
 
-function _partialStrMatch(in_str1, in_str2) {
+function _partialStrMatch (in_str1, in_str2) {
     return (in_str1 || '').trim().toLowerCase().indexOf((in_str2 || '').trim().toLowerCase()) > -1;
 }
 
