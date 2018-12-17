@@ -72,7 +72,7 @@ function printAuthInfo (in_serviceConfig) {
     cprint.cyan('Verifying certificate...');
     let cmdResult = openssl.cmd(['verify', '-CAfile', rootCACertificate, serviceCertificate]);
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError();
         return;
     } else {
         cmdResult.printResult();
@@ -289,7 +289,7 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.throwError();
+            cmdResult.printError();
             return;
         }
 
@@ -302,7 +302,7 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError();
             cprint.yellow(['\n  There may be a fault in config file - ' + reqCrtConfig + ':']
                 .concat(reqCaCrtConfigContents)
                 .join('\n    ')
@@ -320,7 +320,7 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError();
             cprint.yellow(['\n  There may be a fault in config file - ' + caSignConfig + ':']
                 .concat(caSignConfigContents)
                 .join('\n    ')
@@ -342,7 +342,7 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.throwError();
+            cmdResult.printError();
             return;
         }
 
@@ -355,7 +355,7 @@ function generateAuthFiles (in_serviceConfig) {
             cprint.cyan('Converting to pkcs8 format...');
             cmdResult = openssl.cmd(['pkcs8', '-in', serviceKey, '-topk8', '-nocrypt', '-out', servicePk8]);
             if (cmdResult.hasError) {
-                cmdResult.throwError();
+                cmdResult.printError();
                 return;
             } else {
                 cmdResult.printResult();

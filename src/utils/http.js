@@ -4,7 +4,7 @@
 // Functions:
 // ******************************
 
-function getRequest (in_url, in_requestData, in_options, in_onSuccess, in_onError) {
+function getRequest (in_url, in_requestData, in_onSuccess, in_onError) {
     let url = in_url;
     let requestData = in_requestData || [];
     if (requestData.length) {
@@ -16,16 +16,16 @@ function getRequest (in_url, in_requestData, in_options, in_onSuccess, in_onErro
 
     let request = require('request');
 
-    let requestOptions = Object.assign({
+    let requestOptions = {
         uri: url,
         method: 'GET',
         timeout: 30000,
         json: true,
-        followAllRedirects: true,
+        headers: [],
         rejectUnauthorized: false,
         requestCert: true,
         agent: false
-    }, in_options);
+    };
 
     request(requestOptions, (error, response, body) => {
         if (error) {
@@ -35,12 +35,7 @@ function getRequest (in_url, in_requestData, in_options, in_onSuccess, in_onErro
             return;
         }
         if (in_onSuccess) {
-            let setCookie = response.headers['set-cookie'];
-            let cookieValues = {};
-            if (setCookie) {
-                cookieValues = _parseCookieValues(setCookie);
-            }
-            in_onSuccess(body, cookieValues);
+            in_onSuccess(body);
         }
         return;
     });
@@ -48,42 +43,21 @@ function getRequest (in_url, in_requestData, in_options, in_onSuccess, in_onErro
 
 // ******************************
 
-function getRequestSync (in_url, in_requestData, in_options) {
-    var done = false;
-    var data = null;
-    getRequest(in_url, in_requestData, in_options, (body, cookieValues) => {
-        done = true;
-        data = {
-            body,
-            cookieValues
-        };
-    }, (error) => {
-        done = true;
-        data = {
-            error
-        };
-    });
-    while(!done) {require('deasync').sleep(100);}
-    return data;
-}
-
-// ******************************
-
-function postRequest (in_url, in_requestData, in_options, in_onSuccess, in_onError) {
+function postRequest (in_url, in_requestData, in_onSuccess, in_onError) {
     let requestData = in_requestData || {};
 
     // cprint.cyan('Sending POST request to: ' + url);
 
-    let requestOptions = Object.assign({
+    let requestOptions = {
         uri: in_url,
-        json: requestData,
         method: 'POST',
+        json: requestData,
         timeout: 30000,
-        followAllRedirects: true,
+        headers: [],
         rejectUnauthorized: false,
         requestCert: true,
         agent: false
-    }, in_options);
+    };
 
     let request = require('request');
 
@@ -95,52 +69,10 @@ function postRequest (in_url, in_requestData, in_options, in_onSuccess, in_onErr
             return;
         }
         if (in_onSuccess) {
-            let setCookie = response.headers['set-cookie'];
-            let cookieValues = {};
-            if (setCookie) {
-                cookieValues = _parseCookieValues(setCookie);
-            }
-            in_onSuccess(body, cookieValues);
+            in_onSuccess(body);
         }
         return;
     });
-}
-
-// ******************************
-
-function postRequestSync (in_url, in_requestData, in_options) {
-    var done = false;
-    var data = null;
-    postRequest(in_url, in_requestData, in_options, (body, cookieValues) => {
-        done = true;
-        data = {
-            body,
-            cookieValues
-        };
-    }, (error) => {
-        done = true;
-        data = {
-            error
-        };
-    });
-    while(!done) {require('deasync').sleep(100);}
-    return data;
-}
-
-// ******************************
-
-function _parseCookieValues (in_cookieValues) {
-    let cookieValues = in_cookieValues
-        .join(';')
-        .split(';')
-        .reduce((dict, cookieVal) => {
-            let key = cookieVal.split('=')[0];
-            let val = cookieVal.split('=')[1];
-            dict[key] = val;
-            return dict;
-        }, {});
-
-    return cookieValues;
 }
 
 // ******************************
@@ -148,8 +80,6 @@ function _parseCookieValues (in_cookieValues) {
 // ******************************
 
 module.exports['get'] = getRequest;
-module.exports['getSync'] = getRequestSync;
 module.exports['post'] = postRequest;
-module.exports['postSync'] = postRequestSync;
 
 // ******************************

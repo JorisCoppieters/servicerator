@@ -104,7 +104,7 @@ function printDockerInfo (in_serviceConfig) {
             });
 
             if (cmdResult.hasError) {
-                cmdResult.throwError();
+                cmdResult.printError('  ');
                 return;
             }
 
@@ -319,7 +319,7 @@ function buildDockerImage (in_serviceConfig, in_options, in_doneCb) {
     if (options.sync) {
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError('  ');
             _printErrorHeader('Docker build failed!', '  ');
             doneCb(false);
             return;
@@ -483,7 +483,7 @@ function cleanDockerImages (in_serviceConfig, in_options, in_doneCb) {
     let cmdResult = docker.cmd(args);
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
         return;
     }
 
@@ -528,7 +528,7 @@ function cleanDockerImages (in_serviceConfig, in_options, in_doneCb) {
     if (options.sync) {
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError('  ');
             doneCb(false);
             return;
         }
@@ -579,7 +579,7 @@ function purgeDockerImages (in_serviceConfig, in_force) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
         return;
     }
 
@@ -828,7 +828,7 @@ function enterDockerContainer (in_serviceConfig) {
     }
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
     } else {
         cmdResult.printResult('  ');
     }
@@ -861,7 +861,7 @@ function stopDockerContainer (in_serviceConfig) {
     cprint.cyan('Stopping Docker container "' + containerName + '"...');
     let cmdResult = docker.cmd(args);
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
     } else {
         cmdResult.printResult('  ');
     }
@@ -902,7 +902,7 @@ function removeDockerContainer (in_serviceConfig) {
     cprint.cyan('Removing Docker container "' + containerName + '"...');
     let cmdResult = docker.cmd(args);
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
     } else {
         cmdResult.printResult('  ');
     }
@@ -930,7 +930,7 @@ function removeDockerImageIdContainer (in_dockerImageId) {
         cprint.cyan('Removing Docker container ' + id + '...');
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
-            cmdResult.throwError();
+            cmdResult.printError('  ');
         } else {
             cmdResult.printResult('  ');
         }
@@ -986,7 +986,7 @@ function verifyDockerContainer (in_serviceConfig) {
         {
         case docker.k_TEST_TYPE_URL:
 
-            httpFunc(t.url, t.request_data, [],
+            httpFunc(t.url, t.request_data,
                 (receivedData) => { // On Success
                     let receivedString = JSON.stringify(receivedData);
                     let regExp = new RegExp(t.expected);
@@ -1536,7 +1536,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.throwError();
+            cmdResult.printError('  ');
         } else {
             cmdResult.printResult('  ');
         }
@@ -1547,7 +1547,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         cprint.cyan('Starting Docker container "' + containerName + '" in detached mode with start command...');
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
-            cmdResult.throwError();
+            cmdResult.printError('  ');
         } else {
             cmdResult.printResult('  ');
         }
@@ -1674,7 +1674,7 @@ function _getDockerImageIds (in_serviceConfig) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
         return;
     }
 
@@ -1695,7 +1695,7 @@ function _getZombieDockerImageIds () {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
+        cmdResult.printError('  ');
         return;
     }
 

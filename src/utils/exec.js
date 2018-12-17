@@ -98,9 +98,6 @@ function execCmdSync (in_cmd, in_args, in_options) {
         result: cmdResult,
         resultObj: cmdResultObj,
         printError: (in_indent) => _printLogLines(cmdErrorResult, _defaultIndent(in_indent, indent), knownErrors),
-        throwError: () => {
-            throw new Error(cmdErrorResult);
-        },
         printResult: (in_indent) => _printLogLines(cmdResult, _defaultIndent(in_indent, indent), knownErrors),
         rows: rows,
         hasError: !!cmdErrorResult.trim(),
