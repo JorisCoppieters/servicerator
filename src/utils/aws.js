@@ -6,6 +6,7 @@
 
 const cprint = require('color-print');
 
+const blob = require('./secureBlob');
 const cache = require('./cache');
 const date = require('./date');
 const env = require('./env');
@@ -1412,7 +1413,7 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 // SAML Functions:
 // ******************************
 
-function getSamlAssertion (in_options) {
+function getSamlAssertion (in_options, in_retryAttempts) {
     let opts = in_options || {};
 
     let policyUrl = opts.policyUrl;
@@ -1479,9 +1480,7 @@ function getSamlAssertion (in_options) {
             .join(' ');
     }
 
-    let samlUsername = readline.sync('Please enter your SAML username: ');
-    let samlPassword = readline.hiddenSync('Please enter your SAML password: ');
-    let formData = `username=${samlUsername}&password=${samlPassword}`;
+    let formData = getSamlLoginData(in_options);
 
     let cmdResult = exec.cmdSync('curl', [
         '-X', 'POST',
@@ -1503,9 +1502,17 @@ function getSamlAssertion (in_options) {
     let samlRegExp = new RegExp(/name="SAMLResponse" value="(.+?)"/, 'i');
     let samlRegExpMatch = cmdResult.result.match(samlRegExp);
     if (!samlRegExpMatch) {
+        if (in_retryAttempts > 2) {
+            if (opts.showWarning) {
+                cprint.red('Max retry attempts reached...');
+            }
+            throw new Error('SAML login failed');
+        }
         if (opts.showWarning) {
             cprint.yellow('SAML login failed! Did you type in the correct password?');
         }
+        clearSamlLoginData(awsCache);
+        getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
         return;
     }
 
@@ -1520,11 +1527,44 @@ function getSamlAssertion (in_options) {
 }
 
 // ******************************
+
+function getSamlLoginData(in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'SamlLoginData';
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return blob.decrypt(cacheVal);
+    }
+
+    let samlUsername = readline.sync('Please enter your SAML username: ');
+    let samlPassword = readline.hiddenSync('Please enter your SAML password: ');
+    let formData = `username=${samlUsername}&password=${samlPassword}`;
+
+    awsCache[cacheKey] = {
+        val: blob.encrypt(formData),
+        expires: date.getTimestamp() + cache.durations.day * 7
+    };
+
+    return formData;
+}
+
+// ******************************
+
+function clearSamlLoginData(in_cache) {
+    let awsCache = in_cache || {};
+    let cacheKey = 'SamlLoginData';
+    delete awsCache[cacheKey];
+}
+
+// ******************************
 // IAM Role Functions:
 // ******************************
 
-function getAssumedRoleCredentials (awsRoleName, in_options) {
-    let awsRoleArn = getRoleArnForRoleName(awsRoleName, in_options);
+function getRoleCredentialsForRoleName (in_roleName, in_options) {
+    let awsRoleArn = getRoleArnForRoleName(in_roleName, in_options);
     if (!awsRoleArn) {
         return;
     }
@@ -1657,7 +1697,7 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_
 
     awsCache[cacheKey] = {
         val: awsRoleAssumedCredentials,
-        expires: date.getTimestamp() + cache.durations.hour * 11
+        expires: date.getTimestamp() + cache.durations.halfHour
     };
 
     return awsRoleAssumedCredentials;
@@ -3601,7 +3641,7 @@ module.exports['deleteDockerRepositoryImages'] = deleteDockerRepositoryImages;
 module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
-module.exports['getAssumedRoleCredentials'] = getAssumedRoleCredentials;
+module.exports['getRoleCredentialsForRoleName'] = getRoleCredentialsForRoleName;
 module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
 module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
