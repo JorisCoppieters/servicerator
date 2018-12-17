@@ -302,7 +302,7 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError();
             cprint.yellow(['\n  There may be a fault in config file - ' + reqCrtConfig + ':']
                 .concat(reqCaCrtConfigContents)
                 .join('\n    ')
@@ -320,7 +320,7 @@ function generateAuthFiles (in_serviceConfig) {
         }
 
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError();
             cprint.yellow(['\n  There may be a fault in config file - ' + caSignConfig + ':']
                 .concat(caSignConfigContents)
                 .join('\n    ')

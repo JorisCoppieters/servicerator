@@ -319,7 +319,7 @@ function buildDockerImage (in_serviceConfig, in_options, in_doneCb) {
     if (options.sync) {
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError('  ');
             _printErrorHeader('Docker build failed!', '  ');
             doneCb(false);
             return;
@@ -528,7 +528,7 @@ function cleanDockerImages (in_serviceConfig, in_options, in_doneCb) {
     if (options.sync) {
         let cmdResult = docker.cmd(args);
         if (cmdResult.hasError) {
-            cmdResult.printError('    ');
+            cmdResult.printError('  ');
             doneCb(false);
             return;
         }
@@ -986,7 +986,7 @@ function verifyDockerContainer (in_serviceConfig) {
         {
         case docker.k_TEST_TYPE_URL:
 
-            httpFunc(t.url, t.request_data, [],
+            httpFunc(t.url, t.request_data, {},
                 (receivedData) => { // On Success
                     let receivedString = JSON.stringify(receivedData);
                     let regExp = new RegExp(t.expected);
