@@ -37,7 +37,7 @@ function runTests () {
     }));
     test.assertMatch('docker default repository', '.+', docker.getDefaultRepositoryStore());
     test.assertMatch('docker version', 'Docker version .*, build .*', docker.version());
-    test.assertEquals('docker tags for empty config', ['latest'], docker.getImageTags());
+    test.assertEquals('docker tags for empty config', ['latest'], docker.getImageTags({}));
     test.assertEquals('docker tags for config with model', ['model-version-1.2.3', 'latest'], docker.getImageTags({
         model: {
             version: '1.2.3'
