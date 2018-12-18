@@ -60,7 +60,7 @@ function showAllWizard (in_serviceConfig) {
                         simpleQuestion.path,
                         answer || defaultValue,
                         {
-                            suppressOutput: true
+                            hideWarnings: true
                         }
                     );
                 }

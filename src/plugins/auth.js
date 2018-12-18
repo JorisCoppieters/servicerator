@@ -32,14 +32,12 @@ function printAuthInfo (in_serviceConfig) {
     let sourceFolder = serviceConfig.cwd || false;
 
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     let dockerFolder = docker.getFolder(sourceFolder);
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        cprint.yellow('Docker folder not set up: ' + dockerFolder);
-        return;
+        throw new Error('Docker folder not set up: ' + dockerFolder);
     }
 
     let authFolder = path.resolve(dockerFolder, 'auth');
@@ -48,18 +46,15 @@ function printAuthInfo (in_serviceConfig) {
     }
 
     if (!authFolder || !fs.folderExists(authFolder)) {
-        cprint.yellow('Auth folder not set up: ' + authFolder);
-        return;
+        throw new Error('Auth folder not set up: ' + authFolder);
     }
 
     if (!serviceConfig.auth.rootCACertificate) {
-        cprint.yellow('Root CA certificate not set');
-        return;
+        throw new Error('Root CA certificate not set');
     }
 
     if (!fs.fileExists(serviceConfig.auth.rootCACertificate)) {
-        cprint.yellow('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
-        return;
+        throw new Error('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
     }
 
     let rootCACertificate = serviceConfig.auth.rootCACertificate;
@@ -106,14 +101,12 @@ function generateAuthFiles (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     let dockerFolder = docker.getFolder(sourceFolder);
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        cprint.yellow('Docker folder not set up: ' + dockerFolder);
-        return;
+        throw new Error('Docker folder not set up: ' + dockerFolder);
     }
 
     let authFolder = path.resolve(dockerFolder, 'auth');
@@ -122,8 +115,7 @@ function generateAuthFiles (in_serviceConfig) {
     }
 
     if (!authFolder || !fs.folderExists(authFolder)) {
-        cprint.yellow('Auth folder not set up: ' + authFolder);
-        return;
+        throw new Error('Auth folder not set up: ' + authFolder);
     }
 
     let tempFolder = env.getTemp();
@@ -140,23 +132,19 @@ function generateAuthFiles (in_serviceConfig) {
     let rootCACertificate = path.resolve(tmpAuthFolder, 'rootCA.crt');
 
     if (!serviceConfig.auth.rootCAKey) {
-        cprint.yellow('Root CA key not set');
-        return;
+        throw new Error('Root CA key not set');
     }
 
     if (!fs.fileExists(serviceConfig.auth.rootCAKey)) {
-        cprint.yellow('Root CA key cannot be found: ' + serviceConfig.auth.rootCAKey);
-        return;
+        throw new Error('Root CA key cannot be found: ' + serviceConfig.auth.rootCAKey);
     }
 
     if (!serviceConfig.auth.rootCACertificate) {
-        cprint.yellow('Root CA certificate not set');
-        return;
+        throw new Error('Root CA certificate not set');
     }
 
     if (!fs.fileExists(serviceConfig.auth.rootCACertificate)) {
-        cprint.yellow('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
-        return;
+        throw new Error('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
     }
 
     let serviceKeyName = serviceConfig.auth.key || 'service.key';
@@ -308,7 +296,7 @@ function generateAuthFiles (in_serviceConfig) {
                 .join('\n    ')
             );
             cprint.yellow('\n  Otherwise try generating the auth files again...\n');
-            return;
+            throw new Error('Failed to generate auth files');
         }
 
         cmdResult.printResult();
@@ -330,7 +318,7 @@ function generateAuthFiles (in_serviceConfig) {
                 .join('\n    ')
             );
             cprint.yellow('\n  Otherwise try generating the auth files again...\n');
-            return;
+            throw new Error('Failed to generate auth files');
         }
 
         cmdResult.printResult();

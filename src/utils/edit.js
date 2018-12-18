@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let env = require('./env');
 let exec = require('./exec');
 let fs = require('./filesystem');
@@ -23,8 +21,7 @@ let g_EDITOR = undefined;
 function editFiles (in_paths) {
     let editor = getEditor();
     if (!editor) {
-        cprint.yellow('No editor set');
-        return false;
+        throw new Error('No editor set');
     }
 
     let isSublime = editor.match(/sublime/i);

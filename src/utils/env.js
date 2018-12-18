@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let fs = require('./filesystem');
 
 // ******************************
@@ -100,8 +98,7 @@ function getServiceConfigFile (in_sourceFolder) {
         }
 
         if (loopCount++ > maxUpwardsIteration) {
-            cprint.yellow('Too many loop iterations! Invalid top directory: ' + directory);
-            break;
+            throw new Error('Too many loop iterations! Invalid top directory: ' + directory);
         }
 
         serviceConfigFile = path.resolve(directory, SERVICE_CONFIG_FILE_NAME);
@@ -167,8 +164,7 @@ function getPlugins () {
         }
 
         if (!plugin.getTitle || !plugin.getBaseCommands || !plugin.getCommands || !plugin.handleCommand) {
-            cprint.yellow('Invalid plugin: ' + pluginFile);
-            return;
+            throw new Error('Invalid plugin: ' + pluginFile);
         }
         plugins.push(plugin);
     });

@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let service = require('../utils/service');
 let exec = require('../utils/exec');
 
@@ -31,8 +29,7 @@ function runService (in_serviceConfig) {
 
     let cmd = serviceConfig.service.run.cmd;
     if (!cmd) {
-        cprint.yellow('Run cmd not set');
-        return;
+        throw new Error('Run cmd not set');
     }
 
     let working_directory = serviceConfig.service.run.working_directory || '/';

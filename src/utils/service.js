@@ -202,8 +202,7 @@ function loadServiceConfig (in_sourceFolder) {
         }
         serviceConfig = JSON.parse(serviceConfigContents);
     } catch (e) {
-        cprint.red('Failed to parse "' + serviceConfigFile + '":\n  ' + e.stack);
-        return false;
+        throw new Error('Failed to parse "' + serviceConfigFile + '":\n  ' + e.stack);
     }
 
     serviceConfig.cwd = path.dirname(serviceConfigFile);
@@ -282,8 +281,7 @@ function maskServiceConfig (in_source, in_mask) {
         }
 
         if (sv === 'undefined') {
-            cprint.red('Source value undefined for: ' + k);
-            return;
+            throw new Error('Source value undefined for: ' + k);
         }
 
         result[k] = sv;
@@ -349,7 +347,7 @@ function replaceServiceConfigReferences (in_serviceConfig, in_string, in_replace
 // ******************************
 
 function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -358,7 +356,7 @@ function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Source folder not set');
         }
         return;
@@ -366,7 +364,7 @@ function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
 
     let serviceFolder = in_serviceFolder || false;
     if (!serviceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Service folder not set');
         }
         return;
@@ -375,13 +373,13 @@ function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
     let folderPath = path.resolve(sourceFolder, serviceFolder.path);
     folderPath = replaceServiceConfigReferences(in_serviceConfig, folderPath);
 
-    fs.setupFolder(path.basename(folderPath), folderPath, opt);
+    fs.setupFolder(path.basename(folderPath), folderPath, opts);
 }
 
 // ******************************
 
 function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -390,7 +388,7 @@ function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Source folder not set');
         }
         return;
@@ -398,7 +396,7 @@ function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
 
     let serviceFolder = in_serviceFolder || false;
     if (!serviceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Service folder not set');
         }
         return;
@@ -415,13 +413,13 @@ function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
         return;
     }
 
-    fs.setupFolderLink(path.basename(source), source, destination, opt);
+    fs.setupFolderLink(path.basename(source), source, destination, opts);
 }
 
 // ******************************
 
 function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -430,7 +428,7 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Source folder not set');
         }
         return;
@@ -438,13 +436,13 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let serviceFile = in_serviceFile || false;
     if (!serviceFile) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Service file not set');
         }
         return;
     }
 
-    opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
+    opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
 
     let filePath = path.resolve(sourceFolder, serviceFile.path);
     filePath = replaceServiceConfigReferences(in_serviceConfig, filePath);
@@ -458,13 +456,13 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         .map(c => replaceServiceConfigReferences(in_serviceConfig, c))
         .join('\n');
 
-    fs.setupFile(path.basename(filePath), filePath, fileContents, opt);
+    fs.setupFile(path.basename(filePath), filePath, fileContents, opts);
 }
 
 // ******************************
 
 function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -473,7 +471,7 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Source folder not set');
         }
         return;
@@ -481,13 +479,13 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let serviceFile = in_serviceFile || false;
     if (!serviceFile) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Service file not set');
         }
         return;
     }
 
-    opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
+    opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
 
     let source = path.resolve(sourceFolder, serviceFile.source);
     source = replaceServiceConfigReferences(in_serviceConfig, source);
@@ -500,13 +498,13 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    fs.setupFileLink(path.basename(source), source, destination, opt);
+    fs.setupFileLink(path.basename(source), source, destination, opts);
 }
 
 // ******************************
 
 function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -515,7 +513,7 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Source folder not set');
         }
         return;
@@ -523,13 +521,13 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let serviceFile = in_serviceFile || false;
     if (!serviceFile) {
-        if (!opt.suppressOutput) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Service file not set');
         }
         return;
     }
 
-    opt.overwrite = !!serviceFile.overwrite || opt.overwrite;
+    opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
 
     let source = path.resolve(sourceFolder, serviceFile.source);
     source = replaceServiceConfigReferences(in_serviceConfig, source);
@@ -542,7 +540,7 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
         return;
     }
 
-    fs.setupFileCopy(path.basename(source), source, destination, opt);
+    fs.setupFileCopy(path.basename(source), source, destination, opts);
 }
 
 // ******************************
@@ -600,7 +598,7 @@ function hasServiceConfigFile (in_sourceFolder) {
 // ******************************
 
 function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -614,7 +612,7 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options)
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
         let updatedServiceConfig = obj.setMask(in_newServiceConfig, savedServiceConfig);
-        _saveServiceConfig(updatedServiceConfig, opt);
+        _saveServiceConfig(updatedServiceConfig, opts);
     }
 
     let updatedServiceConfig = obj.setMask(in_newServiceConfig, in_serviceConfig);
@@ -631,7 +629,7 @@ function combineServiceConfig (in_serviceConfig1, in_serviceConfig2) {
 // ******************************
 
 function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -645,7 +643,7 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
     let savedServiceConfig = loadServiceConfig(sourceFolder);
     if (savedServiceConfig) {
         let updatedServiceConfig = obj.unsetMask(in_removeServiceConfig, savedServiceConfig);
-        _saveServiceConfig(updatedServiceConfig, opt);
+        _saveServiceConfig(updatedServiceConfig, opts);
     }
 
     let updatedServiceConfig = obj.unsetMask(in_removeServiceConfig, in_serviceConfig);
@@ -655,7 +653,7 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
 // ******************************
 
 function unsetServiceConfigValue (in_serviceConfig, in_keyPath, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     if (!in_keyPath) {
         cprint.yellow('Specify a key path to unset, i.e service.name');
@@ -707,13 +705,13 @@ function unsetServiceConfigValue (in_serviceConfig, in_keyPath, in_options) {
         }
     }
 
-    removeServiceConfig(in_serviceConfig, removeConfig, opt);
+    removeServiceConfig(in_serviceConfig, removeConfig, opts);
 }
 
 // ******************************
 
 function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_options) {
-    let opt = in_options || {};
+    let opts = in_options || {};
 
     if (!in_keyPath) {
         cprint.yellow('Specify a key path to set, i.e service.name');
@@ -790,7 +788,7 @@ function setServiceConfigValue (in_serviceConfig, in_keyPath, in_keyValue, in_op
         }
     }
 
-    updateServiceConfig(in_serviceConfig, updateConfig, opt);
+    updateServiceConfig(in_serviceConfig, updateConfig, opts);
 }
 
 // ******************************
@@ -1345,7 +1343,7 @@ function _upgradeServiceConfigFrom3_9To3_10 (in_serviceConfig) {
 function _saveServiceConfig (in_serviceConfig, in_options) {
     let path = require('path');
 
-    let opt = in_options || {};
+    let opts = in_options || {};
     let serviceConfig = accessServiceConfig(in_serviceConfig, {
         cwd: 'STRING'
     });
@@ -1356,7 +1354,7 @@ function _saveServiceConfig (in_serviceConfig, in_options) {
         return false;
     }
 
-    if (!opt.suppressOutput) {
+    if (!opts.hideWarnings) {
         cprint.cyan('Saving service config...');
     }
 
@@ -1434,7 +1432,7 @@ function _convertToJSONSchema (in_value) {
             'properties': properties
         };
     } else {
-        cprint.red('Unknown value type:' + in_value);
+        throw new Error('Unknown value type:' + in_value);
     }
 }
 

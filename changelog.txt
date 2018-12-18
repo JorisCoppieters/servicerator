@@ -1,5 +1,8 @@
 0.18.0
 - Added support for AWS federated login with SSO
+- Changed error and warning structure so SVR terminates faster
+- Added partial resource name support for auto scaling groups
+- Code clean up
 
 0.17.0
 - Added support for partial AWS resource names

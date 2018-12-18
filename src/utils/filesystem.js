@@ -19,7 +19,7 @@ let _cwd = null;
 function setupFolder (in_folderTitle, in_folder, in_options) {
     let opt = in_options || {};
     if (!fileExists(in_folder)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.cyan('  Creating ' + in_folderTitle + ' folder "' + in_folder + '"...');
         }
         createFolder(in_folder);
@@ -32,14 +32,14 @@ function setupFolderLink (in_folderTitle, in_source, in_destination, in_options)
     let opt = in_options || {};
 
     if (!fileExists(in_source)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.yellow('  Link source "' + in_source + '" doesn\'t exist');
         }
         return;
     }
 
     if (!fileExists(in_destination)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.cyan('  Linking ' + in_folderTitle + ' "' + in_source + '" => "' + in_destination + '"...');
         }
 
@@ -53,14 +53,14 @@ function setupFile (in_fileTitle, in_file, in_fileContents, in_options) {
     let opt = in_options || {};
 
     if (!fileExists(in_file)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.cyan('  Creating ' + in_fileTitle + ' "' + in_file + '"...');
         }
 
         writeFile(in_file, in_fileContents);
 
     } else if (opt.overwrite) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.yellow('  Overwriting ' + in_fileTitle + ' "' + in_file + '"...');
         }
 
@@ -74,14 +74,14 @@ function setupFileLink (in_fileTitle, in_source, in_destination, in_options) {
     let opt = in_options || {};
 
     if (!fileExists(in_source)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.yellow('  Link source "' + in_source + '" doesn\'t exist');
         }
         return;
     }
 
     if (!fileExists(in_destination)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.cyan('  Linking ' + in_fileTitle + ' "' + in_source + '" => "' + in_destination + '"...');
         }
 
@@ -94,21 +94,21 @@ function setupFileCopy (in_fileTitle, in_source, in_destination, in_options) {
     let opt = in_options || {};
 
     if (!fileExists(in_source)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.yellow('  File source "' + in_source + '" doesn\'t exist');
         }
         return;
     }
 
     if (!fileExists(in_destination)) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.cyan('  Copying ' + in_fileTitle + ' from "' + in_source + '" to "' + in_destination + '"...');
         }
 
         copyFile(in_source, in_destination);
 
     } else if (opt.overwrite) {
-        if (!opt.suppressOutput) {
+        if (!opt.hideWarnings) {
             cprint.yellow('  Copying (& overwriting) ' + in_fileTitle + ' from "' + in_source + '" to "' + in_destination + '"...');
         }
 

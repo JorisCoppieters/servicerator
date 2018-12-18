@@ -21,8 +21,7 @@ function runTests () {
 
     let tempFolder = env.getTemp();
     if (!tempFolder || !fs.folderExists(tempFolder)) {
-        cprint.red('Failed to access temp folder, cannot run tests');
-        return;
+        throw new Error('Failed to access temp folder, cannot run tests');
     }
 
     let tempDockerFolder = fs.createFolder(path.resolve(env.getTemp(), 'docker.test'));

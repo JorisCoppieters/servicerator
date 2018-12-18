@@ -45,8 +45,7 @@ function setupFolder (in_serviceConfig, in_overwrite) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     cprint.cyan('Setting up "' + sourceFolder + '"...');
@@ -132,11 +131,10 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
-    let suppressOutput = false; //['on_open', 'on_close'].indexOf(in_fieldCheck) >= 0;
+    let hideWarnings = false; //['on_open', 'on_close'].indexOf(in_fieldCheck) >= 0;
 
     let fileSystem = serviceConfig.service.fileSystem;
     fileSystem.forEach(f => {
@@ -146,29 +144,29 @@ function _createFilesystem (in_serviceConfig, in_fieldCheck, in_overwrite) {
 
         if (f.type === 'folder') {
             service.createFolder(in_serviceConfig, f, {
-                suppressOutput: suppressOutput
+                hideWarnings: hideWarnings
             });
 
         } else if (f.type === 'link_folder') {
             service.linkFolder(in_serviceConfig, f, {
-                suppressOutput: suppressOutput
+                hideWarnings: hideWarnings
             });
 
         } else if (f.type === 'file') {
             service.createFile(in_serviceConfig, f, {
-                suppressOutput: suppressOutput,
+                hideWarnings: hideWarnings,
                 overwrite: in_overwrite
             });
 
         } else if (f.type === 'link_file') {
             service.linkFile(in_serviceConfig, f, {
-                suppressOutput: suppressOutput,
+                hideWarnings: hideWarnings,
                 overwrite: in_overwrite
             });
 
         } else if (f.type === 'copy_file') {
             service.copyFile(in_serviceConfig, f, {
-                suppressOutput: suppressOutput,
+                hideWarnings: hideWarnings,
                 overwrite: in_overwrite
             });
 

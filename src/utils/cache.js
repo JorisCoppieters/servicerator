@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let fs = require('./filesystem');
 let date = require('./date');
 
@@ -31,8 +29,7 @@ function loadCache(in_sourceFolder, in_cacheName) {
 
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return [];
+        throw new Error('Source folder not set');
     }
 
     let cacheFolder = path.resolve(sourceFolder, '.cache');
@@ -69,8 +66,7 @@ function saveCache(in_sourceFolder, in_cacheName, in_cacheItems) {
 
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     let cacheFolder = path.resolve(sourceFolder, '.cache');

@@ -64,7 +64,7 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
     }
 
     if (awsClusterArn === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Cluster ARN for AWS Cluster "' + in_clusterName + '"');
         }
         return;
@@ -142,7 +142,7 @@ function getEnvironmentCluster (in_clusters, in_environment) {
         });
 
         if (!environmentCluster) {
-            cprint.yellow(`Service doesn't have a ${in_environment} environment configured`);
+            throw new Error(`Service doesn't have a ${in_environment} environment configured`);
         }
 
         return environmentCluster;
@@ -176,10 +176,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     }
 
     if (!in_clusterServiceName) {
-        if (opts.showWarning) {
-            cprint.yellow('AWS Cluster Service name not set');
-        }
-        return false;
+        throw new Error('AWS Cluster Service name not set');
     }
 
     if (opts.verbose) {
@@ -209,7 +206,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     }
 
     if (awsClusterServiceArn === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Cluster Service ARN in AWS Cluster "' + awsArnToTitle(in_clusterArn) +'" for AWS Cluster Service "' + in_clusterServiceName + '"');
         }
         return;
@@ -353,7 +350,9 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
     }
 
     if (!awsTasks) {
-        cprint.yellow('Couldn\'t find AWS Tasks "' + in_clusterName + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Tasks "' + in_clusterName + '"');
+        }
         return;
     }
 
@@ -433,7 +432,9 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
     let awsClusterTaskArns = (awsResult || {}).taskArns;
 
     if (!awsClusterTaskArns) {
-        cprint.yellow('Couldn\'t find AWS Cluster Task ARNs for AWS Cluster "' + in_clusterName + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Cluster Task ARNs for AWS Cluster "' + in_clusterName + '"');
+        }
         return;
     }
 
@@ -449,7 +450,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
 // Task Definition Functions:
 // ******************************
 
-function getTaskDefinition (in_taskDefinitionArn, in_options) {
+function getTaskDefinition (in_taskDefinitionArn, in_options) { //TODO: Check
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
@@ -487,7 +488,9 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
     }
 
     if (!awsTaskDefinition) {
-        cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
+        }
         return;
     }
 
@@ -502,9 +505,13 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) {
 // ******************************
 
 function getClusterServiceVersionForTaskDefinition (in_taskDefinitionArn, in_options) {
+    let opts = in_options || {};
+
     let taskDefinition = getTaskDefinition(in_taskDefinitionArn, in_options);
     if (!taskDefinition) {
-        cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Task Definition "' + in_taskDefinitionArn + '"');
+        }
         return;
     }
 
@@ -513,14 +520,15 @@ function getClusterServiceVersionForTaskDefinition (in_taskDefinitionArn, in_opt
     let image = firstContainerDefinition.image || false;
 
     if (!image) {
-        cprint.yellow('Couldn\'t find cluster service version for AWS Task Definition "' + in_taskDefinitionArn + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find cluster service version for AWS Task Definition "' + in_taskDefinitionArn + '"');
+        }
         return;
     }
 
     let match = image.match(/^[0-9]+\..*\.amazonaws.com\/(.*):(.*)$/);
     if (!match) {
-        cprint.yellow('Invalid image for task definition "' + in_taskDefinitionArn + '": ' + image);
-        return;
+        throw new Error('Invalid image for task definition "' + in_taskDefinitionArn + '": ' + image);
     }
 
     let version = match[2];
@@ -573,7 +581,9 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
     }
 
     if (!awsTaskDefinitionArn) {
-        cprint.yellow('Couldn\'t find AWS Task Definition ARN for AWS Cluster Service "' + in_clusterServiceArn + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Task Definition ARN for AWS Cluster Service "' + in_clusterServiceArn + '"');
+        }
         return;
     }
 
@@ -637,7 +647,9 @@ function getLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_
     }
 
     if (!latestTaskDefinitionArn) {
-        cprint.yellow('Couldn\'t find latest AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find latest AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
+        }
         return;
     }
 
@@ -706,7 +718,9 @@ function getPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, 
     }
 
     if (!previousTaskDefinitionArn) {
-        cprint.yellow('Couldn\'t find previous AWS Task Definition ARNs for AWS Task Definition "' + in_taskDefinitionName + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find previous AWS Task Definition ARNs for AWS Task Definition "' + in_taskDefinitionName + '"');
+        }
         return;
     }
 
@@ -774,7 +788,9 @@ function getCurrentTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in
     }
 
     if (!currentTaskDefinitionArn) {
-        cprint.yellow('Couldn\'t find current AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find current AWS Task Definition ARN for AWS Task Definition "' + in_taskDefinitionName + '"');
+        }
         return;
     }
 
@@ -857,7 +873,9 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
     }
 
     if (!awsTasks) {
-        cprint.yellow('Couldn\'t find AWS Container Instance "' + in_containerInstanceArn + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Container Instance "' + in_containerInstanceArn + '"');
+        }
         return;
     }
 
@@ -911,7 +929,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
     }
 
     if (awsRepository === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Docker Repository for Docker Image "' + in_dockerImageName + '"');
         }
         return;
@@ -964,7 +982,7 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
     }
 
     if (awsRepositoryImages === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Docker Repository Images for Docker Repository "' + in_dockerRepositoryName + '"');
         }
         return;
@@ -1057,7 +1075,7 @@ function getLaunchConfigurationLike (in_launchConfigurationTemplate, in_options)
     }
 
     if (latestLaunchConfiguration === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find latest Launch Configuration like "' + in_launchConfigurationTemplate + '"');
         }
         return;
@@ -1233,7 +1251,7 @@ function getAutoScalingGroups (in_options) {
     }
 
     if (autoScalingGroups === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
         }
         return;
@@ -1288,7 +1306,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     }
 
     if (desiredCapacity === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find Instance Count for AWS Auto Scaling Group "' + in_autoScalingGroupName + '"');
         }
         return;
@@ -1313,7 +1331,7 @@ function getAutoScalingGroupForLaunchConfiguration (in_launchConfigurationName, 
 
     let autoScalingGroups = getAutoScalingGroups(in_options);
     if (!autoScalingGroups || !autoScalingGroups.length) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
         }
         return;
@@ -1365,7 +1383,7 @@ function getTargetGroups (in_options) {
     }
 
     if (autoScalingGroups === undefined) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find any AWS Target Groups');
         }
         return;
@@ -1390,7 +1408,7 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 
     let targetGroups = getTargetGroups(in_options);
     if (!targetGroups || !targetGroups.length) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find any AWS Target Groups');
         }
         return;
@@ -1400,7 +1418,7 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
         .find(g => g.TargetGroupName === in_targetGroupName);
 
     if (!targetGroup || !targetGroup.TargetGroupArn) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Target Groups for AWS Target Group Name "' + in_targetGroupName + '"');
         }
         return;
@@ -1418,10 +1436,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
     let policyUrl = opts.policyUrl;
     if (!policyUrl) {
-        if (opts.showWarning) {
-            cprint.yellow('Policy url is not set');
-        }
-        return;
+        throw new Error('Policy url is not set');
     }
 
     let awsCache = opts.cache || {};
@@ -1503,17 +1518,11 @@ function getSamlAssertion (in_options, in_retryAttempts) {
     let samlRegExpMatch = cmdResult.result.match(samlRegExp);
     if (!samlRegExpMatch) {
         if (in_retryAttempts > 2) {
-            if (opts.showWarning) {
-                cprint.red('Max retry attempts reached...');
-            }
-            throw new Error('SAML login failed');
+            throw new Error('SAML login failed, Max retry attempts reached.');
         }
-        if (opts.showWarning) {
-            cprint.yellow('SAML login failed! Did you type in the correct password?');
-        }
+        cprint.yellow('SAML login failed! Did you type in the correct password?');
         clearSamlLoginData(awsCache);
-        getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
-        return;
+        return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
     }
 
     let samlResponse = samlRegExpMatch[1];
@@ -1617,7 +1626,7 @@ function getRoleCredentials (in_roleArn, in_options) {
     }
 
     if (!awsRoleAssumedCredentials) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t assume credentials for AWS Role ARN "' + in_roleArn + '"');
         }
         return false;
@@ -1689,7 +1698,7 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_
     }
 
     if (!awsRoleAssumedCredentials) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t assume credentials for AWS Role ARN "' + in_roleArn + '"');
         }
         return false;
@@ -1726,7 +1735,7 @@ function getRoleArnForRoleName (in_roleName, in_options) {
         .find(() => true);
 
     if (!awsRoleArn) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Role ARN for Role "' + in_roleName + '"');
         }
         return false;
@@ -1763,7 +1772,7 @@ function getRoleNameForRoleName (in_roleName, in_options) {
         .find(() => true);
 
     if (!awsRoleName) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS Role ARN for Role "' + in_roleName + '"');
         }
         return false;
@@ -2053,7 +2062,7 @@ function getUserArnForUsername (in_username, in_options) {
     }
 
     if (!awsUserArn) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find AWS User ARN for Username "' + in_username + '"');
         }
         return false;
@@ -2106,9 +2115,8 @@ function createUserAccessKey (in_username, in_options) {
 
     let bucketUserAccessKeyResults = cmdResult.resultObj;
     if (!bucketUserAccessKeyResults.AccessKey) {
-        cprint.yellow('Failed to parse bucket user access-key response');
         cmdResult.printResult('  ');
-        return false;
+        throw new Error('Failed to parse bucket user access-key response');
     }
 
     let userObject = {
@@ -2212,7 +2220,7 @@ function getBucketPathForBucketName (in_bucketName, in_options) {
         .find(() => true);
 
     if (!awsBucketPath) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find Bucket Path for Bucket "' + in_bucketName + '"');
         }
         return false;
@@ -2249,7 +2257,7 @@ function getBucketNameForBucketName (in_bucketName, in_options) {
         .find(() => true);
 
     if (!awsBucketName) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find Bucket Name for Bucket "' + in_bucketName + '"');
         }
         return false;
@@ -2341,9 +2349,11 @@ function getVpcIdForVpc (in_vpcName, in_options) {
     }
 
     if (!awsVpcId) {
-        cprint.yellow('Couldn\'t find AWS VPC ID for AWS VPC "' + in_vpcName + '"');
-        if (firstVpc) {
-            cprint.yellow('  Did you mean "' + firstVpc + '"?');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS VPC ID for AWS VPC "' + in_vpcName + '"');
+            if (firstVpc) {
+                cprint.yellow('  Did you mean "' + firstVpc + '"?');
+            }
         }
         return false;
     }
@@ -2401,7 +2411,9 @@ function getDefaultVpcSecurityGroupIdForVpc (in_vpcId, in_options) {
     }
 
     if (!awsDefaultVpcSecurityGroupId) {
-        cprint.yellow('Couldn\'t find Default AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find Default AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"');
+        }
         return false;
     }
 
@@ -2456,7 +2468,9 @@ function getVpcSecurityGroupIdFromGroupName (in_vpcId, in_groupName, in_options)
     }
 
     if (!awsVpcSecurityGroupId) {
-        cprint.yellow('Couldn\'t find AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"" from name "' + in_groupName + '"');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Security Group Id for AWS VPC Id "' + in_vpcId + '"" from name "' + in_groupName + '"');
+        }
         return false;
     }
 
@@ -2524,9 +2538,11 @@ function getVpcSubnetIdForVpc (in_vpcId, in_vpcSubnetName, in_options) {
     }
 
     if (!awsVpcSubnetId) {
-        cprint.yellow('Couldn\'t find AWS VPC Subnet Id for AWS VPC Subnet "' + in_vpcSubnetName + '"');
-        if (firstVpcSubnet) {
-            cprint.yellow('  Did you mean "' + firstVpcSubnet + '"?');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS VPC Subnet Id for AWS VPC Subnet "' + in_vpcSubnetName + '"');
+            if (firstVpcSubnet) {
+                cprint.yellow('  Did you mean "' + firstVpcSubnet + '"?');
+            }
         }
         return false;
     }
@@ -2614,7 +2630,9 @@ function getInstanceIdsWithTags (in_tags, in_options) {
     }
 
     if (!awsInstanceIds) {
-        cprint.yellow('Couldn\'t find AWS Instance IDs for tags [' + tagsStr + ']');
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find AWS Instance IDs for tags [' + tagsStr + ']');
+        }
         return false;
     }
 
@@ -2664,8 +2682,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let homeFolder = env.getShellHome();
     if (!homeFolder || !fs.folderExists(homeFolder)) {
-        cprint.yellow('Home folder doesn\'t exist');
-        return;
+        throw new Error('Home folder doesn\'t exist');
     }
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
@@ -2821,8 +2838,7 @@ function configureMultiFactorAuth (in_options) {
     let awsCredentials =  ini.parseFile(opts.credentialsFile);
 
     if(!awsCredentials[longTermProfile] && !awsCredentials[profile]) {
-        cprint.yellow(`Neither ${longTermProfile} nor ${profile} credentials exist. You need to configure these in ~/.aws/credentails!`);
-        return;
+        throw new Error(`Neither ${longTermProfile} nor ${profile} credentials exist. You need to configure these in ~/.aws/credentails!`);
     }
 
     if (!awsCredentials[longTermProfile]) {
@@ -2883,13 +2899,11 @@ function configureProfileAsRole (in_options) {
     let awsCredentials =  ini.parseFile(opts.credentialsFile);
 
     if(!awsCredentials[profile]) {
-        cprint.yellow(`${profile} credentials don't exist. You need to configure these in ~/.aws/credentails!`);
-        return;
+        throw new Error(`${profile} credentials don't exist. You need to configure these in ~/.aws/credentails!`);
     }
 
     if (!assumeRoleArn) {
-        cprint.yellow('No role to assume!');
-        return;
+        throw new Error('No role to assume!');
     }
 
     let isRoleAssumptionRequired = false;
@@ -2930,14 +2944,12 @@ function configureProfileAsRoleWithSaml (in_options) {
 
     let roleArn = opts.roleArn;
     if (!roleArn) {
-        cprint.yellow('No role to assume!');
-        return;
+        throw new Error('No role to assume!');
     }
 
     let principalArn = opts.principalArn;
     if (!principalArn) {
-        cprint.yellow('No principal defined!');
-        return;
+        throw new Error('No principal defined!');
     }
 
     let sessionUrl = opts.sessionUrl || '';
@@ -2945,8 +2957,7 @@ function configureProfileAsRoleWithSaml (in_options) {
 
     let policyUrl = opts.policyUrl;
     if (!policyUrl) {
-        cprint.yellow('No policy URL defined!');
-        return;
+        throw new Error('No policy URL defined!');
     }
 
     let awsCredentials =  ini.parseFile(opts.credentialsFile);
@@ -3003,16 +3014,14 @@ function getDockerRepositoryUrl (in_serviceConfig, in_environment) {
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+            throw new Error('No cluster set for "' + in_environment + '" environment');
         } else {
-            cprint.yellow('No default environment defined');
+            throw new Error('No default environment defined');
         }
-        return false;
     }
 
     if (!cluster.aws.account_id) {
-        cprint.yellow('AWS account id not set');
-        return false;
+        throw new Error('AWS account id not set');
     }
 
     return cluster.aws.account_id + '.dkr.ecr.' + (cluster.aws.region || 'ap-southeast-2') + '.amazonaws.com';
@@ -3040,18 +3049,16 @@ function getDockerCredentials (in_serviceConfig, in_options) {
     });
 
     if (!awsInstalled()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
+        throw new Error('AWS-CLI isn\'t installed');
     }
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, environment);
     if (!cluster) {
         if (environment) {
-            cprint.yellow('No cluster set for "' + environment + '" environment');
+            throw new Error('No cluster set for "' + environment + '" environment');
         } else {
-            cprint.yellow('No default environment defined');
+            throw new Error('No default environment defined');
         }
-        return false;
     }
 
     let awsCmdResult = awsCmd(['ecr', 'get-login'], {
@@ -3112,11 +3119,10 @@ function getSecretKey (in_serviceConfig, in_environment) {
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+            throw new Error('No cluster set for "' + in_environment + '" environment');
         } else {
-            cprint.yellow('No default environment defined');
+            throw new Error('No default environment defined');
         }
-        return false;
     }
 
     let awsSecretKey = cluster.aws.secret_key;
@@ -3298,30 +3304,26 @@ function awsLogin (in_serviceConfig, in_environment) {
     });
 
     if (!awsInstalled()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
+        throw new Error('AWS-CLI isn\'t installed');
     }
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
+            throw new Error('No cluster set for "' + in_environment + '" environment');
         } else {
-            cprint.yellow('No default environment defined');
+            throw new Error('No default environment defined');
         }
-        return false;
     }
 
     let awsAccessKey = cluster.aws.access_key;
     if (!awsAccessKey) {
-        cprint.yellow('AWS access key not set');
-        return false;
+        throw new Error('AWS access key not set');
     }
 
     let awsSecretKey = getSecretKey(in_serviceConfig);
     if (!awsSecretKey) {
-        cprint.yellow('AWS secret key not set');
-        return false;
+        throw new Error('AWS secret key not set');
     }
 
     let awsRegion = cluster.aws.region || 'ap-southeast-2';
@@ -3355,58 +3357,83 @@ function awsLogin (in_serviceConfig, in_environment) {
 // Cache Clearing Functions:
 // ******************************
 
-function clearCachedAutoScalingGroups (in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['AllAutoScalingGroups'] = undefined;
+function clearCachedAutoScalingGroups (in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `AllAutoScalingGroups_${opts.profile}_${opts.region}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['AutoScalingGroupInstanceCount_' + in_autoScalingGroupName] = undefined;
+function clearCachedAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `AutoScalingGroupInstanceCount_${opts.profile}_${opts.region}_${in_autoScalingGroupName}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['TaskDefinitionArn_' + in_taskDefinitionName] = undefined;
+function clearCachedTaskDefinitionArnForTaskDefinition (in_clusterServiceArn, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `TaskDefinitionArn_${opts.profile}_${opts.region}_${in_clusterServiceArn}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['LatestTaskDefinitionArn_' + in_taskDefinitionName] = undefined;
+function clearCachedLatestTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `LatestTaskDefinitionArn_${opts.profile}_${opts.region}_${in_taskDefinitionName}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['PreviousTaskDefinitionArns_' + in_taskDefinitionName] = undefined;
+function clearCachedCurrentTaskDefinitionArnForTaskDefinition (in_taskDefinitionName, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `CurrentTaskDefinitionArn_${opts.profile}_${opts.region}_${in_taskDefinitionName}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['DockerRepositoryImages_' + in_dockerRepositoryName] = undefined;
+function clearCachedPreviousTaskDefinitionArnsForTaskDefinition (in_taskDefinitionName, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `PreviousTaskDefinitionArns_${opts.profile}_${opts.region}_${in_taskDefinitionName}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedLaunchConfigurationLike (in_launchConfigurationTemplate, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['LaunchConfiguration_' + in_launchConfigurationTemplate] = undefined;
+function clearCachedDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `DockerRepositoryImages_${opts.profile}_${opts.region}_${in_dockerRepositoryName}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
 
-function clearCachedLaunchConfigurationsLike (in_launchConfigurationTemplate, in_awsCache) {
-    let awsCache = in_awsCache || {};
-    awsCache['LaunchConfigurations_' + in_launchConfigurationTemplate] = undefined;
+function clearCachedLaunchConfigurationLike (in_launchConfigurationTemplate, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `LaunchConfiguration_${opts.profile}_${opts.region}_${in_launchConfigurationTemplate}`;
+    awsCache[cacheKey] = undefined;
+}
+
+// ******************************
+
+function clearCachedLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options) {
+    let opts = in_options || {};
+    let awsCache = opts.cache || {};
+    let cacheKey = `LaunchConfiguration_${opts.profile}_${opts.region}_${in_launchConfigurationTemplate}`;
+    awsCache[cacheKey] = undefined;
 }
 
 // ******************************
@@ -3442,8 +3469,7 @@ function awsCmd (in_args, in_options) {
     let hide = opts.hide;
 
     if (!awsInstalled()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
+        throw new Error('AWS-CLI isn\'t installed');
     }
 
     if (!in_args) {
@@ -3485,16 +3511,14 @@ function parseAwsCmdResult (in_cmdResult) {
     }
 
     if (! in_cmdResult.result) {
-        cprint.yellow('Failed to parse empty result...');
-        return false;
+        throw new Error('Failed to parse empty result...');
     }
 
     let jsonObject;
     try {
         jsonObject = JSON.parse(in_cmdResult.result);
     } catch (e) {
-        cprint.red('\nFailed to parse "' + in_cmdResult.result + '":\n' + e.stack);
-        return false;
+        throw new Error('\nFailed to parse "' + in_cmdResult.result + '":\n' + e.stack);
     }
 
     return jsonObject;
@@ -3551,7 +3575,7 @@ function _getAutoScalingGroupForAutoScalingGroupName (in_autoScalingGroupName, i
 
     let autoScalingGroups = getAutoScalingGroups(in_options);
     if (!autoScalingGroups || !autoScalingGroups.length) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
         }
         return;
@@ -3563,7 +3587,7 @@ function _getAutoScalingGroupForAutoScalingGroupName (in_autoScalingGroupName, i
 
 
     if (!autoScalingGroup) {
-        if (opts.showWarning) {
+        if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find Auto Scaling Group Name for Auto Scaling Group "' + in_autoScalingGroupName + '"');
         }
         return false;
@@ -3728,6 +3752,7 @@ module.exports['attachInlinePolicyToUser'] = attachInlinePolicyToUser;
 module.exports['attachRolePolicy'] = attachRolePolicy;
 module.exports['clearCachedAutoScalingGroupInstanceCount'] = clearCachedAutoScalingGroupInstanceCount;
 module.exports['clearCachedAutoScalingGroups'] = clearCachedAutoScalingGroups;
+module.exports['clearCachedCurrentTaskDefinitionArnForTaskDefinition'] = clearCachedCurrentTaskDefinitionArnForTaskDefinition;
 module.exports['clearCachedDockerRepositoryImagesForRepositoryName'] = clearCachedDockerRepositoryImagesForRepositoryName;
 module.exports['clearCachedLatestTaskDefinitionArnForTaskDefinition'] = clearCachedLatestTaskDefinitionArnForTaskDefinition;
 module.exports['clearCachedLaunchConfigurationLike'] = clearCachedLaunchConfigurationLike;

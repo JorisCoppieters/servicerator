@@ -49,8 +49,7 @@ function getDockerFolder (in_sourceFolder) {
 
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     if (fs.fileExists(path.resolve(sourceFolder, 'Dockerfile'))) {
@@ -82,8 +81,7 @@ function getDockerfile (in_sourceFolder) {
 
     let sourceFolder = path.resolve(in_sourceFolder);
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     let dockerFolder = getDockerFolder(in_sourceFolder);
@@ -112,15 +110,13 @@ function getDockerPassword (in_serviceConfig) {
 
     let dockerUsername = getDockerUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerPassword = serviceConfig.docker.password;
 
     if (!dockerUsername) {
-        cprint.yellow('Docker username not set');
-        return false;
+        throw new Error('Docker username not set');
     }
 
     if (!dockerPassword) {
@@ -229,8 +225,7 @@ function getDockerLoggedInRepositoryStores () {
 
     let userExplorerHome = env.getUserExplorerHome();
     if (!userExplorerHome || !fs.folderExists(userExplorerHome)) {
-        cprint.yellow('User home folder doesn\'t exist');
-        return;
+        throw new Error('User home folder doesn\'t exist');
     }
 
     let dockerLoginConfigFile = path.resolve(userExplorerHome, '.docker', 'config.json');
@@ -248,21 +243,13 @@ function getDockerLoggedInRepositoryStores () {
 // ******************************
 
 function getDockerImageExecTask (in_dockerUsername, in_dockerPassword, in_dockerImagePath, in_dockerRepositoryStore, in_cmd, in_forceLogin) {
-    return (in_onSuccess, in_onError) => {
+    return (in_onSuccess) => {
         if (!in_dockerUsername) {
-            cprint.yellow('Docker repository username not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
+            throw new Error('Docker repository username not set');
         }
 
         if (!in_dockerPassword) {
-            cprint.yellow('Docker repository password not set');
-            if (in_onError) {
-                in_onError();
-            }
-            return;
+            throw new Error('Docker repository password not set');
         }
 
         if (!isDockerLoggedIn(in_dockerRepositoryStore) || in_forceLogin) {
@@ -270,11 +257,7 @@ function getDockerImageExecTask (in_dockerUsername, in_dockerPassword, in_docker
         }
 
         if (!in_cmd || !in_cmd.displayName || !in_cmd.value) {
-            cprint.yellow('Invalid command: ' + in_cmd);
-            if (in_onError) {
-                in_onError();
-            }
-            return;
+            throw new Error('Invalid command: ' + in_cmd);
         }
 
         cprint.cyan(in_cmd.displayName + ' Docker image "' + in_dockerImagePath + '" for service...');
@@ -324,19 +307,14 @@ function isDockerLoggedIn (in_repositoryStore) {
 // ******************************
 
 function dockerLogin (in_username, in_password, in_repositoryStore) {
-    if (!dockerInstalled()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
+    _assertDockerIsInstalled();
 
     if (!in_username) {
-        cprint.yellow('Docker username not set');
-        return false;
+        throw new Error('Docker username not set');
     }
 
     if (!in_password) {
-        cprint.yellow('Docker password not set');
-        return false;
+        throw new Error('Docker password not set');
     }
 
     let repositoryStore = in_repositoryStore || getDefaultDockerRepositoryStore();
@@ -355,10 +333,7 @@ function dockerLogin (in_username, in_password, in_repositoryStore) {
 // ******************************
 
 function dockerInfo () {
-    if (!dockerInstalled()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
+    _assertDockerIsInstalled();
 
     let cmdResult = dockerCmd(['info'], {
         hide: true
@@ -381,10 +356,7 @@ function dockerCmd (in_args, in_options) {
     let asyncCb = options.asyncCb;
     let asyncErrorCb = options.asyncErrorCb;
 
-    if (!dockerInstalled()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
+    _assertDockerIsInstalled();
 
     let args = in_args;
     if (!args) {
@@ -463,6 +435,14 @@ function dockerRunningCommand () {
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _assertDockerIsInstalled () {
+    if (!dockerInstalled()) {
+        throw new Error('Docker isn\'t installed');
+    }
+}
+
 // ******************************
 
 function _getDockerImageVersionControlTags (in_serviceConfig) {

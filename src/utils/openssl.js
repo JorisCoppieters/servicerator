@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let exec = require('./exec');
 
 // ******************************
@@ -22,8 +20,7 @@ function opensslCmd (in_args, in_options) {
     let opt = in_options || {};
 
     if (!opensslInstalled()) {
-        cprint.yellow('Openssl isn\'t installed');
-        return false;
+        throw new Error('Openssl isn\'t installed');
     }
 
     if (!in_args) {

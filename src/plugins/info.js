@@ -37,8 +37,7 @@ function printServiceInfo (in_serviceConfig) {
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let serviceName = serviceConfig.service.name || false;

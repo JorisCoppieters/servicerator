@@ -1,12 +1,6 @@
 'use strict'; // JS: ES6
 
 // ******************************
-// Requires:
-// ******************************
-
-let cprint = require('color-print');
-
-// ******************************
 // Functions:
 // ******************************
 
@@ -44,19 +38,14 @@ function runTasks(tasks) {
 
     let taskIdx = 0;
 
-    let onTaskSuccess = () => {
-        runNextTask();
-    };
-    let onTaskError = e => {
-        cprint.red('Failed to run task' + (e ? ': ' + e : ''));
-    };
+    let onTaskSuccess = () => runNextTask;
 
     let runNextTask = () => {
         let task = tasks[taskIdx++];
         if (!task) {
             return;
         }
-        task(onTaskSuccess, onTaskError);
+        task(onTaskSuccess);
     };
 
     runNextTask();

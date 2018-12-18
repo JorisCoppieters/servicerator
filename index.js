@@ -96,7 +96,7 @@ if (g_ARGV['help']) {
                     let stack = e.stack.replace(/[\\]/g, '\\$&');
                     if (e instanceof Error) {
                         print.out(cprint.toYellow('An error occured running ') + cprint.toWhite(`svr ${process.argv.slice(2).join(' ')}`) + cprint.toYellow(' ...') + '\n');
-                        print.out(cprint.toRed(e.message) + '\n');
+                        print.out(cprint.toRed(stack) + '\n');
                         process.exit(1);
                     }
 

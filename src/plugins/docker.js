@@ -1125,6 +1125,7 @@ function _loadCluster (in_serviceConfig, in_environment) {
             throw new Error('No default environment defined');
         }
     }
+    return cluster;
 }
 
 // ******************************

@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let docker = require('../utils/docker');
 let edit = require('../utils/edit');
 let env = require('../utils/env');
@@ -21,8 +19,7 @@ function editServiceConfigFile () {
         service.initFolder('.');
         serviceConfigFile = env.getServiceConfigFile();
         if (!serviceConfigFile) {
-            cprint.yellow('No service config file set');
-            return;
+            throw new Error('No service config file set');
         }
     }
 
@@ -38,14 +35,12 @@ function editServiceDockerfile (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceDockerfile = docker.getDockerfile(sourceFolder);
     if (!serviceDockerfile) {
-        cprint.yellow('Service Dockerfile not set');
-        return;
+        throw new Error('Service Dockerfile not set');
     }
 
     edit.file(serviceDockerfile);
@@ -60,8 +55,7 @@ function editServiceFolder (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     edit.folder(sourceFolder);

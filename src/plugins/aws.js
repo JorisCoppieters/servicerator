@@ -89,8 +89,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     });
 
     let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
 
     let awsAccessKey = cluster.aws.access_key || false;
@@ -293,8 +293,8 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     }
 
     let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (awsBucketName) {
         cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Bucket State' + ' --');
@@ -863,8 +863,8 @@ function awsGetDockerCommand (in_serviceConfig, in_environment) {
     environmentVariableReplacements['MODEL_BUCKET'] = 'Unknown';
 
     let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (awsBucketName) {
         environmentVariableReplacements['MODEL_BUCKET'] = `${awsBucketName}`;
@@ -1078,7 +1078,6 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
                 print.keyVal('AWS ' + environmentTitle + ' VPC "' + name + '" Security Group Id', '...', true);
                 let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
                     cache: awsCache,
-                    showWarning: true,
                     profile: cluster.aws.profile,
                     region: cluster.aws.region
                 });
@@ -1095,7 +1094,6 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
         let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
             cache: awsCache,
-            showWarning: true,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
@@ -1180,8 +1178,16 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     } else {
         cmdResult.printResult('  ');
         cprint.green('Created launch configuration');
-        aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
-        aws.clearCachedLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
+        aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
+        aws.clearCachedLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -1303,7 +1309,6 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
                 print.keyVal('AWS ' + environmentTitle + ' VPC "' + name + '" Security Group Id', '...', true);
                 let awsVpcSecurityGroupId = aws.getVpcSecurityGroupIdFromGroupName(awsVpcId, name, {
                     cache: awsCache,
-                    showWarning: true,
                     profile: cluster.aws.profile,
                     region: cluster.aws.region
                 });
@@ -1320,7 +1325,6 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         print.keyVal('AWS ' + environmentTitle + ' VPC Default Security Group Id', '...', true);
         let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
             cache: awsCache,
-            showWarning: true,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
@@ -1342,7 +1346,6 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
-                showWarning: true,
                 profile: cluster.aws.profile,
                 region: cluster.aws.region
             });
@@ -1558,8 +1561,8 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
     }
 
     let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsAutoScalingGroupName) {
         throw new Error('Auto scaling group name not set');
@@ -1626,7 +1629,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
-                showWarning: true,
                 profile: cluster.aws.profile,
                 region: cluster.aws.region
             });
@@ -1775,8 +1777,8 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
     const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsBucketName) {
         throw new Error('Service AWS bucket name is not set or');
@@ -1851,8 +1853,8 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
     const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsBucketName) {
         throw new Error('Service AWS bucket name is not set or');
@@ -2223,8 +2225,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     print.keyVal('AWS Task Definition Role', '...', true);
 
     let awsRoleName = aws.getServiceRole(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
 
     let taskDefinitionRoleArn = false;
@@ -2232,7 +2234,6 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     if (awsRoleName) {
         taskDefinitionRoleArn = aws.getRoleArnForRoleName(awsRoleName, {
             cache: awsCache,
-            showWarning: true,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
@@ -2306,8 +2307,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     environmentVariableReplacements['MODEL_BUCKET'] = 'Unknown';
 
     let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (awsBucketName) {
         environmentVariableReplacements['MODEL_BUCKET'] = `${awsBucketName}`;
@@ -2489,9 +2490,21 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         cmdResult.printResult('  ');
         let taskDefinitionArn = (cmdResult.resultObj.taskDefinition || {}).taskDefinitionArn;
         cprint.green('Created task definition "' + taskDefinitionArn + '"');
-        aws.clearCachedTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
-        aws.clearCachedLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, awsCache);
-        aws.clearCachedPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, awsCache);
+        aws.clearCachedCurrentTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
+        aws.clearCachedLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
+        aws.clearCachedPreviousTaskDefinitionArnsForTaskDefinition(awsTaskDefinitionName, {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -2704,7 +2717,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         print.keyVal('AWS Target Group', '...', true);
         awsTargetGroupArn = aws.getTargetGroupArnForTargetGroupName(awsTargetGroupName, {
             cache: awsCache,
-            showWarning: true,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
@@ -3089,7 +3101,6 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
     awsLaunchConfigurationNames
         .filter(l => !aws.getAutoScalingGroupForLaunchConfiguration(l, {
             cache: awsCache,
-            showWarning: true,
             profile: cluster.aws.profile,
             region: cluster.aws.region,
             verbose: true
@@ -3101,8 +3112,16 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
             });
         });
 
-    aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
-    aws.clearCachedLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, awsCache);
+    aws.clearCachedLaunchConfigurationLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
+        cache: awsCache,
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
+    });
+    aws.clearCachedLaunchConfigurationsLike(awsLaunchConfigurationTemplateName + '-' + timestampTagTemplate, {
+        cache: awsCache,
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
+    });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
@@ -3201,7 +3220,11 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
         region: cluster.aws.region
     });
 
-    aws.clearCachedDockerRepositoryImagesForRepositoryName(awsDockerRepository, awsCache);
+    aws.clearCachedDockerRepositoryImagesForRepositoryName(awsDockerRepository, {
+        cache: awsCache,
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
+    });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
@@ -3362,8 +3385,8 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
     }
 
     let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsAutoScalingGroupName) {
         throw new Error('Auto scaling group name not set');
@@ -3430,7 +3453,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             print.keyVal('AWS ' + environmentTitle + ' VPC "' + awsVpcSubnetName + '" Subnet Id', '...', true);
             let awsVpcSubnetId = aws.getVpcSubnetIdForVpc(awsVpcId, awsVpcSubnetName, {
                 cache: awsCache,
-                showWarning: true,
                 profile: cluster.aws.profile,
                 region: cluster.aws.region
             });
@@ -3527,7 +3549,11 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
         }
     }
 
-    aws.clearCachedAutoScalingGroups(awsCache);
+    aws.clearCachedAutoScalingGroups({
+        cache: awsCache,
+        profile: cluster.aws.profile,
+        region: cluster.aws.region
+    });
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
         cache.save(serviceConfig.cwd, 'aws', awsCache);
@@ -3627,8 +3653,8 @@ function awsStartCluster (in_serviceConfig, in_environment) {
     const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsAutoScalingGroupName) {
         throw new Error('Auto scaling group name not set');
@@ -3709,8 +3735,8 @@ function awsStopCluster (in_serviceConfig, in_environment) {
     const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsAutoScalingGroupName) {
         throw new Error('Auto scaling group name not set');
@@ -3914,20 +3940,92 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
 // ******************************
 
 function awsViewAll (in_serviceConfig, in_environment) {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    aws: {
+                        bucket: {
+                            name: 'STRING',
+                            username: 'STRING'
+                        }
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING',
+                    url: 'URL'
+                }
+            ]
+        }
+    });
+
+    if (!serviceConfig) {
+        return;
+    }
+
+    const cluster = _loadCluster(serviceConfig, in_environment);
+
     awsViewInfrastructure(in_serviceConfig, in_environment);
     awsViewDeliveryStructure(in_serviceConfig, in_environment);
-    awsViewBucket(in_serviceConfig, in_environment);
-    awsViewBucketUser(in_serviceConfig, in_environment);
-    awsViewEndpoint(in_serviceConfig, in_environment);
+
+    if (cluster.aws.bucket.name) {
+        awsViewBucket(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.aws.bucket.username) {
+        awsViewBucketUser(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.url) {
+        awsViewEndpoint(in_serviceConfig, in_environment);
+    }
 }
 
 // ******************************
 
 function awsViewInfrastructure (in_serviceConfig, in_environment) {
-    awsViewInstances(in_serviceConfig, in_environment);
-    awsViewLoadBalancer(in_serviceConfig, in_environment);
-    awsViewLaunchConfiguration(in_serviceConfig, in_environment);
-    awsViewAutoScalingGroup(in_serviceConfig, in_environment);
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    auto_scaling_group: {
+                        name: 'STRING'
+                    },
+                    default: 'BOOLEAN',
+                    environment: 'STRING',
+                    launch_configuration: {
+                        name: 'STRING'
+                    },
+                    load_balancer: {
+                        name: 'STRING'
+                    }
+                }
+            ]
+        }
+    });
+
+    if (!serviceConfig) {
+        return;
+    }
+
+    const cluster = _loadCluster(serviceConfig, in_environment);
+
+    if (service.name) {
+        awsViewInstances(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.load_balancer.name) {
+        awsViewLoadBalancer(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.launch_configuration.name) {
+        awsViewLaunchConfiguration(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.auto_scaling_group.name) {
+        awsViewAutoScalingGroup(in_serviceConfig, in_environment);
+    }
 }
 
 // ******************************
@@ -4018,6 +4116,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
+                        profile: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -4061,6 +4160,7 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
                         name: 'STRING'
                     },
                     aws: {
+                        profile: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -4078,8 +4178,8 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsAutoScalingGroupName) {
         throw new Error('Auto scaling group name not set');
@@ -4102,10 +4202,49 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
 // ******************************
 
 function awsViewDeliveryStructure (in_serviceConfig, in_environment) {
-    awsViewRepository(in_serviceConfig, in_environment);
-    awsViewTaskDefinition(in_serviceConfig, in_environment);
-    awsViewCluster(in_serviceConfig, in_environment);
-    awsViewClusterService(in_serviceConfig, in_environment);
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        docker: {
+            image: {
+                name: 'STRING'
+            }
+        },
+        service: {
+            name: 'STRING',
+            clusters: [
+                {
+                    default: 'BOOLEAN',
+                    environment: 'STRING',
+                    task_definition: {
+                        name: 'STRING'
+                    },
+                    name: 'STRING',
+                    service_name: 'STRING'
+                }
+            ]
+        }
+    });
+
+    if (!serviceConfig) {
+        return;
+    }
+
+    const cluster = _loadCluster(serviceConfig, in_environment);
+
+    if (serviceConfig.docker.image.name) {
+        awsViewRepository(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.task_definition.name) {
+        awsViewTaskDefinition(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.name) {
+        awsViewCluster(in_serviceConfig, in_environment);
+    }
+
+    if (cluster.service_name) {
+        awsViewClusterService(in_serviceConfig, in_environment);
+    }
 }
 
 // ******************************
@@ -4124,6 +4263,7 @@ function awsViewRepository (in_serviceConfig, in_environment) {
                         image: {
                             name: 'STRING'
                         },
+                        profile: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -4162,6 +4302,7 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
+                        profile: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -4206,6 +4347,7 @@ function awsViewCluster (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
+                        profile: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -4226,7 +4368,6 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         cluster: cluster
     });
 
-
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/tasks`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
@@ -4242,6 +4383,7 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
+                        profile: 'STRING',
                         region: 'STRING'
                     },
                     default: 'BOOLEAN',
@@ -4305,11 +4447,11 @@ function awsViewBucket (in_serviceConfig, in_environment) {
     const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
+        cache: awsCache,
+        cluster: cluster
     });
     if (!awsBucketName) {
-        throw new Error('Service AWS bucket name is not set or');
+        throw new Error('Service AWS bucket name is not set');
     }
 
     let url = `console.aws.amazon.com/s3/buckets/${awsBucketName}`;
@@ -4333,10 +4475,11 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
             clusters: [
                 {
                     aws: {
+                        profile: 'STRING',
+                        region: 'STRING',
                         bucket: {
                             username: 'STRING'
                         },
-                        region: 'STRING'
                     },
                     default: 'BOOLEAN',
                     environment: 'STRING'
@@ -4436,6 +4579,7 @@ function _loadCluster (in_serviceConfig, in_environment) {
             throw new Error('No default environment defined');
         }
     }
+    return cluster;
 }
 
 // ******************************

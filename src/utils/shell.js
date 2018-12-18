@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let env = require('./env');
 let exec = require('./exec');
 let fs = require('./filesystem');
@@ -26,8 +24,7 @@ function shellCmd (in_args, in_options) {
     let hide = options.hide;
 
     if (!shellInstalled()) {
-        cprint.yellow('No supported shell installed');
-        return false;
+        throw new Error('No supported shell installed');
     }
 
     let args = in_args;

@@ -4,8 +4,6 @@
 // Requires:
 // ******************************
 
-let cprint = require('color-print');
-
 let docker = require('./docker');
 let exec = require('./exec');
 let service = require('./service');
@@ -25,8 +23,7 @@ function mercurialCmd (in_args, in_options) {
     let hide = options.hide;
 
     if (!mercurialInstalled()) {
-        cprint.yellow('Mercurial isn\'t installed');
-        return false;
+        throw new Error('Mercurial isn\'t installed');
     }
 
     if (!in_args) {
@@ -130,8 +127,7 @@ function getRootFolder (in_serviceConfig) {
 
     let mercurialRootFolder = serviceConfig.version_control.root_folder || false;
     if (!mercurialRootFolder) {
-        cprint.yellow('Mercurial root folder not set');
-        return;
+        throw new Error('Mercurial root folder not set');
     }
 
     let path = require('path');
