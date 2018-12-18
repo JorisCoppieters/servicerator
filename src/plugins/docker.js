@@ -1136,7 +1136,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let useBash = opt.useBash;
     let attach = opt.attach;
 
-    let serviceConfig = service.accessConfig(in_serviceConfig, {
+    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig), {
         docker: {
             image: {
                 version: 'STRING',

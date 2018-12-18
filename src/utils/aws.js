@@ -3209,7 +3209,8 @@ function getAwsBucketName (in_serviceConfig, in_options) {
             cache: awsCache,
             profile: cluster.aws.profile,
             region: cluster.aws.region,
-            partialMatch: true
+            partialMatch: true,
+            verbose: true
         });
     }
     return bucketName;
@@ -3671,6 +3672,7 @@ function _getBucketPaths (in_options) {
     ], {
         hide: !opts.verbose,
         profile: opts.profile,
+        no_profile: opts.no_profile,
         region: opts.region
     });
 
