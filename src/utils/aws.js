@@ -2250,7 +2250,7 @@ function getBucketNameForBucketName (in_bucketName, in_options) {
 
     if (!awsBucketName) {
         if (opts.showWarning) {
-            cprint.yellow('Couldn\'t find Bucket Path for Bucket "' + in_bucketName + '"');
+            cprint.yellow('Couldn\'t find Bucket Name for Bucket "' + in_bucketName + '"');
         }
         return false;
     }
@@ -3168,23 +3168,19 @@ function getDockerImageName (in_serviceConfig, in_cluster) {
 
 // ******************************
 
-function getServiceRole (in_serviceConfig, in_cluster) {
-    let serviceRole = in_cluster.aws.service_role;
+function getServiceRole (in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+    let awsCache = opts.cache || {};
+
+    let serviceRole = cluster.aws.service_role;
     serviceRole = service.replaceConfigReferences(in_serviceConfig, serviceRole);
 
     if (serviceRole.match(/.*-\*/)) {
-        let serviceConfig = service.accessConfig(in_serviceConfig, {
-            cwd: 'STRING',
-        });
-        if (!serviceConfig) {
-            return;
-        }
-        let awsCache = cache.load(serviceConfig.cwd, 'aws');
-
         serviceRole = getRoleNameForRoleName(serviceRole.replace(/\*/,''), {
             cache: awsCache,
-            profile: in_cluster.aws.profile,
-            region: in_cluster.aws.region,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region,
             partialMatch: true,
             verbose: true
         });
@@ -3194,26 +3190,91 @@ function getServiceRole (in_serviceConfig, in_cluster) {
 
 // ******************************
 
-function getAwsBucketName (in_serviceConfig, in_cluster) {
-    let bucketName = in_cluster.aws.bucket.name;
-    bucketName = service.replaceConfigReferences(in_serviceConfig, bucketName);
-    if (bucketName.match(/.*-\*/)) {
-        let serviceConfig = service.accessConfig(in_serviceConfig, {
-            cwd: 'STRING',
-        });
-        if (!serviceConfig) {
-            return;
-        }
-        let awsCache = cache.load(serviceConfig.cwd, 'aws');
+function getAwsBucketName (in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+    let awsCache = opts.cache || {};
 
+    let bucketName = cluster.aws.bucket.name;
+    bucketName = service.replaceConfigReferences(in_serviceConfig, bucketName);
+
+    if (bucketName.match(/.*-\*/)) {
         bucketName = getBucketNameForBucketName(bucketName.replace(/\*/,''), {
             cache: awsCache,
-            profile: in_cluster.aws.profile,
-            region: in_cluster.aws.region,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region,
             partialMatch: true
         });
     }
     return bucketName;
+}
+
+// ******************************
+
+function getAwsAutoScalingGroupName (in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+    let awsCache = opts.cache || {};
+
+    let autoScalingGroupName = cluster.auto_scaling_group.name;
+    autoScalingGroupName = service.replaceConfigReferences(in_serviceConfig, autoScalingGroupName);
+
+    if (autoScalingGroupName.match(/.*-\*/)) {
+        let autoScalingGroup = _getAutoScalingGroupForAutoScalingGroupName(autoScalingGroupName.replace(/\*/,''), {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region,
+            partialMatch: true,
+            verbose: true
+        });
+
+        autoScalingGroupName = autoScalingGroup.AutoScalingGroupName;
+    }
+    return autoScalingGroupName;
+}
+
+// ******************************
+
+function getAwsClusterName(in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+
+    let clusterName = cluster.name;
+    clusterName = service.replaceConfigReferences(in_serviceConfig, clusterName);
+    return clusterName;
+}
+
+// ******************************
+
+function getAwsClusterServiceName(in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+
+    let clusterServiceName = cluster.service_name;
+    clusterServiceName = service.replaceConfigReferences(in_serviceConfig, clusterServiceName);
+    return clusterServiceName;
+}
+
+// ******************************
+
+function getAwsTaskDefinitionName(in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+
+    let taskDefinitionName = cluster.task_definition.name;
+    taskDefinitionName = service.replaceConfigReferences(in_serviceConfig, taskDefinitionName);
+    return taskDefinitionName;
+}
+
+// ******************************
+
+function getAwsClusterUrl(in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+
+    let clusterUrl = cluster.url;
+    clusterUrl = service.replaceConfigReferences(in_serviceConfig, clusterUrl);
+    return clusterUrl;
 }
 
 // ******************************
@@ -3473,6 +3534,51 @@ function awsVersion (awsCmd) {
 // Helper Functions:
 // ******************************
 
+function _getAutoScalingGroupForAutoScalingGroupName (in_autoScalingGroupName, in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = `AutoScalingGroup_${opts.profile}_${opts.region}_${in_autoScalingGroupName}`;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving Auto Scaling Group Name for Auto Scaling Group "' + in_autoScalingGroupName + '"...');
+    }
+
+    let autoScalingGroups = getAutoScalingGroups(in_options);
+    if (!autoScalingGroups || !autoScalingGroups.length) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find any AWS Auto Scaling Groups');
+        }
+        return;
+    }
+
+    let autoScalingGroup = autoScalingGroups
+        .filter(obj => opts.partialMatch ? _partialStrMatch(obj.AutoScalingGroupName, in_autoScalingGroupName) : obj.AutoScalingGroupName === in_autoScalingGroupName)
+        .find(() => true);
+
+
+    if (!autoScalingGroup) {
+        if (opts.showWarning) {
+            cprint.yellow('Couldn\'t find Auto Scaling Group Name for Auto Scaling Group "' + in_autoScalingGroupName + '"');
+        }
+        return false;
+    }
+
+    awsCache[cacheKey] = {
+        val: autoScalingGroup,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return autoScalingGroup;
+}
+
+// ******************************
+
 function _getRoleArns (in_options) {
     let opts = in_options || {};
 
@@ -3641,10 +3747,15 @@ module.exports['deleteDockerRepositoryImages'] = deleteDockerRepositoryImages;
 module.exports['deleteLaunchConfiguration'] = deleteLaunchConfiguration;
 module.exports['deployTaskDefinitionToCluster'] = deployTaskDefinitionToCluster;
 module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
-module.exports['getRoleCredentialsForRoleName'] = getRoleCredentialsForRoleName;
 module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
 module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
+module.exports['getAwsAutoScalingGroupName'] = getAwsAutoScalingGroupName;
+module.exports['getAwsBucketName'] = getAwsBucketName;
+module.exports['getAwsClusterName'] = getAwsClusterName;
+module.exports['getAwsClusterServiceName'] = getAwsClusterServiceName;
+module.exports['getAwsClusterUrl'] = getAwsClusterUrl;
+module.exports['getAwsTaskDefinitionName'] = getAwsTaskDefinitionName;
 module.exports['getBucketNameForBucketName'] = getBucketNameForBucketName;
 module.exports['getBucketPathForBucketName'] = getBucketPathForBucketName;
 module.exports['getClusterArnForClusterName'] = getClusterArnForClusterName;
@@ -3668,11 +3779,11 @@ module.exports['getMergedServiceConfig'] = getMergedAwsServiceConfig;
 module.exports['getPreviousTaskDefinitionArnsForTaskDefinition'] = getPreviousTaskDefinitionArnsForTaskDefinition;
 module.exports['getRoleArnForRoleName'] = getRoleArnForRoleName;
 module.exports['getRoleCredentials'] = getRoleCredentials;
+module.exports['getRoleCredentialsForRoleName'] = getRoleCredentialsForRoleName;
 module.exports['getRoleNameForRoleName'] = getRoleNameForRoleName;
 module.exports['getSecretKey'] = getSecretKey;
 module.exports['getServiceConfig'] = getServiceConfig;
 module.exports['getServiceRole'] = getServiceRole;
-module.exports['getAwsBucketName'] = getAwsBucketName;
 module.exports['getServiceStateFromAutoScalingGroupInstanceCount'] = getServiceStateFromAutoScalingGroupInstanceCount;
 module.exports['getTargetGroupArnForTargetGroupName'] = getTargetGroupArnForTargetGroupName;
 module.exports['getTargetGroups'] = getTargetGroups;

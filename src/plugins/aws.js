@@ -70,10 +70,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
         return;
     }
 
-    let awsInstalled = aws.installed();
-    if (!awsInstalled) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name || false;
 
@@ -81,18 +78,20 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     cprint.magenta('-- AWS --');
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
-    let awsClusterServiceName = _getAwsClusterServiceName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
+    let awsClusterServiceName = aws.getAwsClusterServiceName(in_serviceConfig, {
+        cluster: cluster
+    });
+
+    let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
 
     let awsAccessKey = cluster.aws.access_key || false;
     let awsSecretKey = false;
@@ -112,7 +111,6 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
-    let oldEnvironment = cluster.role === 'ecsServiceRole';
     let prefixedEnvironmentTitle = 'AWS ' + environmentTitle;
 
     cprint.magenta('-- AWS Docker --');
@@ -121,8 +119,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
@@ -131,188 +128,187 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     print.keyVal('AWS Docker Image Path', dockerImagePath);
     print.out('\n');
 
-    if (awsInstalled) {
-        if (serviceName) {
-            cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Clusters State --');
+    if (serviceName) {
+        cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Clusters State --');
 
-            print.keyVal(prefixedEnvironmentTitle + ' Cluster Name', awsClusterName || '(Not Set)');
+        print.keyVal(prefixedEnvironmentTitle + ' Cluster Name', awsClusterName || '(Not Set)');
 
-            if (cluster.auto_scaling_group.name) {
-                print.keyVal(prefixedEnvironmentTitle + ' Cluster State', '...', true);
-                let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(cluster.auto_scaling_group.name, {
-                    cache: awsCache,
-                    profile: cluster.aws.profile,
-                    region: cluster.aws.region,
-                    showWarning: true
-                });
-                print.clearLine();
+        if (awsAutoScalingGroupName) {
+            print.keyVal(prefixedEnvironmentTitle + ' Cluster State', '...', true);
+            let awsAutoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(awsAutoScalingGroupName, {
+                cache: awsCache,
+                profile: cluster.aws.profile,
+                region: cluster.aws.region,
+                showWarning: true
+            });
+            print.clearLine();
 
-                if (awsAutoScalingGroupInstanceCount !== undefined) {
-                    let serviceState = aws.getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
-                    if (serviceState === 'Down') {
-                        serviceState = cprint.toYellow('Down');
-                    }
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster State', serviceState);
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Instances', awsAutoScalingGroupInstanceCount);
-                } else {
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster State', '???');
+            if (awsAutoScalingGroupInstanceCount !== undefined) {
+                let serviceState = aws.getServiceStateFromAutoScalingGroupInstanceCount(awsAutoScalingGroupInstanceCount);
+                if (serviceState === 'Down') {
+                    serviceState = cprint.toYellow('Down');
                 }
-            }
-
-            if (in_extra && awsClusterName && awsClusterServiceName) {
-                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Name', awsClusterServiceName);
-
-                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', '...', true);
-                let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
-                    cache: awsCache,
-                    profile: cluster.aws.profile,
-                    region: cluster.aws.region
-                });
-                print.clearLine();
-
-                if (awsClusterServiceArn) {
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', 'Yes');
-
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', '...', true);
-                    let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(awsClusterName, awsClusterServiceArn, {
-                        cache: awsCache,
-                        profile: cluster.aws.profile,
-                        region: cluster.aws.region
-                    });
-                    print.clearLine();
-
-                    if (awsTaskDefinitionArn) {
-                        let awsTaskDefinitionName = aws.arnToTitle(awsTaskDefinitionArn);
-                        print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
-                    } else {
-                        print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', '???');
-                    }
-
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', '...', true);
-                    let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
-                        cache: awsCache,
-                        profile: cluster.aws.profile,
-                        region: cluster.aws.region
-                    });
-                    print.clearLine();
-
-                    if (clusterServiceVersion) {
-                        print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', clusterServiceVersion);
-                    } else {
-                        print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', '???');
-                    }
-
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', '...', true);
-                    let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, {
-                        cache: awsCache,
-                        profile: cluster.aws.profile,
-                        region: cluster.aws.region
-                    });
-                    let awsClusterTaskDetails = aws.getTaskDetails(awsClusterName, awsClusterTaskArns, {
-                        cache: awsCache,
-                        profile: cluster.aws.profile,
-                        region: cluster.aws.region
-                    });
-                    print.clearLine();
-
-                    if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
-                        print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
-                    } else {
-                        print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', '[]');
-                    }
-                } else {
-                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', cprint.toYellow('No'));
-                }
-            }
-
-            print.out('\n');
-
-            let oldServiceName = (cluster.auto_scaling_group.name || '').replace('-prod-auto-scaling-group', '').replace('-prod', '');
-
-            if (in_extra) {
-                let instanceIds = aws.getInstanceIdsWithTags([
-                    {
-                        key: oldEnvironment ? 'ServiceName' : 'Service', // TODO - Remove environment specific code
-                        vals: [
-                            oldEnvironment ? oldServiceName : serviceName  // TODO - Remove environment specific code
-                        ]
-                    },
-                    {
-                        key: 'Environment',
-                        vals: [
-                            environment
-                        ]
-                    }
-                ], {
-                    profile: cluster.aws.profile,
-                    region: cluster.aws.region
-                });
-
-                (instanceIds || []).forEach(i => {
-                    cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
-                    print.keyVal('Instance Id', i.InstanceId);
-                    print.keyVal('Instance Ip Address', i.IpAddress);
-                    print.keyVal('Instance Type', i.InstanceType);
-                    print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
-                    print.out('\n');
-                });
-
-                let awsVpcName = cluster.vpc_name;
-                if (awsVpcName) {
-                    cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
-
-                    print.keyVal(prefixedEnvironmentTitle + ' VPC Name', awsVpcName);
-
-                    if (cluster.vpc_name) {
-                        print.keyVal(prefixedEnvironmentTitle + ' VPC Id', '...', true);
-                        let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
-                            cache: awsCache,
-                            profile: cluster.aws.profile,
-                            region: cluster.aws.region
-                        });
-                        print.clearLine();
-
-                        if (awsVpcId) {
-                            print.keyVal(prefixedEnvironmentTitle + ' VPC Id', awsVpcId);
-                        } else {
-                            print.keyVal(prefixedEnvironmentTitle + ' VPC Id', '???');
-                        }
-
-                        print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', '...', true);
-                        let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
-                            cache: awsCache,
-                            profile: cluster.aws.profile,
-                            region: cluster.aws.region
-                        });
-                        print.clearLine();
-
-                        if (awsDefaultVpcSecurityGroupId) {
-                            print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
-                        } else {
-                            print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', '???');
-                        }
-                    }
-
-                    print.out('\n');
-                }
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster State', serviceState);
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Instances', awsAutoScalingGroupInstanceCount);
+            } else {
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster State', '???');
             }
         }
 
-        let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
-        if (awsBucketName) {
-            cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Bucket State' + ' --');
+        if (in_extra && awsClusterName && awsClusterServiceName) {
+            print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Name', awsClusterServiceName);
 
-            print.keyVal(prefixedEnvironmentTitle + ' Bucket Name', awsBucketName);
-
-            let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
+            print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', '...', true);
+            let awsClusterServiceArn = aws.getClusterServiceArnForClusterName(awsClusterName, awsClusterServiceName, {
                 cache: awsCache,
                 profile: cluster.aws.profile,
                 region: cluster.aws.region
             });
-            print.keyVal(prefixedEnvironmentTitle + ' Bucket Path', awsBucketPath ? awsBucketPath : cprint.toYellow('Does not exist!'));
+            print.clearLine();
 
-            print.out('\n');
+            if (awsClusterServiceArn) {
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', 'Yes');
+
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', '...', true);
+                let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(awsClusterName, awsClusterServiceArn, {
+                    cache: awsCache,
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
+                });
+                print.clearLine();
+
+                if (awsTaskDefinitionArn) {
+                    let awsTaskDefinitionName = aws.arnToTitle(awsTaskDefinitionArn);
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', awsTaskDefinitionName);
+                } else {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', '???');
+                }
+
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', '...', true);
+                let clusterServiceVersion = aws.getClusterServiceVersionForTaskDefinition(awsTaskDefinitionArn, {
+                    cache: awsCache,
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
+                });
+                print.clearLine();
+
+                if (clusterServiceVersion) {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', clusterServiceVersion);
+                } else {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Version', '???');
+                }
+
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', '...', true);
+                let awsClusterTaskArns = aws.getClusterTaskArnsForCluster(awsClusterName, {
+                    cache: awsCache,
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
+                });
+                let awsClusterTaskDetails = aws.getTaskDetails(awsClusterName, awsClusterTaskArns, {
+                    cache: awsCache,
+                    profile: cluster.aws.profile,
+                    region: cluster.aws.region
+                });
+                print.clearLine();
+
+                if (awsClusterTaskDetails && awsClusterTaskDetails.length) {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', JSON.stringify(awsClusterTaskDetails, null, 4));
+                } else {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Tasks', '[]');
+                }
+            } else {
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', cprint.toYellow('No'));
+            }
         }
+
+        print.out('\n');
+
+        if (in_extra) {
+            let instanceIds = aws.getInstanceIdsWithTags([
+                {
+                    key: 'Service',
+                    vals: [
+                        serviceName
+                    ]
+                },
+                {
+                    key: 'Environment',
+                    vals: [
+                        environment
+                    ]
+                }
+            ], {
+                profile: cluster.aws.profile,
+                region: cluster.aws.region
+            });
+
+            (instanceIds || []).forEach(i => {
+                cprint.magenta('-- AWS ' + environmentTitle + ' Instance --');
+                print.keyVal('Instance Id', i.InstanceId);
+                print.keyVal('Instance Ip Address', i.IpAddress);
+                print.keyVal('Instance Type', i.InstanceType);
+                print.keyVal('Instance Lifecycle', i.InstanceLifecycle === 'spot' ? 'spot' : 'normal');
+                print.out('\n');
+            });
+
+            let awsVpcName = cluster.vpc_name;
+            if (awsVpcName) {
+                cprint.magenta('-- AWS ' + environmentTitle + ' Network --');
+
+                print.keyVal(prefixedEnvironmentTitle + ' VPC Name', awsVpcName);
+
+                if (cluster.vpc_name) {
+                    print.keyVal(prefixedEnvironmentTitle + ' VPC Id', '...', true);
+                    let awsVpcId = aws.getVpcIdForVpc(cluster.vpc_name, {
+                        cache: awsCache,
+                        profile: cluster.aws.profile,
+                        region: cluster.aws.region
+                    });
+                    print.clearLine();
+
+                    if (awsVpcId) {
+                        print.keyVal(prefixedEnvironmentTitle + ' VPC Id', awsVpcId);
+                    } else {
+                        print.keyVal(prefixedEnvironmentTitle + ' VPC Id', '???');
+                    }
+
+                    print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', '...', true);
+                    let awsDefaultVpcSecurityGroupId = aws.getDefaultVpcSecurityGroupIdForVpc(awsVpcId, {
+                        cache: awsCache,
+                        profile: cluster.aws.profile,
+                        region: cluster.aws.region
+                    });
+                    print.clearLine();
+
+                    if (awsDefaultVpcSecurityGroupId) {
+                        print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', awsDefaultVpcSecurityGroupId);
+                    } else {
+                        print.keyVal(prefixedEnvironmentTitle + ' VPC Default Security Group Id', '???');
+                    }
+                }
+
+                print.out('\n');
+            }
+        }
+    }
+
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
+    if (awsBucketName) {
+        cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Bucket State' + ' --');
+
+        print.keyVal(prefixedEnvironmentTitle + ' Bucket Name', awsBucketName);
+
+        let awsBucketPath = aws.getBucketPathForBucketName(awsBucketName, {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region
+        });
+        print.keyVal(prefixedEnvironmentTitle + ' Bucket Path', awsBucketPath ? awsBucketPath : cprint.toYellow('Does not exist!'));
+
+        print.out('\n');
     }
 
     if (service.hasConfigFile(serviceConfig.cwd)) {
@@ -354,50 +350,28 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
-
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerImagePath = dockerRepositoryStore + '/' + awsDockerImageName;
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerRepository = serviceConfig.docker.organization || dockerUsername;
@@ -482,36 +456,16 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
-
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertAwsIsInstalled();
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let awsDockerCredentials = awsDockerLogin(in_serviceConfig, in_environment);
     if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
+        throw new Error('Failed to get AWS Docker credentials');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     if (!awsTagDockerImage(in_serviceConfig, in_environment)) {
         return false;
@@ -520,8 +474,7 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
     let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let dockerImagePath = dockerRepositoryStore + '/' + awsDockerImageName;
@@ -583,54 +536,48 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
 
-    let awsTaskDefinitionName = _getAwsTaskDefinitionName(in_serviceConfig, cluster);
+    let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsTaskDefinitionName) {
-        cprint.yellow('Service task definition name not set');
-        return false;
+        throw new Error('Service task definition name not set');
     }
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
     let awsTaskDefinitionImagePath = awsDockerRepositoryUrl + '/' + awsDockerImageName + ':' + dockerImageVersion;
 
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
-    let awsClusterServiceName = _getAwsClusterServiceName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
+    let awsClusterServiceName = aws.getAwsClusterServiceName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     let awsClusterServiceTasksCount = cluster.tasks.count || 1;
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -821,41 +768,29 @@ function awsGetDockerCommand (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
+
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let memoryLimit = serviceConfig.docker.container.memory_limit || false;
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
     let awsTaskDefinitionImagePath = awsDockerRepositoryUrl + '/' + awsDockerImageName + ':' + dockerImageVersion;
@@ -927,7 +862,10 @@ function awsGetDockerCommand (in_serviceConfig, in_environment) {
     let environmentVariableReplacements = {};
     environmentVariableReplacements['MODEL_BUCKET'] = 'Unknown';
 
-    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (awsBucketName) {
         environmentVariableReplacements['MODEL_BUCKET'] = `${awsBucketName}`;
     }
@@ -962,6 +900,10 @@ function awsGetDockerCommand (in_serviceConfig, in_environment) {
             }
         }, '')
     );
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 }
 
 // ******************************
@@ -1057,26 +999,14 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
@@ -1085,14 +1015,16 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
-        cprint.yellow('Launch configuration name not set');
-        return false;
+        throw new Error('Launch configuration name not set');
     }
     let awsLaunchConfigurationName = awsLaunchConfigurationTemplateName + '-' + date.getTimestampTag();
 
     let awsLaunchConfigurationSecurityGroupNames = cluster.launch_configuration.security_groups || [];
 
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     let awsInstanceType = cluster.instance.type || 't2.micro';
     let awsIamRole = cluster.instance.iam_role;
     let awsAmi = cluster.instance.ami;
@@ -1100,8 +1032,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
     let assignPublicIp = cluster.instance.assign_public_ip;
 
     if (!awsAmi) {
-        cprint.yellow('AWS AMI not set');
-        return false;
+        throw new Error('AWS AMI not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -1121,8 +1052,7 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
 
     let awsVpcName = cluster.vpc_name;
     if (!awsVpcName) {
-        cprint.yellow('AWS VPC Name not set');
-        return false;
+        throw new Error('AWS VPC Name not set');
     }
     print.keyVal('AWS ' + environmentTitle + ' VPC Name', awsVpcName);
 
@@ -1318,42 +1248,28 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
 
     let awsLoadBalancerName = cluster.load_balancer.name;
     if (!awsLoadBalancerName) {
-        cprint.yellow('Load balancer name not set');
-        return false;
+        throw new Error('Load balancer name not set');
     }
 
     let awsLoadBalancerSecurityGroupNames = cluster.load_balancer.security_groups || [];
 
     let awsVpcSubnetNames = (cluster.load_balancer.subnets || []);
     if (!awsVpcSubnetNames.length) {
-        cprint.yellow('No VPC subnet names set');
-        return false;
+        throw new Error('No VPC subnet names set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -1619,31 +1535,18 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let environment = cluster.environment;
@@ -1651,26 +1554,25 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
-        cprint.yellow('Launch configuration name not set');
-        return false;
+        throw new Error('Launch configuration name not set');
     }
 
-    let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
+    let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (!awsAutoScalingGroupName) {
-        cprint.yellow('Auto scaling group name not set');
-        return false;
+        throw new Error('Auto scaling group name not set');
     }
 
     let awsVpcName = cluster.vpc_name;
     if (!awsVpcName) {
-        cprint.yellow('VPC name not set');
-        return false;
+        throw new Error('VPC name not set');
     }
 
     let awsVpcSubnetNames = (cluster.auto_scaling_group.subnets || []);
     if (!awsVpcSubnetNames.length) {
-        cprint.yellow('No VPC subnet names set');
-        return false;
+        throw new Error('No VPC subnet names set');
     }
 
     let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
@@ -1868,25 +1770,16 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (!awsBucketName) {
-        cprint.yellow('Service AWS bucket name is not set or');
-        return false;
+        throw new Error('Service AWS bucket name is not set or');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -1951,33 +1844,23 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let sourceFolder = serviceConfig.cwd || false;
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (!awsBucketName) {
-        cprint.yellow('Service AWS bucket name is not set or');
-        return false;
+        throw new Error('Service AWS bucket name is not set or');
     }
 
     let awsBucketUsername = cluster.aws.bucket.username;
     if (!awsBucketUsername) {
-        cprint.yellow('Service bucket username not set');
-        return false;
+        throw new Error('Service bucket username not set');
     }
 
     let awsBucketUsernamePermissions = cluster.aws.bucket.permissions || false;
@@ -2170,31 +2053,18 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -2308,47 +2178,35 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let loggingSupport = !!serviceConfig.docker.container.logging_support;
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
 
-    let awsTaskDefinitionName = _getAwsTaskDefinitionName(in_serviceConfig, cluster);
+    let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsTaskDefinitionName) {
-        cprint.yellow('Service task definition name not set');
-        return false;
+        throw new Error('Service task definition name not set');
     }
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
     let awsTaskDefinitionImagePath = awsDockerRepositoryUrl + '/' + awsDockerImageName + ':' + dockerImageVersion;
@@ -2357,14 +2215,18 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     let environment = cluster.environment;
-    let oldEnvironment = cluster.role === 'ecsServiceRole';
 
     cprint.magenta('-- Task Definition --');
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
     print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
 
     print.keyVal('AWS Task Definition Role', '...', true);
-    let awsRoleName = aws.getServiceRole(in_serviceConfig, cluster);
+
+    let awsRoleName = aws.getServiceRole(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
+
     let taskDefinitionRoleArn = false;
 
     if (awsRoleName) {
@@ -2382,14 +2244,12 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         print.keyVal('AWS Task Definition Role', taskDefinitionRoleArn);
     }
 
-    let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
-
     let serviceContainerDefinition = {
         'cpu': 0,
         'essential': true,
         'image': awsTaskDefinitionImagePath,
         'memoryReservation': awsTaskDefinitionMemoryLimit,
-        'name': oldEnvironment ? oldContainerDefinition : 'service', // TODO - Remove environment specific setting
+        'name': 'service',
         'volumesFrom': []
     };
 
@@ -2405,10 +2265,12 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
 
     let modelVersion = serviceConfig.model.version;
     if (serviceConfig.model.dynamic && !in_forceModelUpdate) {
-        let awsTaskDefinitionName = _getAwsTaskDefinitionName(in_serviceConfig, cluster);
+        let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
+            cluster: cluster
+        });
+
         if (!awsTaskDefinitionName) {
-            cprint.yellow('Service task definition name not set');
-            return false;
+            throw new Error('Service task definition name not set');
         }
 
         let lastTaskDefinitionArn = aws.getCurrentTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
@@ -2426,7 +2288,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
                 region: cluster.aws.region
             });
 
-            let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
+            let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', '');
             if (lastTaskDefinition) {
                 let modelVersionVariable = lastTaskDefinition.containerDefinitions
                     .filter(container => [oldContainerDefinition, 'service'].indexOf(container.name) >= 0)
@@ -2443,7 +2305,10 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     let environmentVariableReplacements = {};
     environmentVariableReplacements['MODEL_BUCKET'] = 'Unknown';
 
-    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (awsBucketName) {
         environmentVariableReplacements['MODEL_BUCKET'] = `${awsBucketName}`;
     }
@@ -2511,10 +2376,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
     let containerDefinitions = [serviceContainerDefinition];
     if (loggingSupport) {
         // TODO - remove TM specific filebeat
-        let filebeatServiceName = 'filebeat-tm-services';
-        if (!oldEnvironment) {
-            filebeatServiceName += '-' + environment;
-        }
+        let filebeatServiceName = `filebeat-tm-services-${environment}`;
         let awsTaskDefinitionFilebeatImagePath = awsDockerRepositoryUrl + '/' + filebeatServiceName + ':' + 'latest';
         let awsTaskDefinitionFilebeatMemoryLimit = 200;
         let awsTaskDefinitionFilebeatVolumes = [
@@ -2542,7 +2404,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
             'essential': true,
             'image': awsTaskDefinitionFilebeatImagePath,
             'memoryReservation': awsTaskDefinitionFilebeatMemoryLimit,
-            'name': oldEnvironment ? 'filebeat-tm-services' : 'filebeat',
+            'name': 'filebeat',
             'portMappings': [],
             'volumesFrom': []
         };
@@ -2664,34 +2526,24 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let environment = cluster.environment;
     let environmentTitle = str.toTitleCase(environment);
 
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsClusterName) {
-        cprint.yellow('Cluster name not set');
-        return false;
+        throw new Error('Cluster name not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -2782,53 +2634,45 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let awsTaskDefinitionName = _getAwsTaskDefinitionName(in_serviceConfig, cluster);
+    let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsTaskDefinitionName) {
-        cprint.yellow('Service task definition name not set');
-        return false;
+        throw new Error('Service task definition name not set');
     }
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
     let environment = cluster.environment;
-    let oldEnvironment = cluster.role === 'ecsServiceRole';
     let environmentTitle = str.toTitleCase(environment);
 
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsClusterName) {
-        cprint.yellow('Cluster name not set');
-        return false;
+        throw new Error('Cluster name not set');
     }
 
-    let awsClusterServiceName = _getAwsClusterServiceName(in_serviceConfig, cluster);
+    let awsClusterServiceName = aws.getAwsClusterServiceName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsClusterServiceName) {
-        cprint.yellow('Cluster service name not set');
-        return false;
+        throw new Error('Cluster service name not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -2843,8 +2687,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     let maximumHealthyPercent = desiredTaskCount ? parseInt(maximumTaskCount / desiredTaskCount * 100) : 200;
 
     if (desiredInstanceCount > desiredTaskCount) {
-        cprint.yellow('Your desired instance count is higher than your desired task count');
-        return false;
+        throw new Error('Your desired instance count is higher than your desired task count');
     }
 
     let role = cluster.role || 'ecs-access-elb';
@@ -2876,9 +2719,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     let loadBalancers = [];
 
     let awsLoadBalancerName = cluster.load_balancer.name;
-    let oldContainerDefinition = awsTaskDefinitionName.replace('-task-definition', ''); // TODO - Remove old code
-
-    let awsContainerName = oldEnvironment ? oldContainerDefinition : 'service'; // TODO - Remove environment specific setting
+    let awsContainerName = 'service';
 
     if (awsTargetGroupArn || awsLoadBalancerName) {
         serviceConfig.docker.container.ports.forEach(port => {
@@ -2978,20 +2819,9 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsRoleName = 'ecsInstanceRole';
 
@@ -3095,20 +2925,9 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsRoleName = 'ecsServiceRole';
 
@@ -3237,31 +3056,18 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
 
     cprint.cyan('Cleaning launch configurations...');
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
-        cprint.yellow('Launch configuration name not set');
-        return false;
+        throw new Error('Launch configuration name not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -3345,31 +3151,18 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
 
     cprint.cyan('Cleaning repositories...');
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -3381,8 +3174,7 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
         region: cluster.aws.region
     });
     if (!awsDockerRepository) {
-        cprint.yellow('Repository does not exist!');
-        return;
+        throw new Error('Repository does not exist!');
     }
 
     let awsDockerRepositoryImages = aws.getDockerRepositoryImagesForRepositoryName(awsDockerRepository, {
@@ -3392,8 +3184,7 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
         region: cluster.aws.region
     });
     if (!awsDockerRepositoryImages) {
-        cprint.yellow('Failed to get repository images!');
-        return;
+        throw new Error('Failed to get repository images!');
     }
 
     let awsDockerRepositoryImagesWithoutTags = awsDockerRepositoryImages
@@ -3448,31 +3239,21 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
 
     cprint.cyan('Cleaning task definitions...');
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let awsTaskDefinitionName = _getAwsTaskDefinitionName(in_serviceConfig, cluster);
+    let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsTaskDefinitionName) {
-        cprint.yellow('Service task definition name not set');
-        return false;
+        throw new Error('Service task definition name not set');
     }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
@@ -3558,31 +3339,18 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let environment = cluster.environment;
@@ -3590,26 +3358,25 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
 
     let awsLaunchConfigurationTemplateName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationTemplateName) {
-        cprint.yellow('Launch configuration name not set');
-        return false;
+        throw new Error('Launch configuration name not set');
     }
 
-    let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
+    let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (!awsAutoScalingGroupName) {
-        cprint.yellow('Auto scaling group name not set');
-        return false;
+        throw new Error('Auto scaling group name not set');
     }
 
     let awsVpcName = cluster.vpc_name;
     if (!awsVpcName) {
-        cprint.yellow('VPC name not set');
-        return false;
+        throw new Error('VPC name not set');
     }
 
     let awsVpcSubnetNames = (cluster.auto_scaling_group.subnets || []);
     if (!awsVpcSubnetNames.length) {
-        cprint.yellow('No VPC subnet names set');
-        return false;
+        throw new Error('No VPC subnet names set');
     }
 
     let healthCheckGracePeriod = cluster.auto_scaling_group.health_check_grace_period || 300;
@@ -3792,39 +3559,21 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
-
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertAwsIsInstalled();
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let awsDockerCredentials = aws.getDockerCredentials(in_serviceConfig, {
         environment: in_environment
     });
 
     if (!awsDockerCredentials) {
-        cprint.yellow('Failed to get AWS Docker credentials');
-        return false;
+        throw new Error('Failed to get AWS Docker credentials');
     }
 
     let awsDockerRepositoryUrl = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
     if (!awsDockerRepositoryUrl) {
-        cprint.yellow('AWS docker repository not set');
-        return false;
+        throw new Error('AWS docker repository not set');
     }
 
     if (docker.isLoggedIn(awsDockerRepositoryUrl)) {
@@ -3833,8 +3582,7 @@ function awsDockerLogin (in_serviceConfig, in_environment) {
 
     let success = docker.login(awsDockerCredentials.username, awsDockerCredentials.password, awsDockerRepositoryUrl);
     if (!success) {
-        cprint.yellow('Check your regions match in your .aws/config and service.json');
-        return false;
+        throw new Error('Check your regions match in your .aws/config and service.json');
     }
 
     return awsDockerCredentials;
@@ -3867,61 +3615,49 @@ function awsStartCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let autoScalingGroupName = cluster.auto_scaling_group.name;
-    if (!autoScalingGroupName) {
-        cprint.yellow('Auto scaling group name not set');
-        return false;
+    let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
+    if (!awsAutoScalingGroupName) {
+        throw new Error('Auto scaling group name not set');
     }
 
     let desiredInstanceCount = obj.positiveNumberOr(cluster.auto_scaling_group.count, 0);
     if (desiredInstanceCount === 0) {
-        cprint.yellow('Your desired instance count is 0');
-        return false;
+        throw new Error('Your desired instance count is 0');
     }
 
-    let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
+    let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(awsAutoScalingGroupName, {
         profile: cluster.aws.profile,
         region: cluster.aws.region,
         showWarning: true
     });
     if (autoScalingGroupInstanceCount < 0) {
-        cprint.yellow('AWS cluster doesn\'t exist');
-        return;
+        throw new Error('AWS cluster doesn\'t exist');
     }
 
     if (autoScalingGroupInstanceCount == 0) {
         cprint.cyan('Starting AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, desiredInstanceCount, {
+        aws.setAutoScalingGroupInstanceCount(awsAutoScalingGroupName, desiredInstanceCount, {
             cache: awsCache,
             profile: cluster.aws.profile,
             region: cluster.aws.region
         });
     } else if (autoScalingGroupInstanceCount != desiredInstanceCount) {
         cprint.cyan('Updating AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, desiredInstanceCount, {
+        aws.setAutoScalingGroupInstanceCount(awsAutoScalingGroupName, desiredInstanceCount, {
             cache: awsCache,
             profile: cluster.aws.profile,
             region: cluster.aws.region
@@ -3961,48 +3697,37 @@ function awsStopCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
+    const cluster = _loadCluster(serviceConfig, in_environment);
+
+    let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
+    if (!awsAutoScalingGroupName) {
+        throw new Error('Auto scaling group name not set');
     }
 
-    let autoScalingGroupName = cluster.auto_scaling_group.name;
-    if (!autoScalingGroupName) {
-        cprint.yellow('Auto scaling group name not set');
-        return false;
-    }
-
-    let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(autoScalingGroupName, {
+    let autoScalingGroupInstanceCount = aws.getAutoScalingGroupInstanceCount(awsAutoScalingGroupName, {
         profile: cluster.aws.profile,
         region: cluster.aws.region,
         showWarning: true
     });
     if (autoScalingGroupInstanceCount < 0) {
-        cprint.yellow('AWS cluster doesn\'t exist');
-        return;
+        throw new Error('AWS cluster doesn\'t exist');
     }
 
     if (autoScalingGroupInstanceCount > 0) {
         cprint.cyan('Stopping AWS cluster...');
-        aws.setAutoScalingGroupInstanceCount(autoScalingGroupName, 0, {
+        aws.setAutoScalingGroupInstanceCount(awsAutoScalingGroupName, 0, {
             cache: awsCache,
             profile: cluster.aws.profile,
             region: cluster.aws.region
@@ -4037,13 +3762,11 @@ function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
     }
 
     if (!in_ami) {
-        cprint.yellow('Instance AMI not provided');
-        return false;
+        throw new Error('Instance AMI not provided');
     }
 
     if (!in_ami.match(/ami-[a-f0-9]{8}/)) {
-        cprint.yellow('Instance AMI not valid a AMI id: ' + in_ami);
-        return false;
+        throw new Error('Instance AMI not valid a AMI id: ' + in_ami);
     }
 
     let clusters = serviceConfig.service.clusters || [];
@@ -4085,14 +3808,12 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
     }
 
     if (!in_count) {
-        cprint.yellow('Instance count not provided');
-        return false;
+        throw new Error('Instance count not provided');
     }
 
     let count = parseInt(in_count);
     if (isNaN(count) || count < 0) {
-        cprint.yellow('Instance count not a valid positive number: ' + in_count);
-        return false;
+        throw new Error('Instance count not a valid positive number: ' + in_count);
     }
 
     let clusters = serviceConfig.service.clusters || [];
@@ -4134,13 +3855,11 @@ function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
     }
 
     if (!in_type) {
-        cprint.yellow('Instance type not provided');
-        return false;
+        throw new Error('Instance type not provided');
     }
 
     if (awsInstanceTypes.ALL.indexOf(in_type) < 0) {
-        cprint.yellow('Instance type not valid: ' + in_type);
-        return false;
+        throw new Error('Instance type not valid: ' + in_type);
     }
 
     let clusters = serviceConfig.service.clusters || [];
@@ -4181,15 +3900,7 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsAccountId = cluster.aws.account_id || false;
 
@@ -4241,27 +3952,17 @@ function awsViewInstances (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let environment = cluster.environment;
-    let oldEnvironment = cluster.role === 'ecsServiceRole';
 
     let serviceName = serviceConfig.service.name;
     if (!serviceName) {
-        cprint.yellow('Service name not set');
-        return false;
+        throw new Error('Service name not set');
     }
 
     let awsRegion = cluster.aws.region;
-    let serviceKey = oldEnvironment ? 'ServiceName' : 'Service'; // TODO - Remove environment specific code
+    let serviceKey = 'Service';
 
     let url = `${awsRegion}.console.aws.amazon.com/ec2/v2/home?region=${awsRegion}#Instances:tag:Environment=${environment};tag:${serviceKey}=${serviceName}`;
     url = 'https://' + url;
@@ -4293,20 +3994,11 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsLoadBalancerName = cluster.load_balancer.name;
     if (!awsLoadBalancerName) {
-        cprint.yellow('Load balancer name not set');
-        return false;
+        throw new Error('Load balancer name not set');
     }
 
     let awsRegion = cluster.aws.region;
@@ -4341,20 +4033,11 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsLaunchConfigurationName = cluster.launch_configuration.name;
     if (!awsLaunchConfigurationName) {
-        cprint.yellow('Launch configuration name not set');
-        return false;
+        throw new Error('Launch configuration name not set');
     }
 
     let awsRegion = cluster.aws.region;
@@ -4370,6 +4053,7 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
 
 function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
+        cwd: 'STRING',
         service: {
             clusters: [
                 {
@@ -4389,20 +4073,16 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
-    let awsAutoScalingGroupName = cluster.auto_scaling_group.name;
+    const cluster = _loadCluster(serviceConfig, in_environment);
+
+    let awsAutoScalingGroupName = aws.getAwsAutoScalingGroupName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (!awsAutoScalingGroupName) {
-        cprint.yellow('Auto scaling group name not set');
-        return false;
+        throw new Error('Auto scaling group name not set');
     }
 
     let awsRegion = cluster.aws.region;
@@ -4411,6 +4091,11 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
     return true;
 }
 
@@ -4451,25 +4136,13 @@ function awsViewRepository (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
     if (!awsDockerImageName) {
-        cprint.yellow('AWS docker image name not set');
-        return false;
+        throw new Error('AWS docker image name not set');
     }
 
     let awsRegion = cluster.aws.region;
@@ -4504,25 +4177,16 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
         return;
     }
 
-    if (!aws.installed()) {
-        cprint.yellow('AWS-CLI isn\'t installed');
-        return false;
-    }
+    _assertAwsIsInstalled();
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let awsTaskDefinitionName = _getAwsTaskDefinitionName(in_serviceConfig, cluster);
+    let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!awsTaskDefinitionName) {
-        cprint.yellow('Service task definition name not set');
-        return false;
+        throw new Error('Service task definition name not set');
     }
 
     let awsRegion = cluster.aws.region;
@@ -4555,18 +4219,13 @@ function awsViewCluster (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsRegion = cluster.aws.region;
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/tasks`;
     url = 'https://' + url;
@@ -4597,19 +4256,17 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsRegion = cluster.aws.region;
-    let awsClusterName = _getAwsClusterName(in_serviceConfig, cluster);
-    let awsClusterServiceName = _getAwsClusterServiceName(in_serviceConfig, cluster);
+    let awsClusterName = aws.getAwsClusterName(in_serviceConfig, {
+        cluster: cluster
+    });
+
+    let awsClusterServiceName = aws.getAwsClusterServiceName(in_serviceConfig, {
+        cluster: cluster
+    });
+
 
     let url = `${awsRegion}.console.aws.amazon.com/ecs/home?region=${awsRegion}#/clusters/${awsClusterName}/services/${awsClusterServiceName}/tasks`;
     url = 'https://' + url;
@@ -4643,26 +4300,27 @@ function awsViewBucket (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
-    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
+    const cluster = _loadCluster(serviceConfig, in_environment);
+
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
     if (!awsBucketName) {
-        cprint.yellow('Service AWS bucket name is not set or');
-        return false;
+        throw new Error('Service AWS bucket name is not set or');
     }
 
     let url = `console.aws.amazon.com/s3/buckets/${awsBucketName}`;
     url = 'https://' + url;
     print.out(cprint.toMagenta('Opening Url: ') + cprint.toGreen(url) + '\n');
     _openUrl(url);
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
+
     return true;
 }
 
@@ -4690,20 +4348,11 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
     let awsBucketUsername = cluster.aws.bucket.username;
     if (!awsBucketUsername) {
-        cprint.yellow('Service bucket username not set');
-        return false;
+        throw new Error('Service bucket username not set');
     }
 
     let awsRegion = cluster.aws.region;
@@ -4734,20 +4383,14 @@ function awsViewEndpoint (in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig, in_environment);
 
-    let clusterUrl = _getAwsClusterUrl(in_serviceConfig, cluster);
+    let clusterUrl = aws.getAwsClusterUrl(in_serviceConfig, {
+        cluster: cluster
+    });
+
     if (!clusterUrl) {
-        cprint.yellow('No url defined for cluster');
-        return false;
+        throw new Error('No url defined for cluster');
     }
 
     let url = clusterUrl + '/v1/status'; // TODO: Configurable endpoint
@@ -4760,43 +4403,47 @@ function awsViewEndpoint (in_serviceConfig, in_environment) {
 // Helper Functions:
 // ******************************
 
+function _assertAwsIsInstalled () {
+    if (!aws.installed()) {
+        throw new Error('AWS-CLI isn\'t installed');
+    }
+}
+
+// ******************************
+
+function _assertDockerIsInstalled () {
+    if (!docker.installed()) {
+        throw new Error('Docker isn\'t installed');
+    }
+}
+
+// ******************************
+
+function _assertDockerIsRunning () {
+    if (!docker.running()) {
+        throw new Error('Docker isn\'t running');
+    }
+}
+
+// ******************************
+
+function _loadCluster (in_serviceConfig, in_environment) {
+    let cluster = aws.getEnvironmentCluster(in_serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            throw new Error('No cluster set for "' + in_environment + '" environment');
+        } else {
+            throw new Error('No default environment defined');
+        }
+    }
+}
+
+// ******************************
+
 function _openUrl (in_url) {
     let openUrl = require('open');
     openUrl(in_url);
 }
-
-// ******************************
-
-function _getAwsClusterName(in_serviceConfig, in_cluster) {
-    let clusterName = in_cluster.name;
-    clusterName = service.replaceConfigReferences(in_serviceConfig, clusterName);
-    return clusterName;
-}
-
-// ******************************
-
-function _getAwsClusterServiceName(in_serviceConfig, in_cluster) {
-    let clusterServiceName = in_cluster.service_name;
-    clusterServiceName = service.replaceConfigReferences(in_serviceConfig, clusterServiceName);
-    return clusterServiceName;
-}
-
-// ******************************
-
-function _getAwsTaskDefinitionName(in_serviceConfig, in_cluster) {
-    let taskDefinitionName = in_cluster.task_definition.name;
-    taskDefinitionName = service.replaceConfigReferences(in_serviceConfig, taskDefinitionName);
-    return taskDefinitionName;
-}
-
-// ******************************
-
-function _getAwsClusterUrl(in_serviceConfig, in_cluster) {
-    let clusterUrl = in_cluster.url;
-    clusterUrl = service.replaceConfigReferences(in_serviceConfig, clusterUrl);
-    return clusterUrl;
-}
-
 
 // ******************************
 // Plugin Functions:

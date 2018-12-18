@@ -20,7 +20,6 @@ module.exports['encrypt'] = (authBlob) => {
 
 module.exports['decrypt'] = (authBlob) => {
     _checkIsSet(authBlob, 'secureBlob.decryptBlob - authBlob');
-    const salt = os.hostname();
     try {
         return JSON.parse(_decrypt(authBlob));
     } catch (err) {

@@ -94,17 +94,19 @@ if (g_ARGV['help']) {
                     }
                 } catch (e) {
                     let stack = e.stack.replace(/[\\]/g, '\\$&');
+                    if (e instanceof Error) {
+                        print.out(cprint.toYellow('An error occured running ') + cprint.toWhite(`svr ${process.argv.slice(2).join(' ')}`) + cprint.toYellow(' ...') + '\n');
+                        print.out(cprint.toRed(e.message) + '\n');
+                        process.exit(1);
+                    }
 
-                    let errorTitle = 'AH BUGGER! AN ERROR OCCURED';
-                    print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
-                    print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow('  ' + errorTitle + '  ', true), true)) + '\n');
-                    print.out(cprint.toBackgroundRed(cprint.toBold(cprint.toYellow(' '.repeat(errorTitle.length + 4), true), true)) + '\n');
-                    print.out('\n');
+                    _printHeader('AH BUGGER! A BAD ERROR OCCURED', cprint.toBackgroundRed, (content, reset) => cprint.toBold(cprint.toYellow(content, reset), reset));
                     print.out(cprint.toMagenta('Please send the following to') + ' ' + cprint.toBold(cprint.toLightMagenta('joris.coppieters@gmail.com', true)) + '\n');
                     print.out('\n');
                     print.out(cprint.toYellow('Script Command: [' + process.argv.slice(2).join(', ') + ']') + '\n');
                     print.out(cprint.toYellow('Error Stack Trace: '));
                     print.out(cprint.toRed(stack) + '\n');
+                    print.out('\n');
                     process.exit(1);
                 }
             }
@@ -127,6 +129,16 @@ if (g_ARGV['help']) {
             }
         }
     }
+}
+
+// ******************************
+
+function _printHeader (in_title, in_backgroundFn, in_foregroundFn) {
+    print.out('\n');
+    print.out(in_backgroundFn(in_foregroundFn(' '.repeat(in_title.length + 4), true), true) + '\n');
+    print.out(in_backgroundFn(in_foregroundFn('  ' + in_title + '  ', true), true) + '\n');
+    print.out(in_backgroundFn(in_foregroundFn(' '.repeat(in_title.length + 4), true), true) + '\n');
+    print.out('\n');
 }
 
 // ******************************

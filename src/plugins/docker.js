@@ -37,8 +37,7 @@ function printDockerInfo (in_serviceConfig) {
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerImageDetails = _getDockerImageDetails(
@@ -56,85 +55,77 @@ function printDockerInfo (in_serviceConfig) {
     print.keyVal('Docker Password', dockerImageDetails.password ? '*******' : '(Not Set)');
     print.out('\n');
 
-    let dockerInstalled = docker.installed();
-    if (!dockerInstalled) {
-        cprint.yellow('Docker isn\'t installed');
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
-    let dockerRunning = docker.running();
-    if (!dockerRunning) {
-        cprint.yellow('Docker isn\'t running');
-    }
+    let containerName = getDockerContainerName(in_serviceConfig);
+    let containerState = getDockerContainerState(in_serviceConfig, true);
 
-    if (dockerInstalled && dockerRunning) {
-        let containerName = getDockerContainerName(in_serviceConfig);
-        let containerState = getDockerContainerState(in_serviceConfig, true);
+    cprint.magenta('-- Docker Container --');
+    print.keyVal('Container Name', containerName);
+    print.keyVal('Container State', containerState);
+    cprint.magenta('----');
+    print.out('\n');
 
-        cprint.magenta('-- Docker Container --');
-        print.keyVal('Container Name', containerName);
-        print.keyVal('Container State', containerState);
-        cprint.magenta('----');
+    cprint.magenta('-- Docker Image --');
+    print.keyVal('Docker Image Name', dockerImageName || '(Not Set)');
+    print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
+    print.out('\n');
+
+    if (dockerImageName && dockerImageDetails.username && docker.installed()) {
+        let dockerImageTags = docker.getImageTags(in_serviceConfig, {
+            includeVersionControlTags: true
+        });
+        let dockerImagePath = _getDockerImagePath(in_serviceConfig);
+
+        let dockerImageTaggedPaths = [];
+        dockerImageTags.forEach(t => {
+            dockerImageTaggedPaths.push(dockerImagePath + ':' + t);
+        });
+
+        cprint.magenta('-- Docker Image Paths --');
+        print.keyVal('Docker Image Path', dockerImagePath);
         print.out('\n');
 
-        cprint.magenta('-- Docker Image --');
-        print.keyVal('Docker Image Name', dockerImageName || '(Not Set)');
-        print.keyVal('Docker Image Version', dockerImageVersion || '(Not Set)');
-        print.out('\n');
+        cprint.magenta('-- Docker Image Tags --');
 
-        if (dockerImageName && dockerImageDetails.username && docker.installed()) {
-            let dockerImageTags = docker.getImageTags(in_serviceConfig, {
-                includeVersionControlTags: true
-            });
-            let dockerImagePath = _getDockerImagePath(in_serviceConfig);
+        let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
+        let cmdResult = docker.cmd(args, {
+            hide: true
+        });
 
-            let dockerImageTaggedPaths = [];
-            dockerImageTags.forEach(t => {
-                dockerImageTaggedPaths.push(dockerImagePath + ':' + t);
-            });
-
-            cprint.magenta('-- Docker Image Paths --');
-            print.keyVal('Docker Image Path', dockerImagePath);
-            print.out('\n');
-
-            cprint.magenta('-- Docker Image Tags --');
-
-            let args = ['images', '--format', '{{.Repository}}:{{.Tag}}\t{{.ID}}'];
-            let cmdResult = docker.cmd(args, {
-                hide: true
-            });
-
-            if (cmdResult.hasError) {
-                cmdResult.throwError();
-                return;
-            }
-
-            let imageTagLines = [];
-
-            cmdResult.rows
-                .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
-                .forEach(r => {
-                    let c = r.split(/\t/);
-                    let dockerImage = c[0];
-                    let currentDockerImage = (dockerImageTaggedPaths.indexOf(dockerImage) >= 0);
-                    if (currentDockerImage) {
-                        imageTagLines.push(cprint.toGreen(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toCyan(c[1]));
-                    } else {
-                        imageTagLines.push(cprint.toYellow(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow(c[1]));
-                    }
-                });
-
-            dockerImageTaggedPaths
-                .filter(p => !cmdResult.rows.find(r => r.match(new RegExp('^' + p))))
-                .forEach(p => {
-                    imageTagLines.push(cprint.toYellow(p) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow('untagged'));
-                });
-
-            imageTagLines = imageTagLines.sort();
-
-            print.out(imageTagLines.join('\n'));
-            print.out('\n');
+        if (cmdResult.hasError) {
+            cmdResult.throwError();
+            return;
         }
+
+        let imageTagLines = [];
+
+        cmdResult.rows
+            .filter(r => r.match(new RegExp('^' + dockerImagePath + ':')))
+            .forEach(r => {
+                let c = r.split(/\t/);
+                let dockerImage = c[0];
+                let currentDockerImage = (dockerImageTaggedPaths.indexOf(dockerImage) >= 0);
+                if (currentDockerImage) {
+                    imageTagLines.push(cprint.toGreen(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toCyan(c[1]));
+                } else {
+                    imageTagLines.push(cprint.toYellow(dockerImage) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow(c[1]));
+                }
+            });
+
+        dockerImageTaggedPaths
+            .filter(p => !cmdResult.rows.find(r => r.match(new RegExp('^' + p))))
+            .forEach(p => {
+                imageTagLines.push(cprint.toYellow(p) + ' ' + cprint.toWhite('-') + ' ' + cprint.toYellow('untagged'));
+            });
+
+        imageTagLines = imageTagLines.sort();
+
+        print.out(imageTagLines.join('\n'));
+        print.out('\n');
     }
+
     cprint.magenta('----');
 }
 
@@ -150,26 +141,17 @@ function pullDockerImage (in_serviceConfig) {
         }
     });
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerImageTags = docker.getImageTags(in_serviceConfig, {
@@ -227,26 +209,17 @@ function buildDockerImage (in_serviceConfig, in_options, in_doneCb) {
 
     let path = require('path');
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let sourceFolder = serviceConfig.cwd || false;
@@ -260,14 +233,12 @@ function buildDockerImage (in_serviceConfig, in_options, in_doneCb) {
     }
 
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        cprint.yellow('Docker folder doesn\'t exist');
-        return;
+        throw new Error('Docker folder doesn\'t exist');
     }
 
     let serviceDockerfile = docker.getDockerfile(sourceFolder);
     if (!serviceDockerfile) {
-        cprint.yellow('Service Dockerfile not set');
-        return;
+        throw new Error('Service Dockerfile not set');
     }
 
     let dockerImageTags = docker.getImageTags(in_serviceConfig, {
@@ -392,26 +363,17 @@ function pushDockerImage (in_serviceConfig) {
         }
     });
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerImageDetails = _getDockerImageDetails(
@@ -445,26 +407,17 @@ function cleanDockerImages (in_serviceConfig, in_options, in_doneCb) {
     let options = in_options || {};
     let doneCb = in_doneCb || (() => {});
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerImageTags = docker.getImageTags(in_serviceConfig, {
@@ -549,26 +502,17 @@ function cleanDockerImages (in_serviceConfig, in_options, in_doneCb) {
 // ******************************
 
 function purgeDockerImages (in_serviceConfig, in_force) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let zombieDockerImageIds = _getZombieDockerImageIds();
@@ -696,8 +640,7 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
 
     let dockerImageVersion = serviceConfig.docker.image.version || false;
     if (!dockerImageVersion || !dockerImageVersion.match(/[0-9]+\.[0-9]+\.[0-9]+/)) {
-        cprint.yellow('Docker image version cannot be incremented');
-        return false;
+        throw new Error('Docker image version cannot be incremented');
     }
 
     let versionParts = dockerImageVersion.split(/[.]/);
@@ -733,26 +676,17 @@ function setDockerImageVersion (in_serviceConfig, in_args, in_params) {
 // ******************************
 
 function dockerLogin (in_serviceConfig) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerOrganization = false;
@@ -774,15 +708,8 @@ function dockerLogin (in_serviceConfig) {
 // ******************************
 
 function startDockerContainer (in_serviceConfig, in_attach) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     _startDockerContainer(in_serviceConfig, {
         attach: in_attach
@@ -792,15 +719,8 @@ function startDockerContainer (in_serviceConfig, in_attach) {
 // ******************************
 
 function enterDockerContainer (in_serviceConfig) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let runningDockerContainerId = getRunningDockerContainerId(in_serviceConfig);
     if (!runningDockerContainerId) {
@@ -838,15 +758,8 @@ function enterDockerContainer (in_serviceConfig) {
 // ******************************
 
 function stopDockerContainer (in_serviceConfig) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     if (getDockerContainerState(in_serviceConfig) < docker.k_STATE_RUNNING) {
         return;
@@ -870,19 +783,11 @@ function stopDockerContainer (in_serviceConfig) {
 // ******************************
 
 function removeDockerContainer (in_serviceConfig) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     if (getDockerContainerState(in_serviceConfig) === docker.k_STATE_UNKNOWN) {
-        cprint.yellow('No stopped container found');
-        return;
+        throw new Error('No stopped container found');
     }
 
     stopDockerContainer(in_serviceConfig);
@@ -911,15 +816,8 @@ function removeDockerContainer (in_serviceConfig) {
 // ******************************
 
 function removeDockerImageIdContainer (in_dockerImageId) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let dockerContainerIds = getDockerImageIdContainerIds(in_dockerImageId, true);
     dockerContainerIds.forEach(id => {
@@ -957,25 +855,16 @@ function verifyDockerContainer (in_serviceConfig) {
         }
     });
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_RUNNING) {
-        cprint.yellow('No running container found');
-        return;
+        throw new Error('No running container found');
     }
 
     let tests = serviceConfig.docker.image.tests || [];
     if (!tests.length) {
-        cprint.yellow('No tests have been setup');
-        return;
+        throw new Error('No tests have been setup');
     }
 
     cprint.cyan('Running tests:');
@@ -1023,8 +912,7 @@ function getDockerContainerName (in_serviceConfig) {
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let containerName = serviceConfig.docker.container.name || dockerImageName || 'container';
@@ -1034,15 +922,8 @@ function getDockerContainerName (in_serviceConfig) {
 // ******************************
 
 function getDockerContainerState (in_serviceConfig, in_nice) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let containerName = getDockerContainerName(in_serviceConfig);
 
@@ -1077,15 +958,8 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
 function getRunningDockerContainerId (in_serviceConfig) {
     cprint.cyan('Checking docker container is running...');
 
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let containerName = getDockerContainerName(in_serviceConfig);
 
@@ -1108,15 +982,8 @@ function getRunningDockerContainerId (in_serviceConfig) {
 // ******************************
 
 function getDockerImageIdContainerIds (in_dockerImageId, in_includeStopped) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let args = [];
     args.push('ps');
@@ -1139,15 +1006,8 @@ function getDockerImageIdContainerIds (in_dockerImageId, in_includeStopped) {
 // ******************************
 
 function printDockerContainerStats (in_serviceConfig) {
-    if (!docker.installed()) {
-        cprint.yellow('Docker isn\'t installed');
-        return false;
-    }
-
-    if (!docker.running()) {
-        cprint.yellow('Docker isn\'t running');
-        return false;
-    }
+    _assertDockerIsInstalled();
+    _assertDockerIsRunning();
 
     let containerName = getDockerContainerName(in_serviceConfig);
     let containerState = getDockerContainerState(in_serviceConfig, true);
@@ -1169,14 +1029,12 @@ function editServiceDockerfile (in_serviceConfig) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        cprint.yellow('Source folder not set');
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceDockerfile = docker.getDockerfile(sourceFolder);
     if (!serviceDockerfile) {
-        cprint.yellow('Service Dockerfile not set');
-        return;
+        throw new Error('Service Dockerfile not set');
     }
 
     edit.file(serviceDockerfile);
@@ -1203,13 +1061,11 @@ function addVolume (in_serviceConfig, in_mount, in_path) {
     });
 
     if (!in_mount) {
-        cprint.yellow('Mount location must be defined');
-        return;
+        throw new Error('Mount location must be defined');
     }
 
     if (!in_path || !fs.folderExists(in_path)) {
-        cprint.yellow(`Volume path "${in_path}" doesn't exist`);
-        return;
+        throw new Error(`Volume path "${in_path}" doesn't exist`);
     }
 
     let existingMount = serviceConfig.docker.container.volumes.find(volume => {
@@ -1221,8 +1077,7 @@ function addVolume (in_serviceConfig, in_mount, in_path) {
     });
 
     if (existingMount) {
-        cprint.yellow(`Mount point "${in_mount}" is already defined in the serivce configuration`);
-        return;
+        throw new Error(`Mount point "${in_mount}" is already defined in the serivce configuration`);
     }
 
     let volumes = serviceConfig.docker.container.volumes.concat({
@@ -1243,6 +1098,35 @@ function addVolume (in_serviceConfig, in_mount, in_path) {
 
 // ******************************
 // Helper Functions:
+// ******************************
+
+function _assertDockerIsInstalled () {
+    if (!docker.installed()) {
+        throw new Error('Docker isn\'t installed');
+    }
+}
+
+// ******************************
+
+function _assertDockerIsRunning () {
+    if (!docker.running()) {
+        throw new Error('Docker isn\'t running');
+    }
+}
+
+// ******************************
+
+function _loadCluster (in_serviceConfig, in_environment) {
+    let cluster = aws.getEnvironmentCluster(in_serviceConfig.service.clusters, in_environment);
+    if (!cluster) {
+        if (in_environment) {
+            throw new Error('No cluster set for "' + in_environment + '" environment');
+        } else {
+            throw new Error('No default environment defined');
+        }
+    }
+}
+
 // ******************************
 
 function _startDockerContainer (in_serviceConfig, in_options) {
@@ -1313,6 +1197,8 @@ function _startDockerContainer (in_serviceConfig, in_options) {
         cwd: 'STRING'
     });
 
+    let awsCache = cache.load(serviceConfig.cwd, 'aws') || {};
+
     let path = require('path');
 
     let memoryLimit = serviceConfig.docker.container.memory_limit || false;
@@ -1328,8 +1214,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     }
 
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        cprint.yellow('Docker folder doesn\'t exist');
-        return;
+        throw new Error('Docker folder doesn\'t exist');
     }
 
     if (getDockerContainerState(in_serviceConfig) !== docker.k_STATE_UNKNOWN) {
@@ -1338,8 +1223,7 @@ function _startDockerContainer (in_serviceConfig, in_options) {
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerImageDetails = _getDockerImageDetails(
@@ -1480,27 +1364,27 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let environmentVariableReplacements = {};
     environmentVariableReplacements['MODEL_BUCKET'] = 'Unknown';
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters);
-    if (cluster) {
-        let awsBucketName = aws.getAwsBucketName(in_serviceConfig, cluster);
-        if (awsBucketName) {
-            environmentVariableReplacements['MODEL_BUCKET'] = awsBucketName;
-        }
+    const cluster = _loadCluster(serviceConfig);
+
+    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
+    if (awsBucketName) {
+        environmentVariableReplacements['MODEL_BUCKET'] = awsBucketName;
     }
 
     let hasAWSEnvironmentVariables = !!Object.keys(environmentVariableArgs)
         .find(environmentVariable => ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_SESSION_TOKEN'].indexOf(environmentVariable) >= 0);
 
-    if (hasAWSEnvironmentVariables)
-    {
+    if (hasAWSEnvironmentVariables) {
         let roleCredentials = _getAWSAssumedRoleCredentials(in_serviceConfig);
         if (roleCredentials) {
             environmentVariableReplacements['AWS_ACCESS_KEY_ID'] = roleCredentials['AccessKeyId'];
             environmentVariableReplacements['AWS_SECRET_ACCESS_KEY'] = roleCredentials['SecretAccessKey'];
             environmentVariableReplacements['AWS_SESSION_TOKEN'] = roleCredentials['SessionToken'];
         } else {
-            cprint.yellow('Cannot start docker container since it requires valid credentials');
-            return;
+            throw new Error('Cannot start docker container since it requires valid credentials');
         }
     }
 
@@ -1519,6 +1403,10 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     });
 
     args.push(dockerImagePath);
+
+    if (service.hasConfigFile(serviceConfig.cwd)) {
+        cache.save(serviceConfig.cwd, 'aws', awsCache);
+    }
 
     if (runWithBash) {
         if (dockerImageStartCommand && !useBash) {
@@ -1552,7 +1440,6 @@ function _startDockerContainer (in_serviceConfig, in_options) {
             cmdResult.printResult('  ');
         }
         return !cmdResult.hasError;
-
     }
 }
 
@@ -1579,18 +1466,14 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
         return;
     }
 
-    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
-    if (!cluster) {
-        if (in_environment) {
-            cprint.yellow('No cluster set for "' + in_environment + '" environment');
-        } else {
-            cprint.yellow('No default environment defined');
-        }
-        return false;
-    }
+    const cluster = _loadCluster(serviceConfig);
 
-    let awsRoleName = aws.getServiceRole(in_serviceConfig, cluster);
     let awsCache = cache.load(serviceConfig.cwd, 'aws') || {};
+
+    let awsRoleName = aws.getServiceRole(in_serviceConfig, {
+        cluster: cluster,
+        cache: awsCache
+    });
 
     let roleCredentials = aws.getRoleCredentialsForRoleName(awsRoleName, {
         cache: awsCache,
@@ -1611,8 +1494,7 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
 function _getDockerImageDetails (in_serviceConfig, in_dockerRepository, in_dockerImageName, in_dockerRepositoryStore) {
     let dockerUsername = docker.getUsername(in_serviceConfig);
     if (!dockerUsername) {
-        cprint.yellow('Docker Image username not set');
-        return;
+        throw new Error('Docker Image username not set');
     }
 
     let dockerPassword = docker.getPassword(in_serviceConfig);
@@ -1647,8 +1529,7 @@ function _getDockerImagePath (in_serviceConfig) {
 
     let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     if (!dockerImageName) {
-        cprint.yellow('Docker image name not set');
-        return false;
+        throw new Error('Docker image name not set');
     }
 
     let dockerImageDetails = _getDockerImageDetails(
