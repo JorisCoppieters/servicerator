@@ -2691,7 +2691,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
     }
 
     if (!awsInstalled()) {
-        return;
+        throw new Error('AWS-CLI isn\'t installed');
     }
 
     let profile = cluster.aws.profile || 'default';
@@ -2708,7 +2708,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
     let awsConfig = ini.parseFile(awsConfigFile);
 
     let awsCredentialsFile = path.resolve(homeFolder, '.aws', 'credentials');
-    let awsCredentials = ini.parseFile(awsCredentialsFile);
+    let awsCredentials = ini.parseFile(awsCredentialsFile) || {};
 
     let awsCache = cache.load(in_serviceConfig.cwd, 'aws') || {};
 
@@ -2810,7 +2810,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
     if (reloadConfigFiles) {
         //Reload the ini files as they may have changed off the back of configuration
         awsConfig = ini.parseFile(awsConfigFile);
-        awsCredentials = ini.parseFile(awsCredentialsFile);
+        awsCredentials = ini.parseFile(awsCredentialsFile) || {};
     }
 
     if (awsConfig[profile]) {
@@ -2960,7 +2960,7 @@ function configureProfileAsRoleWithSaml (in_options) {
         throw new Error('No policy URL defined!');
     }
 
-    let awsCredentials =  ini.parseFile(opts.credentialsFile);
+    let awsCredentials = ini.parseFile(opts.credentialsFile) || {};
 
     let roleCredentials = getRoleSamlCredentials(roleArn, principalArn, sessionUrl, sessionHeaders, policyUrl, in_options);
     if (!roleCredentials) {

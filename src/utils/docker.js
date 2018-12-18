@@ -223,12 +223,12 @@ function getDockerImageTags (in_serviceConfig, in_options) {
 function getDockerLoggedInRepositoryStores () {
     let path = require('path');
 
-    let userExplorerHome = env.getUserExplorerHome();
-    if (!userExplorerHome || !fs.folderExists(userExplorerHome)) {
+    let userHome = env.getUserHome();
+    if (!userHome || !fs.folderExists(userHome)) {
         throw new Error('User home folder doesn\'t exist');
     }
 
-    let dockerLoginConfigFile = path.resolve(userExplorerHome, '.docker', 'config.json');
+    let dockerLoginConfigFile = path.resolve(userHome, '.docker', 'config.json');
     let dockerLoginConfig = require(dockerLoginConfigFile);
 
     let auths = dockerLoginConfig.auths || {};
