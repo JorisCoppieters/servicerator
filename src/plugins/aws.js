@@ -66,9 +66,6 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -346,9 +343,6 @@ function awsTagDockerImage(in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
     _assertDockerIsInstalled();
@@ -452,9 +446,6 @@ function awsPushDockerImage(in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
     _assertDockerIsInstalled();
@@ -532,9 +523,6 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -764,9 +752,6 @@ function awsGetDockerCommand (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -995,9 +980,6 @@ function awsCreateLaunchConfiguration (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -1250,9 +1232,6 @@ function awsCreateLoadBalancer (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -1534,9 +1513,6 @@ function awsCreateAutoScalingGroup (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -1768,9 +1744,6 @@ function awsCreateBucket (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -1842,9 +1815,6 @@ function awsCreateBucketUser (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -2051,9 +2021,6 @@ function awsCreateRepository (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -2176,9 +2143,6 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -2535,9 +2499,6 @@ function awsCreateCluster (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -2643,9 +2604,6 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -2827,9 +2785,6 @@ function awsCreateEC2AccessECSRole (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -2933,9 +2888,6 @@ function awsCreateECSAccessELBRole (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -3062,9 +3014,6 @@ function awsCleanLaunchConfigurations (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     cprint.cyan('Cleaning launch configurations...');
 
@@ -3164,9 +3113,6 @@ function awsCleanRepository (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     cprint.cyan('Cleaning repositories...');
 
@@ -3256,9 +3202,6 @@ function awsCleanTaskDefinitions (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     cprint.cyan('Cleaning task definitions...');
 
@@ -3358,9 +3301,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -3566,25 +3506,6 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
 // ******************************
 
 function awsDockerLogin (in_serviceConfig, in_environment) {
-    let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
-        cwd: 'STRING',
-        service: {
-            clusters: [
-                {
-                    aws: {
-                        account_id: 'STRING',
-                        region: 'STRING'
-                    },
-                    default: 'BOOLEAN',
-                    environment: 'STRING'
-                }
-            ]
-        }
-    });
-    if (!serviceConfig) {
-        return;
-    }
-
     _assertAwsIsInstalled();
     _assertDockerIsInstalled();
     _assertDockerIsRunning();
@@ -3637,9 +3558,6 @@ function awsStartCluster (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -3719,9 +3637,6 @@ function awsStopCluster (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -3783,9 +3698,6 @@ function awsSetInstanceAmi (in_serviceConfig, in_environment, in_ami) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     if (!in_ami) {
         throw new Error('Instance AMI not provided');
@@ -3829,9 +3741,6 @@ function awsSetInstanceCount (in_serviceConfig, in_environment, in_count) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     if (!in_count) {
         throw new Error('Instance count not provided');
@@ -3876,9 +3785,6 @@ function awsSetInstanceType (in_serviceConfig, in_environment, in_type) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     if (!in_type) {
         throw new Error('Instance type not provided');
@@ -3922,9 +3828,6 @@ function awsViewConsoleLogin (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -3959,9 +3862,6 @@ function awsViewAll (in_serviceConfig, in_environment) {
         }
     });
 
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4005,9 +3905,6 @@ function awsViewInfrastructure (in_serviceConfig, in_environment) {
         }
     });
 
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4046,9 +3943,6 @@ function awsViewInstances (in_serviceConfig, in_environment) {
             name: 'STRING'
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4088,9 +3982,6 @@ function awsViewLoadBalancer (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4128,9 +4019,6 @@ function awsViewLaunchConfiguration (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4169,9 +4057,6 @@ function awsViewAutoScalingGroup (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -4224,9 +4109,6 @@ function awsViewDeliveryStructure (in_serviceConfig, in_environment) {
         }
     });
 
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4272,9 +4154,6 @@ function awsViewRepository (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -4314,9 +4193,6 @@ function awsViewTaskDefinition (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     _assertAwsIsInstalled();
 
@@ -4357,9 +4233,6 @@ function awsViewCluster (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4394,9 +4267,6 @@ function awsViewClusterService (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4438,9 +4308,6 @@ function awsViewBucket (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     let awsCache = cache.load(serviceConfig.cwd, 'aws');
 
@@ -4487,9 +4354,6 @@ function awsViewBucketUser (in_serviceConfig, in_environment) {
             ]
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 
@@ -4522,9 +4386,6 @@ function awsViewEndpoint (in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig, in_environment);
 

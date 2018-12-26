@@ -52,8 +52,7 @@ function getClusterArnForClusterName (in_clusterName, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsClusterArn;
@@ -194,8 +193,7 @@ function getClusterServiceArnForClusterName (in_clusterArn, in_clusterServiceNam
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsClusterServiceArn;
@@ -339,8 +337,7 @@ function getTasks (in_clusterName, in_taskArns, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsTasks;
@@ -424,8 +421,7 @@ function getClusterTaskArnsForCluster (in_clusterName, in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsResult = parseAwsCmdResult(cmdResult);
@@ -477,8 +473,7 @@ function getTaskDefinition (in_taskDefinitionArn, in_options) { //TODO: Check
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsTaskDefinition;
@@ -566,8 +561,7 @@ function getTaskDefinitionArnForClusterService (in_clusterName, in_clusterServic
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsTaskDefinitionArn;
@@ -861,8 +855,7 @@ function getContainerInstance (in_clusterName, in_containerInstanceArn, in_optio
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsTasks;
@@ -916,8 +909,7 @@ function getDockerRepositoryForDockerImageName (in_dockerImageName, in_options) 
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsRepository;
@@ -971,8 +963,7 @@ function getDockerRepositoryImagesForRepositoryName (in_dockerRepositoryName, in
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let awsRepositoryImages;
@@ -1116,8 +1107,7 @@ function getLaunchConfigurationsLike (in_launchConfigurationTemplate, in_options
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let launchConfigurations;
@@ -1240,8 +1230,7 @@ function getAutoScalingGroups (in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let autoScalingGroups;
@@ -1293,8 +1282,7 @@ function getAutoScalingGroupInstanceCount (in_autoScalingGroupName, in_options) 
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let desiredCapacity;
@@ -1372,8 +1360,7 @@ function getTargetGroups (in_options) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let autoScalingGroups;
@@ -1475,8 +1462,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         });
 
         if (cmdResult.hasError) {
-            cmdResult.throwError();
-            return;
+            return cmdResult.throwError();
         }
 
         let reponseRows =
@@ -1510,8 +1496,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
     });
 
     if (cmdResult.hasError) {
-        cmdResult.throwError();
-        return;
+        return cmdResult.throwError();
     }
 
     let samlRegExp = new RegExp(/name="SAMLResponse" value="(.+?)"/, 'i');
@@ -1937,8 +1922,7 @@ function getMultiFactorAuthDevice (in_options) {
     }
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.throwError();
-        return;
+        return awsCmdResult.throwError();
     }
 
     let mfaDevice = false;
@@ -2001,8 +1985,7 @@ function getUsername (in_options) {
     }
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.throwError();
-        return;
+        return awsCmdResult.throwError();
     }
 
     let accessKeysResponse = JSON.parse(awsCmdResult.result);
@@ -2185,8 +2168,7 @@ function getSessionToken (in_profile, in_options) {
     });
 
     if (awsCmdResult.hasError) {
-        awsCmdResult.throwError();
-        return;
+        return awsCmdResult.throwError();
     }
 
     let awsSessionToken = JSON.parse(awsCmdResult.result);
@@ -2687,7 +2669,8 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
-        return;
+        // Nothing to do if no clusters are defined
+        return serviceConfig;
     }
 
     if (!awsInstalled()) {
@@ -2987,10 +2970,9 @@ function getMergedAwsServiceConfig (in_serviceConfig, in_environment) {
     let serviceConfig = in_serviceConfig || {};
     let awsServiceConfig = getServiceConfig(in_serviceConfig, in_environment);
     if (!awsServiceConfig) {
-        return;
+        throw new Error('AWS service config isn\'t set!');
     }
-    serviceConfig = service.combineConfig(awsServiceConfig, serviceConfig);
-    return serviceConfig;
+    return service.combineConfig(awsServiceConfig, serviceConfig);
 }
 
 // ******************************
@@ -3151,9 +3133,6 @@ function getDockerImageName (in_serviceConfig, in_cluster) {
             }
         }
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     let awsDockerImageName = undefined;
     if (!awsDockerImageName && in_cluster) {

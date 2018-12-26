@@ -164,7 +164,7 @@ function createServiceConfig (in_folderName, in_initialise) {
 
 function checkServiceConfigSchema (in_serviceConfig) {
     if (!in_serviceConfig) {
-        return;
+        throw new Error('Service config isn\'t set!');
     }
 
     let warning = true;
@@ -175,7 +175,11 @@ function checkServiceConfigSchema (in_serviceConfig) {
 
 function accessServiceConfig (in_serviceConfig, in_accessConfig) {
     if (!in_serviceConfig) {
-        return;
+        throw new Error('Service config isn\'t set!');
+    }
+
+    if (!in_accessConfig) {
+        throw new Error('Access config isn\'t set!');
     }
 
     let accessConfig = _convertToJSONSchema(in_accessConfig);
@@ -356,18 +360,12 @@ function createServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Source folder not set');
-        }
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceFolder = in_serviceFolder || false;
     if (!serviceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Service folder not set');
-        }
-        return;
+        throw new Error('Service folder not set');
     }
 
     let folderPath = path.resolve(sourceFolder, serviceFolder.path);
@@ -388,18 +386,12 @@ function linkServiceFolder (in_serviceConfig, in_serviceFolder, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Source folder not set');
-        }
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceFolder = in_serviceFolder || false;
     if (!serviceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Service folder not set');
-        }
-        return;
+        throw new Error('Service folder not set');
     }
 
     let source = path.resolve(sourceFolder, serviceFolder.source);
@@ -428,18 +420,12 @@ function createServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Source folder not set');
-        }
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceFile = in_serviceFile || false;
     if (!serviceFile) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Service file not set');
-        }
-        return;
+        throw new Error('Service file not set');
     }
 
     opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
@@ -471,18 +457,12 @@ function linkServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Source folder not set');
-        }
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceFile = in_serviceFile || false;
     if (!serviceFile) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Service file not set');
-        }
-        return;
+        throw new Error('Service file not set');
     }
 
     opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
@@ -513,18 +493,12 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     let sourceFolder = serviceConfig.cwd || false;
     if (!sourceFolder) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Source folder not set');
-        }
-        return;
+        throw new Error('Source folder not set');
     }
 
     let serviceFile = in_serviceFile || false;
     if (!serviceFile) {
-        if (!opts.hideWarnings) {
-            cprint.yellow('Service file not set');
-        }
-        return;
+        throw new Error('Service file not set');
     }
 
     opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
@@ -547,8 +521,7 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
 function initFolder (in_folderName) {
     if (in_folderName.match(/\.\.\/?/)) {
-        cprint.yellow('Invalid path: ' + in_folderName);
-        return false;
+        throw new Error('Invalid path: ' + in_folderName);
     }
 
     let sourceFolder = fs.cwd();
@@ -571,8 +544,7 @@ function initFolder (in_folderName) {
     }
 
     if (!serviceConfig) {
-        cprint.yellow('Failed to create service config');
-        return;
+        throw new Error('Failed to create service config');
     }
 
     return serviceConfig;
@@ -605,8 +577,7 @@ function updateServiceConfig (in_serviceConfig, in_newServiceConfig, in_options)
 
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
-        cprint.yellow('Invalid source folder: ' + sourceFolder);
-        return false;
+        throw new Error('Invalid source folder: ' + sourceFolder);
     }
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
@@ -636,8 +607,7 @@ function removeServiceConfig (in_serviceConfig, in_removeServiceConfig, in_optio
 
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
-        cprint.yellow('Invalid source folder: ' + sourceFolder);
-        return false;
+        throw new Error('Invalid source folder: ' + sourceFolder);
     }
 
     let savedServiceConfig = loadServiceConfig(sourceFolder);
@@ -1350,8 +1320,7 @@ function _saveServiceConfig (in_serviceConfig, in_options) {
 
     let sourceFolder = serviceConfig.cwd;
     if (!sourceFolder) {
-        cprint.yellow('Invalid source folder: ' + sourceFolder);
-        return false;
+        throw new Error('Invalid source folder: ' + sourceFolder);
     }
 
     if (!opts.hideWarnings) {

@@ -559,9 +559,6 @@ function purgeDockerImages (in_serviceConfig, in_force) {
 
 function incrementalPushDockerImage (in_serviceConfig, in_noCache) {
     let serviceConfig = setDockerImageVersion(in_serviceConfig, [], ['+b']);
-    if (!serviceConfig) {
-        return;
-    }
 
     buildDockerImage(serviceConfig, {
         noCache: in_noCache
@@ -1365,14 +1362,15 @@ function _startDockerContainer (in_serviceConfig, in_options) {
     let environmentVariableReplacements = {};
     environmentVariableReplacements['MODEL_BUCKET'] = 'Unknown';
 
-    const cluster = _loadCluster(serviceConfig);
-
-    let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
-        cluster: cluster,
-        cache: awsCache
-    });
-    if (awsBucketName) {
-        environmentVariableReplacements['MODEL_BUCKET'] = awsBucketName;
+    let cluster = aws.getEnvironmentCluster(serviceConfig.service.clusters); // Try get default cluster
+    if (cluster) {
+        let awsBucketName = aws.getAwsBucketName(in_serviceConfig, {
+            cluster: cluster,
+            cache: awsCache
+        });
+        if (awsBucketName) {
+            environmentVariableReplacements['MODEL_BUCKET'] = awsBucketName;
+        }
     }
 
     let hasAWSEnvironmentVariables = !!Object.keys(environmentVariableArgs)
@@ -1463,9 +1461,6 @@ function _getAWSAssumedRoleCredentials(in_serviceConfig, in_environment) {
         },
         cwd: 'STRING'
     });
-    if (!serviceConfig) {
-        return;
-    }
 
     const cluster = _loadCluster(serviceConfig);
 
