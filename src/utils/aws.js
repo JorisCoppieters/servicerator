@@ -3167,7 +3167,7 @@ function getServiceRole (in_serviceConfig, in_options) {
             profile: cluster.aws.profile,
             region: cluster.aws.region,
             partialMatch: true,
-            verbose: true
+            verbose: opts.verbose
         });
     }
     return serviceRole;
@@ -3213,6 +3213,9 @@ function getAwsAutoScalingGroupName (in_serviceConfig, in_options) {
             partialMatch: true,
             verbose: true
         });
+        if (!autoScalingGroup) {
+            return;
+        }
 
         autoScalingGroupName = autoScalingGroup.AutoScalingGroupName;
     }
@@ -3570,7 +3573,7 @@ function _getAutoScalingGroupForAutoScalingGroupName (in_autoScalingGroupName, i
         if (!opts.hideWarnings) {
             cprint.yellow('Couldn\'t find Auto Scaling Group Name for Auto Scaling Group "' + in_autoScalingGroupName + '"');
         }
-        return false;
+        return;
     }
 
     awsCache[cacheKey] = {

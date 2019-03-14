@@ -35,12 +35,8 @@ function printServiceInfo (in_serviceConfig) {
 
     let serviceConfigFile = env.getServiceConfigFile();
 
-    let dockerImageName = aws.getDockerImageName(in_serviceConfig);
-    if (!dockerImageName) {
-        throw new Error('Docker image name not set');
-    }
-
     let serviceName = serviceConfig.service.name || false;
+    let dockerImageName = aws.getDockerImageName(in_serviceConfig);
     let dockerUsername = serviceConfig.docker.username || false;
     let dockerImageVersion = serviceConfig.docker.image.version || false;
     let dockerImageTags = docker.getImageTags(in_serviceConfig);

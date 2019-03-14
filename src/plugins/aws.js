@@ -43,6 +43,7 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
                         account_id: 'STRING',
                         profile: 'STRING',
                         region: 'STRING',
+                        service_role: 'STRING',
                         bucket: {
                             name: 'STRING',
                             permissions: [
@@ -165,6 +166,19 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
 
             if (awsClusterServiceArn) {
                 print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Running', 'Yes');
+
+                print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Role', '...', true);
+
+                let awsRoleName = aws.getServiceRole(in_serviceConfig, {
+                    cache: awsCache,
+                    cluster: cluster
+                });
+
+                if (awsRoleName) {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Role', awsRoleName);
+                } else {
+                    print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Role', '???');
+                }
 
                 print.keyVal(prefixedEnvironmentTitle + ' Cluster Service Task Definition', '...', true);
                 let awsTaskDefinitionArn = aws.getTaskDefinitionArnForClusterService(awsClusterName, awsClusterServiceArn, {
@@ -2190,7 +2204,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
 
     let awsRoleName = aws.getServiceRole(in_serviceConfig, {
         cache: awsCache,
-        cluster: cluster
+        cluster: cluster,
+        verbose: true
     });
 
     let taskDefinitionRoleArn = false;
