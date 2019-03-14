@@ -44,7 +44,7 @@ fi
 
 if [[ `ask "Do you want to publish $VERSION?" && echo true` == true ]]; then
   echo "Updating version number in files..."
-  sed -i "s/\"version\": \".*\",/\"version\": \"$VERSION\",/g" package.json
+  sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/g" package.json
   sed -i "s/\/\/ SERVICERATOR v.*/\/\/ SERVICERATOR v$VERSION/g" index.js
   sed -i "s/const c_VERSION = '.*';/const c_VERSION = '$VERSION';/g" src/constants.js
 
