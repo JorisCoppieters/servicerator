@@ -162,7 +162,11 @@ function generateAuthFiles (in_serviceConfig) {
 
     let urls = serviceConfig.service.clusters
         .filter(c => c.url)
-        .map(c => service.replaceConfigReferences(in_serviceConfig, c.url)) || [];
+        .map(c => service.replaceConfigReferences(in_serviceConfig, c.url))
+        .map(url => url
+            .replace(/^https?:\/\//, '')
+            .replace(/:[0-9]+/, '')
+        ) || [];
 
     let firstUrl = urls[0] || false;
     let otherUrls = urls.slice(1);

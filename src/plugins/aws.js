@@ -3520,6 +3520,14 @@ function awsUpdateAutoScalingGroup (in_serviceConfig, in_environment) {
 
 // ******************************
 
+function awsLogin (in_serviceConfig, in_environment) {
+    service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {});
+    cprint.green('Successfully logged in!');
+    return true;
+}
+
+// ******************************
+
 function awsDockerLogin (in_serviceConfig, in_environment) {
     _assertAwsIsInstalled();
     _assertDockerIsInstalled();
@@ -4487,6 +4495,10 @@ function handleCommand (in_args, in_params, in_serviceConfig) {
         printAwsServiceInfo(in_serviceConfig, env, extra);
         break;
 
+    case 'login':
+        awsLogin(in_serviceConfig, env);
+        break;
+
     case 'docker-login':
         awsDockerLogin(in_serviceConfig, env);
         break;
@@ -4718,6 +4730,7 @@ function getCommands () {
             {param:'environment', description:'Environment'},
             {param:'extra', description:'Include extra information'}
         ] },
+        { params: ['login'], description: 'Authenticate with AWS', options: [{param:'environment', description:'Environment'}] },
         { params: ['docker-login'], description: 'Log into AWS docker repository', options: [{param:'environment', description:'Environment'}] },
         { params: ['docker-push'], description: 'Push Docker image to the AWS docker repository', options: [{param:'environment', description:'Environment'}] },
 

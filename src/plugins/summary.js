@@ -33,7 +33,7 @@ function printServiceSummary (in_serviceConfig) {
 
     let output = '';
     if (env.isDevelopment()) {
-        output = cprint.toMagenta('##');
+        output = cprint.toMagenta('>>') + ' ' + cprint.toYellow('[Dev]');
     } else {
         output = cprint.toMagenta('>>');
     }
