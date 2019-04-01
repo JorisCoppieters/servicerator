@@ -1533,8 +1533,8 @@ function getSamlLoginData(in_options) {
         return blob.decrypt(cacheVal);
     }
 
-    let samlUsername = readline.sync('Please enter your SAML username: ');
-    let samlPassword = readline.hiddenSync('Please enter your SAML password: ');
+    let samlUsername = readline.sync('Please enter your SAML username');
+    let samlPassword = readline.hiddenSync('Please enter your SAML password', samlUsername);
     let formData = `username=${samlUsername}&password=${samlPassword}`;
 
     awsCache[cacheKey] = {
@@ -2153,7 +2153,7 @@ function getSessionToken (in_profile, in_options) {
         cprint.cyan('Getting session token...');
     }
 
-    let tokenCode = readline.sync(`Please enter the current MFA token for account (#${opts.accountId}): `);
+    let tokenCode = readline.sync(`Please enter the current MFA token for account (#${opts.accountId})`);
 
     let awsCmdResult = awsCmd([
         'sts',
