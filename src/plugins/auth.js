@@ -37,7 +37,7 @@ function printAuthInfo (in_serviceConfig) {
 
     let dockerFolder = docker.getFolder(sourceFolder);
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        throw new Error('Docker folder not set up: ' + dockerFolder);
+        throw new Error('Cannot find Dockerfile inside this folder');
     }
 
     let authFolder = path.resolve(dockerFolder, 'auth');
@@ -106,7 +106,7 @@ function generateAuthFiles (in_serviceConfig) {
 
     let dockerFolder = docker.getFolder(sourceFolder);
     if (!dockerFolder || !fs.folderExists(dockerFolder)) {
-        throw new Error('Docker folder not set up: ' + dockerFolder);
+        throw new Error('Cannot find Dockerfile inside this folder');
     }
 
     let authFolder = path.resolve(dockerFolder, 'auth');
