@@ -171,6 +171,8 @@ function generateAuthFiles (in_serviceConfig) {
     let firstUrl = urls[0] || false;
     let otherUrls = urls.slice(1);
 
+    print.keyVal('Common Names', `[${urls.join(', ')}]`);
+
     let afterCopy = () => {
         print.keyVal('Service key', serviceKey);
         print.keyVal('Service certificate', serviceCertificate);
