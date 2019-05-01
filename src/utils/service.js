@@ -503,11 +503,19 @@ function copyServiceFile (in_serviceConfig, in_serviceFile, in_options) {
 
     opts.overwrite = !!serviceFile.overwrite || opts.overwrite;
 
-    let source = path.resolve(sourceFolder, serviceFile.source);
-    source = replaceServiceConfigReferences(in_serviceConfig, source);
+    let source = replaceServiceConfigReferences(in_serviceConfig, path.resolve(sourceFolder, serviceFile.source));
 
-    let destination = path.resolve(sourceFolder, serviceFile.destination);
-    destination = replaceServiceConfigReferences(in_serviceConfig, destination);
+    if (!fs.fileExists(source)) {
+        if (env.isWindows() && serviceFile.source.match(/^\/.*$/)) {
+            source = replaceServiceConfigReferences(in_serviceConfig, path.resolve(sourceFolder, 'C:' + serviceFile.source));
+        }
+    }
+
+    if (!fs.fileExists(source)) {
+        throw new Error(`Service file source doesn't exist:\n${JSON.stringify(in_serviceFile, null, 4)}`);
+    }
+
+    let destination = replaceServiceConfigReferences(in_serviceConfig, path.resolve(sourceFolder, serviceFile.destination));
 
     let fileFolder = path.dirname(destination);
     if (!fs.folderExists(fileFolder)) {
