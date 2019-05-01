@@ -49,16 +49,7 @@ function printAuthInfo (in_serviceConfig) {
         throw new Error('Auth folder not set up: ' + authFolder);
     }
 
-    if (!serviceConfig.auth.rootCACertificate) {
-        throw new Error('Root CA certificate not set');
-    }
-
-    if (!fs.fileExists(serviceConfig.auth.rootCACertificate)) {
-        throw new Error('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
-    }
-
-    let rootCACertificate = serviceConfig.auth.rootCACertificate;
-
+    let rootCACertificate = _getRootCAFile(serviceConfig.auth.rootCACertificate, 'Root CA certificate');
     let serviceCertificateName = serviceConfig.auth.certificate || 'service.crt';
     let serviceCertificate = path.resolve(authFolder, serviceCertificateName);
 
@@ -131,21 +122,8 @@ function generateAuthFiles (in_serviceConfig) {
     let rootCAKey = path.resolve(tmpAuthFolder, 'rootCA.key');
     let rootCACertificate = path.resolve(tmpAuthFolder, 'rootCA.crt');
 
-    if (!serviceConfig.auth.rootCAKey) {
-        throw new Error('Root CA key not set');
-    }
-
-    if (!fs.fileExists(serviceConfig.auth.rootCAKey)) {
-        throw new Error('Root CA key cannot be found: ' + serviceConfig.auth.rootCAKey);
-    }
-
-    if (!serviceConfig.auth.rootCACertificate) {
-        throw new Error('Root CA certificate not set');
-    }
-
-    if (!fs.fileExists(serviceConfig.auth.rootCACertificate)) {
-        throw new Error('Root CA certificate cannot be found: ' + serviceConfig.auth.rootCACertificate);
-    }
+    let rootCAKeyOrigin = _getRootCAFile(serviceConfig.auth.rootCAKey, 'Root CA key');
+    let rootCACertificateOrigin = _getRootCAFile(serviceConfig.auth.rootCACertificate, 'Root CA certificate');
 
     let serviceKeyName = serviceConfig.auth.key || 'service.key';
     let serviceKey = path.resolve(authFolder, serviceKeyName);
@@ -359,8 +337,8 @@ function generateAuthFiles (in_serviceConfig) {
         return true;
     };
 
-    fs.copyFile(serviceConfig.auth.rootCAKey, rootCAKey, () => {
-        fs.copyFile(serviceConfig.auth.rootCACertificate, rootCACertificate, () => {
+    fs.copyFile(rootCAKeyOrigin, rootCAKey, () => {
+        fs.copyFile(rootCACertificateOrigin, rootCACertificate, () => {
             setTimeout(() => { // To prevent race condition
                 afterCopy();
                 cprint.cyan('Cleaning up...');
@@ -368,6 +346,29 @@ function generateAuthFiles (in_serviceConfig) {
             }, 200);
         });
     });
+}
+
+// ******************************
+// Helper Functions:
+// ******************************
+
+function _getRootCAFile(in_caFile, in_caFileName) {
+    let caFile = in_caFile;
+    if (!caFile) {
+        throw new Error(`${in_caFileName} not set`);
+    }
+
+    if (!fs.fileExists(caFile)) {
+        if (env.isWindows() && caFile.match(/^\/.*$/)) {
+            caFile = 'C:' + caFile;
+        }
+    }
+
+    if (!fs.fileExists(caFile)) {
+        throw new Error(`${in_caFileName} cannot be found: ${in_caFile}`);
+    }
+
+    return caFile;
 }
 
 // ******************************
