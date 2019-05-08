@@ -1421,10 +1421,13 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 function getSamlAssertion (in_options, in_retryAttempts) {
     let opts = in_options || {};
 
-    let type = opts.type || 'Okta';
+    let policyUrl = opts.policyUrl;
+    if (!policyUrl) {
+        throw new Error('Policy url is not set');
+    }
 
     let awsCache = opts.cache || {};
-    let cacheKey = `SamlAssertion_${type}`;
+    let cacheKey = `SamlAssertion_${policyUrl}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1433,70 +1436,28 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
     cprint.cyan('Using federated login to get AWS credentials...');
 
-    let samlResponse = '';
+    let cookieString = '';
 
-    if (type === 'SSO') {
-        let cookieString = '';
-
-        let sessionUrl = opts.sessionUrl;
-        if (sessionUrl) {
-            let cmdArgs = [
-                '-s',
-                '-L',
-                '-o', '/dev/null',
-                '-c', '-'
-            ];
-
-            if (opts.sessionHeaders) {
-                opts.sessionHeaders
-                    .forEach(header => {
-                        cmdArgs.push('-H');
-                        cmdArgs.push(`${header.header}: ${header.value}`);
-                    });
-            }
-
-            cmdArgs.push(sessionUrl);
-
-            let cmdResult = exec.cmdSync('curl', cmdArgs, {
-                hide: true
-            });
-
-            if (cmdResult.hasError) {
-                return cmdResult.throwError();
-            }
-
-            let reponseRows =
-                cmdResult.result
-                    .split(/[\r\n]+/)
-                    .map(line => line.trim())
-                    .filter(line => line && !line.match(/^#.*/));
-
-            cookieString = reponseRows
-                .map(line => {
-                    let parts = line.split(/\t/);
-                    let cookieName = parts[5];
-                    let cookieValue = parts[6];
-                    return `${cookieName}=${cookieValue};`;
-                })
-                .join(' ');
-        }
-
-        let loginData = getSamlLoginData(in_options);
-
-        let policyUrl = opts.policyUrl;
-        if (!policyUrl) {
-            throw new Error('Policy url is not set');
-        }
-
-        let cmdResult = exec.cmdSync('curl', [
-            '-X', 'POST',
+    let sessionUrl = opts.sessionUrl;
+    if (sessionUrl) {
+        let cmdArgs = [
             '-s',
             '-L',
-            '-c', '-',
-            '-d', loginData,
-            '--cookie', cookieString,
-            policyUrl
-        ], {
+            '-o', '/dev/null',
+            '-c', '-'
+        ];
+
+        if (opts.sessionHeaders) {
+            opts.sessionHeaders
+                .forEach(header => {
+                    cmdArgs.push('-H');
+                    cmdArgs.push(`${header.header}: ${header.value}`);
+                });
+        }
+
+        cmdArgs.push(sessionUrl);
+
+        let cmdResult = exec.cmdSync('curl', cmdArgs, {
             hide: true
         });
 
@@ -1504,149 +1465,52 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             return cmdResult.throwError();
         }
 
-        let samlRegExp = new RegExp(/name="SAMLResponse" value="(.+?)"/, 'i');
-        let samlRegExpMatch = cmdResult.result.match(samlRegExp);
-        if (!samlRegExpMatch) {
-            if (in_retryAttempts > 2) {
-                throw new Error('SAML login failed, Max retry attempts reached.');
-            }
-            cprint.yellow('SAML login failed! Did you type in the correct password?');
-            clearSamlLoginData(awsCache);
-            return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
-        }
-
-        samlResponse = samlRegExpMatch[1];
-
-    } else if (type === 'Okta') {
-        let authUrl = 'https://trademe.okta.com/api/v1/authn'; //opts.authUrl;
-        if (!authUrl) {
-            throw new Error('Auth url is not set');
-        }
-
-        let authHeaders = (opts.authHeaders || []).concat([
-            {
-                'header': 'Content-Type',
-                'value': 'application/json'
-            }
-        ]);
-
-        let loginData = getSamlLoginData(in_options, 'json');
-
-        let authCurlArgs = [
-            '-s',
-            '-L',
-            '-d', loginData
-        ];
-
-        authHeaders
-            .forEach(header => {
-                authCurlArgs.push('-H');
-                authCurlArgs.push(`${header.header}: ${header.value}`);
-            });
-
-        authCurlArgs.push(authUrl);
-
-        let authCurlResult = exec.cmdSync('curl', authCurlArgs, {
-            hide: false
-        });
-
-        if (authCurlResult.hasError) {
-            return authCurlResult.throwError();
-        }
-
-        if (!authCurlResult.resultObj || !authCurlResult.resultObj.sessionToken) {
-            throw new Error('Failed to get session token');
-        }
-
-        let sessionToken = authCurlResult.resultObj.sessionToken;
-
-        let redirectOnAuthUrl = 'https://trademe.okta.com/login/sessionCookieRedirect?checkAccountSetupComplete=true&token=%SESSION_TOKEN%&redirectUrl=https://trademe.okta.com/home/amazon_aws/0oabzc0y1TefaBQrO356/272?fromHome=true'; //opts.redirectOnAuthUrl;
-        if (!redirectOnAuthUrl) {
-            throw new Error('Redirect on auth url is not set');
-        }
-
-        let redirectOnAuthCurlArgs = [
-            '-s',
-            '-L',
-            '-I',
-            '-c', '-'
-        ];
-
-        let redirectOnAuthHeaders = opts.redirectOnAuthHeaders || [].concat([
-            {
-                'header': 'Accept-Encoding',
-                'value': 'gzip, deflate, br'
-            }
-        ]);
-
-        if (redirectOnAuthHeaders) {
-            redirectOnAuthHeaders
-                .forEach(header => {
-                    redirectOnAuthCurlArgs.push('-H');
-                    redirectOnAuthCurlArgs.push(`${header.header}: ${header.value}`);
-                });
-        }
-
-        redirectOnAuthUrl = redirectOnAuthUrl.replace('%SESSION_TOKEN%', sessionToken);
-
-        redirectOnAuthCurlArgs.push(redirectOnAuthUrl);
-
-        let redirectOnAuthCurlResult = exec.cmdSync('curl', redirectOnAuthCurlArgs, {
-            hide: false
-        });
-
-        if (redirectOnAuthCurlResult.hasError) {
-            return redirectOnAuthCurlResult.throwError();
-        }
-
         let reponseRows =
-            redirectOnAuthCurlResult.result
+            cmdResult.result
                 .split(/[\r\n]+/)
                 .map(line => line.trim())
                 .filter(line => line && !line.match(/^#.*/));
 
-        let samlLocation = reponseRows.find(row => row.match(/Location: .*sso\/saml/));
-        if (!samlLocation) {
-            throw new Error('Failed to extract SAML location');
-        }
-        samlLocation = samlLocation.replace('Location: ', '');
-
-        let sid = reponseRows.find(row => row.match(/Set-Cookie: sid=[^"]+;.*/));
-        if (!sid) {
-            throw new Error('Failed to extract sid');
-        }
-        sid = sid.match(/Set-Cookie: sid=([^"]+?);.*/)[1];
-
-        let cmdResult = exec.cmdSync('curl', [
-            '-s',
-            '-L',
-            '--cookie', `sid=${sid}`,
-            samlLocation
-        ], {
-            hide: false
-        });
-
-        if (cmdResult.hasError) {
-            return cmdResult.throwError();
-        }
-
-        let samlRegExp = new RegExp(/name="SAMLResponse".*? value="(.+?)"/, 'i');
-        let samlRegExpMatch = cmdResult.result.match(samlRegExp);
-        if (!samlRegExpMatch) {
-            if (in_retryAttempts > 2) {
-                throw new Error('SAML login failed, Max retry attempts reached.');
-            }
-            cprint.yellow('SAML login failed! Did you type in the correct password?');
-            clearSamlLoginData(awsCache, 'json');
-            return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
-        }
-
-        samlResponse = samlRegExpMatch[1].replace(/&#x2b;/,'+');
-        samlResponse = Buffer.from(Buffer.from(samlResponse, 'base64').toString('ascii')).toString('base64')
-
-    } else {
-        throw new Error(`Unhandled type: ${type}`);
+        cookieString = reponseRows
+            .map(line => {
+                let parts = line.split(/\t/);
+                let cookieName = parts[5];
+                let cookieValue = parts[6];
+                return `${cookieName}=${cookieValue};`;
+            })
+            .join(' ');
     }
+
+    let formData = getSamlLoginData(in_options);
+
+    let cmdResult = exec.cmdSync('curl', [
+        '-X', 'POST',
+        '-s',
+        '-L',
+        '-c', '-',
+        '-d', formData,
+        '--cookie', cookieString,
+        policyUrl
+    ], {
+        hide: true
+    });
+
+    if (cmdResult.hasError) {
+        return cmdResult.throwError();
+    }
+
+    let samlRegExp = new RegExp(/name="SAMLResponse" value="(.+?)"/, 'i');
+    let samlRegExpMatch = cmdResult.result.match(samlRegExp);
+    if (!samlRegExpMatch) {
+        if (in_retryAttempts > 2) {
+            throw new Error('SAML login failed, Max retry attempts reached.');
+        }
+        cprint.yellow('SAML login failed! Did you type in the correct password?');
+        clearSamlLoginData(awsCache);
+        return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
+    }
+
+    let samlResponse = samlRegExpMatch[1];
 
     awsCache[cacheKey] = {
         val: samlResponse,
@@ -1654,17 +1518,15 @@ function getSamlAssertion (in_options, in_retryAttempts) {
     };
 
     return samlResponse;
-
 }
 
 // ******************************
 
-function getSamlLoginData(in_options, in_mode) {
+function getSamlLoginData(in_options) {
     let opts = in_options || {};
-    let mode = in_mode || 'form';
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'SamlLoginData' + (mode === 'form' ? '' : `_${mode}`);
+    let cacheKey = 'SamlLoginData';
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1673,33 +1535,21 @@ function getSamlLoginData(in_options, in_mode) {
 
     let samlUsername = readline.sync('Please enter your SAML username');
     let samlPassword = readline.hiddenSync('Please enter your SAML password', samlUsername);
-    let data = null;
-
-    switch (mode) {
-    case 'form':
-        data = `username=${samlUsername}&password=${samlPassword}`;
-        break;
-    case 'json':
-        data = JSON.stringify({username: samlUsername, password: samlPassword});
-        break;
-    default:
-        throw new Error(`Unhandled mode: ${in_mode}`);
-    }
+    let formData = `username=${samlUsername}&password=${samlPassword}`;
 
     awsCache[cacheKey] = {
-        val: blob.encrypt(data),
+        val: blob.encrypt(formData),
         expires: date.getTimestamp() + cache.durations.day * 7
     };
 
-    return data;
+    return formData;
 }
 
 // ******************************
 
-function clearSamlLoginData(in_cache, in_mode) {
-    let mode = in_mode || 'form';
+function clearSamlLoginData(in_cache) {
     let awsCache = in_cache || {};
-    let cacheKey = 'SamlLoginData' + (mode === 'form' ? '' : `_${mode}`);
+    let cacheKey = 'SamlLoginData';
     delete awsCache[cacheKey];
 }
 
