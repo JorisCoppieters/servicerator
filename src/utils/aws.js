@@ -1642,7 +1642,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         }
 
         samlResponse = samlRegExpMatch[1].replace(/&#x2b;/,'+');
-        samlResponse = Buffer.from(Buffer.from(samlResponse, 'base64').toString('ascii')).toString('base64')
+        samlResponse = Buffer.from(Buffer.from(samlResponse, 'base64').toString('ascii')).toString('base64');
 
     } else {
         throw new Error(`Unhandled type: ${type}`);
