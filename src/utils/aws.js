@@ -2673,7 +2673,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
         return serviceConfig;
     }
 
-    if (!(cluster.aws.profile && cluster.aws.account_id)) {
+    if (!(cluster.aws.profile || cluster.aws.account_id || cluster.aws.federated_login)) {
         // Nothing to do if no aws section in cluster
         return serviceConfig;
     }
