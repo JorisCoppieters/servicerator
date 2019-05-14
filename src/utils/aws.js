@@ -2673,6 +2673,11 @@ function getServiceConfig (in_serviceConfig, in_environment) {
         return serviceConfig;
     }
 
+    if (!(cluster.aws.profile && cluster.aws.account_id)) {
+        // Nothing to do if no aws section in cluster
+        return serviceConfig;
+    }
+
     if (!awsInstalled()) {
         throw new Error('AWS-CLI isn\'t installed');
     }
