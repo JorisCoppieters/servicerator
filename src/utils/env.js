@@ -22,6 +22,12 @@ function isDevelopment () {
 
 // ******************************
 
+function persistSamlPwd () {
+    return process.env['SERVICERATOR_PERSIST_SAML_PWD'];
+}
+
+// ******************************
+
 function isLinux () {
     let os = require('os');
     return os.platform() === 'linux';
@@ -229,5 +235,6 @@ module.exports['isLinux'] = isLinux;
 module.exports['isMinGW'] = isMinGW;
 module.exports['isTTY'] = isTTY;
 module.exports['isWindows'] = isWindows;
+module.exports['persistSamlPwd'] = persistSamlPwd;
 
 // ******************************

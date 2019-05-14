@@ -1507,6 +1507,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         }
         cprint.yellow('SAML login failed! Did you type in the correct password?');
         clearSamlLoginData(awsCache);
+        clearSamlLoginUsername(awsCache);
         return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
     }
 
@@ -1526,7 +1527,38 @@ function getSamlLoginData(in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'SamlLoginData';
+    let cacheKey = 'SamlLoginUsername';
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        if (env.persistSamlPwd()) {
+            return blob.decrypt(cacheVal);
+        } else {
+            clearSamlLoginData();
+        }
+    }
+
+    let samlUsername = getSamlLoginUsername(in_options);
+    let samlPassword = readline.hiddenSync('Please enter your SAML password', samlUsername);
+    let formData = `username=${samlUsername}&password=${samlPassword}`;
+
+    if (env.persistSamlPwd()) {
+        awsCache[cacheKey] = {
+            val: blob.encrypt(formData),
+            expires: date.getTimestamp() + cache.durations.day * 28
+        };
+    }
+
+    return formData;
+}
+
+// ******************************
+
+function getSamlLoginUsername(in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'SamlLoginUsername';
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1534,15 +1566,21 @@ function getSamlLoginData(in_options) {
     }
 
     let samlUsername = readline.sync('Please enter your SAML username');
-    let samlPassword = readline.hiddenSync('Please enter your SAML password', samlUsername);
-    let formData = `username=${samlUsername}&password=${samlPassword}`;
 
     awsCache[cacheKey] = {
-        val: blob.encrypt(formData),
+        val: blob.encrypt(samlUsername),
         expires: date.getTimestamp() + cache.durations.day * 7
     };
 
-    return formData;
+    return samlUsername;
+}
+
+// ******************************
+
+function clearSamlLoginUsername(in_cache) {
+    let awsCache = in_cache || {};
+    let cacheKey = 'SamlLoginUsername';
+    delete awsCache[cacheKey];
 }
 
 // ******************************
