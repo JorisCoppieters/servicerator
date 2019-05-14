@@ -1512,6 +1512,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             }
             cprint.yellow('SAML login failed! Did you type in the correct password?');
             clearSamlLoginData(awsCache);
+            clearSamlLoginUsername(awsCache);
             return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
         }
 
@@ -1638,6 +1639,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             }
             cprint.yellow('SAML login failed! Did you type in the correct password?');
             clearSamlLoginData(awsCache, 'json');
+            clearSamlLoginUsername(awsCache);
             return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
         }
 
@@ -1668,10 +1670,14 @@ function getSamlLoginData(in_options, in_mode) {
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
-        return blob.decrypt(cacheVal);
+        if (env.persistSamlPwd()) {
+            return blob.decrypt(cacheVal);
+        } else {
+            clearSamlLoginData(awsCache);
+        }
     }
 
-    let samlUsername = readline.sync('Please enter your SAML username');
+    let samlUsername = getSamlLoginUsername(in_options);
     let samlPassword = readline.hiddenSync('Please enter your SAML password', samlUsername);
     let data = null;
 
@@ -1686,12 +1692,47 @@ function getSamlLoginData(in_options, in_mode) {
         throw new Error(`Unhandled mode: ${in_mode}`);
     }
 
+    if (env.persistSamlPwd()) {
+        cprint.red('Presisting SAML pwd since SERVICERATOR_PERSIST_SAML_PWD is set to true.');
+        cprint.red('This is very dangerous, only do this if you know what you are doing!');
+        awsCache[cacheKey] = {
+            val: blob.encrypt(data),
+            expires: date.getTimestamp() + cache.durations.day * 28
+        };
+    }
+
+    return data;
+}
+
+// ******************************
+
+function getSamlLoginUsername(in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = 'SamlLoginUsername';
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return blob.decrypt(cacheVal);
+    }
+
+    let samlUsername = readline.sync('Please enter your SAML username');
+
     awsCache[cacheKey] = {
-        val: blob.encrypt(data),
+        val: blob.encrypt(samlUsername),
         expires: date.getTimestamp() + cache.durations.day * 7
     };
 
-    return data;
+    return samlUsername;
+}
+
+// ******************************
+
+function clearSamlLoginUsername(in_cache) {
+    let awsCache = in_cache || {};
+    let cacheKey = 'SamlLoginUsername';
+    delete awsCache[cacheKey];
 }
 
 // ******************************
@@ -2820,6 +2861,11 @@ function getServiceConfig (in_serviceConfig, in_environment) {
     let cluster = getEnvironmentCluster(serviceConfig.service.clusters, in_environment);
     if (!cluster) {
         // Nothing to do if no clusters are defined
+        return serviceConfig;
+    }
+
+    if (!(cluster.aws.profile || cluster.aws.account_id || cluster.aws.federated_login)) {
+        // Nothing to do if no aws section in cluster
         return serviceConfig;
     }
 

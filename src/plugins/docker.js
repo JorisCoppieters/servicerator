@@ -924,14 +924,12 @@ function getDockerContainerState (in_serviceConfig, in_nice) {
 
     let containerName = getDockerContainerName(in_serviceConfig);
 
-    let args = ['ps', '-a', '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'];
+    let args = ['ps', '-q', '-a', '--filter', `name=${containerName}`, '--format', '{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}'];
     let cmdResult = docker.cmd(args, {
         hide: true
     });
 
-    let processes = cmdResult.rows
-        .filter(p => p.match(new RegExp(containerName)));
-
+    let processes = cmdResult.rows;
     let processUp = processes.find(p => p.match(/Up /));
     let processFailed = processes.find(p => p.match(/Created /));
     let processExited = processes.find(p => p.match(/Exited /));
