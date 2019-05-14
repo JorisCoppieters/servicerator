@@ -23,7 +23,7 @@ function isDevelopment () {
 // ******************************
 
 function persistSamlPwd () {
-    return process.env['SERVICERATOR_PERSIST_SAML_PWD'];
+    return process.env['SERVICERATOR_PERSIST_SAML_PWD'] === 'true';
 }
 
 // ******************************

@@ -1527,14 +1527,14 @@ function getSamlLoginData(in_options) {
     let opts = in_options || {};
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'SamlLoginUsername';
+    let cacheKey = 'SamlLoginData';
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         if (env.persistSamlPwd()) {
             return blob.decrypt(cacheVal);
         } else {
-            clearSamlLoginData();
+            clearSamlLoginData(awsCache);
         }
     }
 
@@ -1543,6 +1543,8 @@ function getSamlLoginData(in_options) {
     let formData = `username=${samlUsername}&password=${samlPassword}`;
 
     if (env.persistSamlPwd()) {
+        cprint.red('Presisting SAML pwd since SERVICERATOR_PERSIST_SAML_PWD is set to true.');
+        cprint.red('This is very dangerous, only do this if you know what you are doing!');
         awsCache[cacheKey] = {
             val: blob.encrypt(formData),
             expires: date.getTimestamp() + cache.durations.day * 28
