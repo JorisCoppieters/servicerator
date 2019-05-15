@@ -1421,7 +1421,7 @@ function getTargetGroupArnForTargetGroupName (in_targetGroupName, in_options) {
 function getSamlAssertion (in_options, in_retryAttempts) {
     let opts = in_options || {};
 
-    let type = opts.type || 'Okta';
+    let type = opts.type;
 
     let awsCache = opts.cache || {};
     let cacheKey = `SamlAssertion_${type}`;
@@ -1519,11 +1519,10 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         samlResponse = samlRegExpMatch[1];
 
     } else if (type === 'Okta') {
-        let authUrl = 'https://trademe.okta.com/api/v1/authn'; //opts.authUrl;
-        if (!authUrl) {
-            throw new Error('Auth url is not set');
-        }
+        let oktaOrgUrl = opts.oktaOrgUrl;
+        let oktaAwsAppUrl = opts.oktaAwsAppUrl;
 
+        let authUrl = `${oktaOrgUrl}/api/v1/authn`;
         let authHeaders = (opts.authHeaders || []).concat([
             {
                 'header': 'Content-Type',
@@ -1548,7 +1547,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         authCurlArgs.push(authUrl);
 
         let authCurlResult = exec.cmdSync('curl', authCurlArgs, {
-            hide: false
+            hide: true
         });
 
         if (authCurlResult.hasError) {
@@ -1561,7 +1560,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
         let sessionToken = authCurlResult.resultObj.sessionToken;
 
-        let redirectOnAuthUrl = 'https://trademe.okta.com/login/sessionCookieRedirect?checkAccountSetupComplete=true&token=%SESSION_TOKEN%&redirectUrl=https://trademe.okta.com/home/amazon_aws/0oabzc0y1TefaBQrO356/272?fromHome=true'; //opts.redirectOnAuthUrl;
+        let redirectOnAuthUrl = `${oktaOrgUrl}/login/sessionCookieRedirect?checkAccountSetupComplete=true&token=${sessionToken}&redirectUrl=${oktaAwsAppUrl}`;
         if (!redirectOnAuthUrl) {
             throw new Error('Redirect on auth url is not set');
         }
@@ -1573,27 +1572,16 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             '-c', '-'
         ];
 
-        let redirectOnAuthHeaders = opts.redirectOnAuthHeaders || [].concat([
-            {
-                'header': 'Accept-Encoding',
-                'value': 'gzip, deflate, br'
-            }
-        ]);
-
-        if (redirectOnAuthHeaders) {
-            redirectOnAuthHeaders
-                .forEach(header => {
-                    redirectOnAuthCurlArgs.push('-H');
-                    redirectOnAuthCurlArgs.push(`${header.header}: ${header.value}`);
-                });
-        }
-
-        redirectOnAuthUrl = redirectOnAuthUrl.replace('%SESSION_TOKEN%', sessionToken);
+        (opts.redirectOnAuthHeaders || [])
+            .forEach(header => {
+                redirectOnAuthCurlArgs.push('-H');
+                redirectOnAuthCurlArgs.push(`${header.header}: ${header.value}`);
+            });
 
         redirectOnAuthCurlArgs.push(redirectOnAuthUrl);
 
         let redirectOnAuthCurlResult = exec.cmdSync('curl', redirectOnAuthCurlArgs, {
-            hide: false
+            hide: true
         });
 
         if (redirectOnAuthCurlResult.hasError) {
@@ -1624,7 +1612,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             '--cookie', `sid=${sid}`,
             samlLocation
         ], {
-            hide: false
+            hide: true
         });
 
         if (cmdResult.hasError) {
@@ -1643,8 +1631,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
         }
 
-        samlResponse = samlRegExpMatch[1].replace(/&#x2b;/,'+');
-        samlResponse = Buffer.from(Buffer.from(samlResponse, 'base64').toString('ascii')).toString('base64');
+        samlResponse = samlRegExpMatch[1].replace(/&#x2b;/g,'+');
 
     } else {
         throw new Error(`Unhandled type: ${type}`);
@@ -1818,11 +1805,14 @@ function getRoleCredentials (in_roleArn, in_options) {
 
 // ******************************
 
-function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_sessionHeaders, in_policyUrl, in_options) {
+function getRoleSamlCredentials (in_options) {
     let opts = in_options || {};
 
+    let roleArn = opts.roleArn;
+    let principalArn = opts.principalArn;
+
     let awsCache = opts.cache || {};
-    let cacheKey = `RoleAssumedCredentials_${in_roleArn}`;
+    let cacheKey = `RoleAssumedCredentials_${roleArn}`;
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
@@ -1830,18 +1820,10 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_
     }
 
     if (opts.verbose) {
-        cprint.cyan('Assuming credentials via SAML for AWS Role ARN "' + in_roleArn + '"...');
+        cprint.cyan(`Assuming credentials via SAML for AWS Role ARN "${roleArn}"...`);
     }
 
-    let samlAssertion = getSamlAssertion({
-        sessionUrl: in_sessionUrl,
-        sessionHeaders: in_sessionHeaders,
-        policyUrl: in_policyUrl,
-        cache: awsCache,
-        showWarning: true,
-        verbose: true
-    });
-
+    let samlAssertion = getSamlAssertion(in_options);
     if (!samlAssertion) {
         return;
     }
@@ -1852,8 +1834,8 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_
     let cmdResult = awsCmd([
         'sts',
         'assume-role-with-saml',
-        '--role-arn', in_roleArn,
-        '--principal-arn', in_principalArn,
+        '--role-arn', roleArn,
+        '--principal-arn', principalArn,
         '--saml-assertion', `fileb://${samlAssertionFile}`
     ], {
         hide: !opts.verbose,
@@ -1875,7 +1857,7 @@ function getRoleSamlCredentials (in_roleArn, in_principalArn, in_sessionUrl, in_
 
     if (!awsRoleAssumedCredentials) {
         if (!opts.hideWarnings) {
-            cprint.yellow('Couldn\'t assume credentials for AWS Role ARN "' + in_roleArn + '"');
+            cprint.yellow(`Couldn't assume credentials for AWS Role ARN "${roleArn}"`);
         }
         return false;
     }
@@ -2831,6 +2813,9 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                         profile: 'STRING',
                         assume_role: 'STRING',
                         federated_login: {
+                            type: 'STRING',
+                            role_arn: 'STRING',
+                            principal_arn: 'STRING',
                             session_url: 'STRING',
                             session_headers: [
                                 {
@@ -2839,8 +2824,8 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                                 }
                             ],
                             policy_url: 'STRING',
-                            role_arn: 'STRING',
-                            principal_arn: 'STRING'
+                            otka_org_url: 'STRING',
+                            okta_aws_app_url: 'STRING'
                         }
                     },
                     default: 'BOOLEAN',
@@ -2893,24 +2878,68 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let reloadConfigFiles = false;
 
-    let federatedLoginPolicyUrl = cluster.aws.federated_login.policy_url || '';
-    let federatedLoginRoleArn = cluster.aws.federated_login.role_arn || '';
-    let federatedLoginPrincipalArn = cluster.aws.federated_login.principal_arn || '';
-    if (federatedLoginPolicyUrl && federatedLoginRoleArn && federatedLoginPrincipalArn && assumeRoleArn) {
-        let configured = configureProfileAsRoleWithSaml({
-            sessionUrl: cluster.aws.federated_login.session_url,
-            sessionHeaders: cluster.aws.federated_login.session_headers,
-            policyUrl: federatedLoginPolicyUrl,
-            roleArn: federatedLoginRoleArn,
-            principalArn: federatedLoginPrincipalArn,
-            credentialsFile: awsCredentialsFile,
-            cache: awsCache,
-            showWarning: true,
-            verbose: true
-        });
+    let federatedLoginType = cluster.aws.federated_login.type || 'SSO';
+    if (federatedLoginType) {
+        let federatedLoginRoleArn = cluster.aws.federated_login.role_arn || '';
+        if (!federatedLoginRoleArn) {
+            throw new Error('Federated login not correctly configured - Missing Role ARN');
+        }
 
-        if (configured) {
-            reloadConfigFiles = true;
+        let federatedLoginPrincipalArn = cluster.aws.federated_login.principal_arn || '';
+        if (!federatedLoginPrincipalArn) {
+            throw new Error('Federated login not correctly configured - Missing Principal ARN');
+        }
+
+        if (federatedLoginType === 'SSO') {
+            let federatedLoginPolicyUrl = cluster.aws.federated_login.policy_url || '';
+            if (!federatedLoginPolicyUrl) {
+                throw new Error('SSO federated login not correctly configured - Missing policy URL');
+            }
+
+            let configured = configureProfileAsRoleWithSaml({
+                type: federatedLoginType,
+                principalArn: federatedLoginPrincipalArn,
+                roleArn: federatedLoginRoleArn,
+                sessionUrl: cluster.aws.federated_login.session_url,
+                sessionHeaders: cluster.aws.federated_login.session_headers,
+                policyUrl: federatedLoginPolicyUrl,
+                credentialsFile: awsCredentialsFile,
+                cache: awsCache,
+                showWarning: true,
+                verbose: true
+            });
+
+            if (configured) {
+                reloadConfigFiles = true;
+            }
+        } else if (federatedLoginType === 'Okta') {
+            let federatedLoginOktaOrgUrl = cluster.aws.federated_login.otka_org_url || '';
+            if (!federatedLoginOktaOrgUrl) {
+                throw new Error('Okta federated login not correctly configured - Missing Okta Org URL');
+            }
+
+            let federatedLoginOktaAwsAppUrl = cluster.aws.federated_login.okta_aws_app_url || '';
+            if (!federatedLoginOktaAwsAppUrl) {
+                throw new Error('Okta federated login not correctly configured - Missing Okta Aws App URL');
+            }
+
+            let configured = configureProfileAsRoleWithSaml({
+                type: federatedLoginType,
+                principalArn: federatedLoginPrincipalArn,
+                roleArn: federatedLoginRoleArn,
+                oktaOrgUrl: federatedLoginOktaOrgUrl,
+                oktaAwsAppUrl: federatedLoginOktaAwsAppUrl,
+                credentialsFile: awsCredentialsFile,
+                cache: awsCache,
+                showWarning: true,
+                verbose: true
+            });
+
+            if (configured) {
+                reloadConfigFiles = true;
+            }
+        } else {
+            throw new Error(`Federated login not correctly configured - Unknown type: ${federatedLoginType}`);
         }
 
         profile = federatedLoginRoleArn;
@@ -3122,26 +3151,8 @@ function configureProfileAsRoleWithSaml (in_options) {
     let opts = in_options || {};
 
     let roleArn = opts.roleArn;
-    if (!roleArn) {
-        throw new Error('No role to assume!');
-    }
-
-    let principalArn = opts.principalArn;
-    if (!principalArn) {
-        throw new Error('No principal defined!');
-    }
-
-    let sessionUrl = opts.sessionUrl || '';
-    let sessionHeaders = opts.sessionHeaders || {};
-
-    let policyUrl = opts.policyUrl;
-    if (!policyUrl) {
-        throw new Error('No policy URL defined!');
-    }
-
     let awsCredentials = ini.parseFile(opts.credentialsFile) || {};
-
-    let roleCredentials = getRoleSamlCredentials(roleArn, principalArn, sessionUrl, sessionHeaders, policyUrl, in_options);
+    let roleCredentials = getRoleSamlCredentials(in_options);
     if (!roleCredentials) {
         return;
     }
