@@ -43,6 +43,7 @@ function readHiddenLineSync (in_question, in_username) {
         try {
             return _readHiddenLineSyncWindows(in_question, in_username);
         } catch (e) {
+            // Ignore error
         }
     }
 
