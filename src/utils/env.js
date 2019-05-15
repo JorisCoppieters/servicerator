@@ -35,6 +35,13 @@ function isLinux () {
 
 // ******************************
 
+function isMacOSX () {
+    let os = require('os');
+    return os.platform() === 'darwin';
+}
+
+// ******************************
+
 function isWindows () {
     let os = require('os');
     return os.platform() === 'win32';
@@ -231,6 +238,7 @@ module.exports['getTemp'] = getTemp;
 module.exports['getUserExplorerHome'] = getUserExplorerHome;
 module.exports['getUserHome'] = getUserHome;
 module.exports['isDevelopment'] = isDevelopment;
+module.exports['isMacOSX'] = isMacOSX;
 module.exports['isLinux'] = isLinux;
 module.exports['isMinGW'] = isMinGW;
 module.exports['isTTY'] = isTTY;

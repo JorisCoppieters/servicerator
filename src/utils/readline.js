@@ -36,15 +36,18 @@ function readLineSync (in_question) {
 
 function readHiddenLineSync (in_question, in_username) {
     if (env.isMinGW()) {
-        return _readHiddenLineSyncMinGW(in_question);
+        return _readHiddenLineSync(in_question);
     }
 
     if (env.isWindows()) {
         try {
             return _readHiddenLineSyncWindows(in_question, in_username);
         } catch (e) {
-            return _readHiddenLineSyncInClear(in_question);
         }
+    }
+
+    if (env.isMacOSX()) {
+        return _readHiddenLineSync(in_question);
     }
 
     return _readHiddenLineSyncInClear(in_question);
@@ -52,7 +55,7 @@ function readHiddenLineSync (in_question, in_username) {
 
 // ******************************
 
-function _readHiddenLineSyncMinGW (in_question) {
+function _readHiddenLineSync (in_question) {
     const readlineSync = require('readline-sync');
     const input = readlineSync.question(cprint.toMagenta(in_question + ': '), {
         hideEchoBack: true
