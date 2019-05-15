@@ -1,3 +1,8 @@
+0.19.0
+- Added support for AWS federated login with Okta
+- Imroved password prompt
+- Bug fixes
+
 0.18.0
 - Added support for AWS federated login with SSO
 - Changed error and warning structure so SVR terminates faster
