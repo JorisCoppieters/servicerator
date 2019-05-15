@@ -2887,8 +2887,9 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let reloadConfigFiles = false;
 
-    let federatedLoginType = cluster.aws.federated_login.type || 'SSO';
-    if (federatedLoginType) {
+    if (cluster.aws.federated_login.type || cluster.aws.federated_login.role_arn || cluster.aws.federated_login.principal_arn) {
+        let federatedLoginType = cluster.aws.federated_login.type || 'SSO';
+
         let federatedLoginRoleArn = cluster.aws.federated_login.role_arn || '';
         if (!federatedLoginRoleArn) {
             throw new Error('Federated login not correctly configured - Missing Role ARN');
