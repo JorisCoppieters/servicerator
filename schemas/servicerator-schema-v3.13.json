@@ -548,6 +548,14 @@
                                             "okta_aws_app_url": {
                                                 "description": "The url link of your Okta AWS application url",
                                                 "type": "string"
+                                            },
+                                            "username_prompt_text": {
+                                                "description": "Replace the default prompt for username entry",
+                                                "type": "string"
+                                            },
+                                            "password_prompt_text": {
+                                                "description": "Replace the default prompt for password entry",
+                                                "type": "string"
                                             }
                                         },
                                         "type": "object"

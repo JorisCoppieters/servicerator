@@ -1530,7 +1530,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             }
         ]);
 
-        let loginData = getSamlLoginData(in_options, 'json');
+        let loginData = getSamlLoginData(in_options, 'email', 'json');
 
         let authCurlArgs = [
             '-s',
@@ -1631,7 +1631,9 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
         }
 
-        samlResponse = samlRegExpMatch[1].replace(/&#x2b;/g,'+');
+        samlResponse = samlRegExpMatch[1]
+            .replace(/&#x2b;/g,'+')
+            .replace(/&#x3d;/g,'=');
 
     } else {
         throw new Error(`Unhandled type: ${type}`);
@@ -1648,9 +1650,11 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
 // ******************************
 
-function getSamlLoginData(in_options, in_mode) {
+function getSamlLoginData(in_options, in_usernameType, in_mode) {
     let opts = in_options || {};
     let mode = in_mode || 'form';
+
+    let passwordPromptText = opts.passwordPromptText || 'Please enter your SAML password';
 
     let awsCache = opts.cache || {};
     let cacheKey = 'SamlLoginData' + (mode === 'form' ? '' : `_${mode}`);
@@ -1664,8 +1668,8 @@ function getSamlLoginData(in_options, in_mode) {
         }
     }
 
-    let samlUsername = getSamlLoginUsername(in_options);
-    let samlPassword = readline.hiddenSync('Please enter your SAML password', samlUsername);
+    let samlUsername = getSamlLoginUsername(in_options, in_usernameType);
+    let samlPassword = readline.hiddenSync(passwordPromptText, samlUsername);
     let data = null;
 
     switch (mode) {
@@ -1693,18 +1697,21 @@ function getSamlLoginData(in_options, in_mode) {
 
 // ******************************
 
-function getSamlLoginUsername(in_options) {
+function getSamlLoginUsername(in_options, in_type) {
     let opts = in_options || {};
+    let type = in_type || 'username';
+
+    let usernamePromptText = opts.usernamePromptText || 'Please enter your SAML username';
 
     let awsCache = opts.cache || {};
-    let cacheKey = 'SamlLoginUsername';
+    let cacheKey = 'SamlLoginUsername' + (type === 'username' ? '' : `_${type}`);
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         return blob.decrypt(cacheVal);
     }
 
-    let samlUsername = readline.sync('Please enter your SAML username');
+    let samlUsername = readline.sync(usernamePromptText);
 
     awsCache[cacheKey] = {
         val: blob.encrypt(samlUsername),
@@ -2825,7 +2832,9 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                             ],
                             policy_url: 'STRING',
                             otka_org_url: 'STRING',
-                            okta_aws_app_url: 'STRING'
+                            okta_aws_app_url: 'STRING',
+                            username_prompt_text: 'STRING',
+                            password_prompt_text: 'STRING'
                         }
                     },
                     default: 'BOOLEAN',
@@ -2900,9 +2909,11 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                 type: federatedLoginType,
                 principalArn: federatedLoginPrincipalArn,
                 roleArn: federatedLoginRoleArn,
+                policyUrl: federatedLoginPolicyUrl,
                 sessionUrl: cluster.aws.federated_login.session_url,
                 sessionHeaders: cluster.aws.federated_login.session_headers,
-                policyUrl: federatedLoginPolicyUrl,
+                usernamePromptText: cluster.aws.federated_login.username_prompt_text || '',
+                passwordPromptText: cluster.aws.federated_login.password_prompt_text || '',
                 credentialsFile: awsCredentialsFile,
                 cache: awsCache,
                 showWarning: true,
@@ -2929,6 +2940,8 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                 roleArn: federatedLoginRoleArn,
                 oktaOrgUrl: federatedLoginOktaOrgUrl,
                 oktaAwsAppUrl: federatedLoginOktaAwsAppUrl,
+                usernamePromptText: cluster.aws.federated_login.username_prompt_text || '',
+                passwordPromptText: cluster.aws.federated_login.password_prompt_text || '',
                 credentialsFile: awsCredentialsFile,
                 cache: awsCache,
                 showWarning: true,
