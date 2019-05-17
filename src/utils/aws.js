@@ -1669,7 +1669,7 @@ function getSamlLoginData(in_options, in_usernameType, in_mode) {
     }
 
     let samlUsername = getSamlLoginUsername(in_options, in_usernameType);
-    let samlPassword = readline.hiddenSync(passwordPromptText, samlUsername);
+    let samlPassword = readline.hiddenSync(passwordPromptText, samlUsername).trim();
     let data = null;
 
     switch (mode) {
@@ -2858,7 +2858,10 @@ function getServiceConfig (in_serviceConfig, in_environment) {
         return serviceConfig;
     }
 
-    if (!(cluster.aws.profile || cluster.aws.account_id || cluster.aws.federated_login)) {
+    let validAwsFederatedLogin = (cluster.aws.federated_login.type || cluster.aws.federated_login.role_arn || cluster.aws.federated_login.principal_arn);
+    let validAwsLogin = (cluster.aws.profile || cluster.aws.account_id || validAwsFederatedLogin);
+
+    if (!validAwsLogin) {
         // Nothing to do if no aws section in cluster
         return serviceConfig;
     }
@@ -2887,7 +2890,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let reloadConfigFiles = false;
 
-    if (cluster.aws.federated_login.type || cluster.aws.federated_login.role_arn || cluster.aws.federated_login.principal_arn) {
+    if (validAwsFederatedLogin) {
         let federatedLoginType = cluster.aws.federated_login.type || 'SSO';
 
         let federatedLoginRoleArn = cluster.aws.federated_login.role_arn || '';

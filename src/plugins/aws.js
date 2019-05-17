@@ -111,20 +111,16 @@ function printAwsServiceInfo (in_serviceConfig, in_environment, in_extra) {
     let environmentTitle = str.toTitleCase(environment);
     let prefixedEnvironmentTitle = 'AWS ' + environmentTitle;
 
-    cprint.magenta('-- AWS Docker --');
-
-    let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
-
     let awsDockerImageName = aws.getDockerImageName(in_serviceConfig, cluster);
-    if (!awsDockerImageName) {
-        throw new Error('AWS docker image name not set');
+    if (awsDockerImageName) {
+        cprint.magenta('-- AWS Docker --');
+        let dockerRepositoryStore = aws.getDockerRepositoryUrl(in_serviceConfig, in_environment);
+        let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
+        let dockerImagePath = dockerRepositoryStore + '/' + awsDockerImageName + ':' + dockerImageVersion;
+
+        print.keyVal('AWS Docker Image Path', dockerImagePath);
+        print.out('\n');
     }
-
-    let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
-    let dockerImagePath = dockerRepositoryStore + '/' + awsDockerImageName + ':' + dockerImageVersion;
-
-    print.keyVal('AWS Docker Image Path', dockerImagePath);
-    print.out('\n');
 
     if (serviceName) {
         cprint.magenta('-- ' + prefixedEnvironmentTitle + ' Clusters State --');
