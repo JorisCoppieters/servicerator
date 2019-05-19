@@ -95,16 +95,16 @@ function getShell () {
 
     let shellPaths = [];
 
-    if (env.isMinGW()) {
-        shellPaths = shellPaths.concat([
-            'C:/Program Files/Git/usr/bin/mintty.exe'
-        ]);
-    }
-
     if (env.isWindows()) {
         shellPaths = shellPaths.concat([
             'C:/Program Files/Git/git-bash.exe',
             'C:/Program Files (x86)/Git/git-bash.exe'
+        ]);
+    }
+
+    if (env.isMinGW()) {
+        shellPaths = shellPaths.concat([
+            'C:/Program Files/Git/usr/bin/mintty.exe'
         ]);
     }
 
