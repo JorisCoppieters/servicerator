@@ -1546,6 +1546,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
         authCurlArgs.push(authUrl);
 
+        cprint.cyan(`Logging in to Okta (${oktaOrgUrl})...`);
         let authCurlResult = exec.cmdSync('curl', authCurlArgs, {
             hide: true
         });
@@ -1555,16 +1556,15 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         }
 
         if (!authCurlResult.resultObj || !authCurlResult.resultObj.sessionToken) {
+            if (authCurlResult.resultObj && authCurlResult.resultObj.errorSummary) {
+                throw new Error(`Failed to get session token: ${authCurlResult.resultObj.errorSummary}`);
+            }
             throw new Error('Failed to get session token');
         }
 
         let sessionToken = authCurlResult.resultObj.sessionToken;
 
         let redirectOnAuthUrl = `${oktaOrgUrl}/login/sessionCookieRedirect?checkAccountSetupComplete=true&token=${sessionToken}&redirectUrl=${oktaAwsAppUrl}`;
-        if (!redirectOnAuthUrl) {
-            throw new Error('Redirect on auth url is not set');
-        }
-
         let redirectOnAuthCurlArgs = [
             '-s',
             '-L',
@@ -1580,6 +1580,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
         redirectOnAuthCurlArgs.push(redirectOnAuthUrl);
 
+        cprint.cyan(`Redirecting to AWS app (${oktaAwsAppUrl})...`);
         let redirectOnAuthCurlResult = exec.cmdSync('curl', redirectOnAuthCurlArgs, {
             hide: true
         });
@@ -1606,6 +1607,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         }
         sid = sid.match(/Set-Cookie: sid=([^"]+?);.*/)[1];
 
+        cprint.cyan('Extracting SAML response...');
         let cmdResult = exec.cmdSync('curl', [
             '-s',
             '-L',
@@ -1622,13 +1624,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         let samlRegExp = new RegExp(/name="SAMLResponse".*? value="(.+?)"/, 'i');
         let samlRegExpMatch = cmdResult.result.match(samlRegExp);
         if (!samlRegExpMatch) {
-            if (in_retryAttempts > 2) {
-                throw new Error('SAML login failed, Max retry attempts reached.');
-            }
-            cprint.yellow('SAML login failed! Did you type in the correct password?');
-            clearSamlLoginData(awsCache, 'json');
-            clearSamlLoginUsername(awsCache);
-            return getSamlAssertion(in_options, (in_retryAttempts || 0) + 1);
+            throw new Error('Failed to parse SAML response');
         }
 
         samlResponse = samlRegExpMatch[1]
