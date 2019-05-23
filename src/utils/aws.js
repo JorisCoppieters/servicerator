@@ -1630,7 +1630,6 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         samlResponse = samlRegExpMatch[1]
             .replace(/&#x2b;/g,'+')
             .replace(/&#x3d;/g,'=');
-
     } else {
         throw new Error(`Unhandled type: ${type}`);
     }
@@ -1839,7 +1838,7 @@ function getRoleSamlCredentials (in_options) {
         'assume-role-with-saml',
         '--role-arn', roleArn,
         '--principal-arn', principalArn,
-        '--saml-assertion', `fileb://${samlAssertionFile}`
+        '--saml-assertion', `file://${samlAssertionFile}`
     ], {
         hide: !opts.verbose,
         no_profile: true
