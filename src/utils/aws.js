@@ -1436,6 +1436,10 @@ function getSamlAssertion (in_options, in_retryAttempts) {
     let samlResponse = '';
 
     if (type === 'SSO') {
+        if (!env.isBash()) {
+            throw new Error('SSO login not supported on a non-bash shell');
+        }
+
         let cookieString = '';
 
         let sessionUrl = opts.sessionUrl;
@@ -1519,6 +1523,10 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         samlResponse = samlRegExpMatch[1];
 
     } else if (type === 'Okta') {
+        if (!env.isBash()) {
+            throw new Error('Okta login not supported on a non-bash shell');
+        }
+
         let oktaOrgUrl = opts.oktaOrgUrl;
         let oktaAwsAppUrl = opts.oktaAwsAppUrl;
 
@@ -1679,7 +1687,7 @@ function getSamlLoginData(in_options, in_usernameType, in_mode) {
     }
 
     if (env.persistSamlPwd()) {
-        cprint.red('Presisting SAML pwd since SERVICERATOR_PERSIST_SAML_PWD is set to true.');
+        cprint.red('Persisting SAML pwd since SERVICERATOR_PERSIST_SAML_PWD is set to true.');
         cprint.red('This is very dangerous, only do this if you know what you are doing!');
         awsCache[cacheKey] = {
             val: blob.encrypt(data),

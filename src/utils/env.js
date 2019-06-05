@@ -4,7 +4,7 @@
 // Requires:
 // ******************************
 
-let fs = require('./filesystem');
+const fs = require('./filesystem');
 
 // ******************************
 // Constants:
@@ -24,6 +24,12 @@ function isDevelopment () {
 
 function persistSamlPwd () {
     return process.env['SERVICERATOR_PERSIST_SAML_PWD'] === 'true';
+}
+
+// ******************************
+
+function samlPwd () {
+    return process.env['SERVICERATOR_SAML_PWD'] || '';
 }
 
 // ******************************
@@ -49,8 +55,26 @@ function isWindows () {
 
 // ******************************
 
+function isBash () {
+    return process.env['SHELL'] && process.env['SHELL'].match('bash');
+}
+
+// ******************************
+
 function isMinGW () {
+    return isMinGW64() || isMinGW32();
+}
+
+// ******************************
+
+function isMinGW64 () {
     return process.env['MSYSTEM'] === 'MINGW64';
+}
+
+// ******************************
+
+function isMinGW32 () {
+    return process.env['MSYSTEM'] === 'MINGW32';
 }
 
 // ******************************
@@ -240,9 +264,13 @@ module.exports['getUserHome'] = getUserHome;
 module.exports['isDevelopment'] = isDevelopment;
 module.exports['isLinux'] = isLinux;
 module.exports['isMacOSX'] = isMacOSX;
+module.exports['isBash'] = isBash;
 module.exports['isMinGW'] = isMinGW;
+module.exports['isMinGW64'] = isMinGW64;
+module.exports['isMinGW32'] = isMinGW32;
 module.exports['isTTY'] = isTTY;
 module.exports['isWindows'] = isWindows;
+module.exports['samlPwd'] = samlPwd;
 module.exports['persistSamlPwd'] = persistSamlPwd;
 
 // ******************************

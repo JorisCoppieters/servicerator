@@ -6,6 +6,7 @@
 
 const cprint = require('color-print');
 
+const blob = require('./secureBlob');
 const env = require('./env');
 const print = require('./print');
 
@@ -29,14 +30,22 @@ function _readLineSync (in_question) {
 // ******************************
 
 function readLineSync (in_question) {
-    return _readLineSync(cprint.toMagenta(in_question + ':') + ' ');
+    return _readLineSync(cprint.toWhite(in_question + ':') + ' ');
 }
 
 // ******************************
 
 function readHiddenLineSync (in_question, in_username) {
-    if (env.isMinGW()) {
-        return _readHiddenLineSync(in_question);
+    if (env.samlPwd()) {
+        return blob.decrypt(env.samlPwd());
+    }
+
+    if (env.isTTY()) {
+        try {
+            return _readHiddenLineSync(in_question);
+        } catch (e) {
+            // Ignore error
+        }
     }
 
     if (env.isWindows()) {
@@ -48,7 +57,11 @@ function readHiddenLineSync (in_question, in_username) {
     }
 
     if (env.isMacOSX()) {
-        return _readHiddenLineSync(in_question);
+        try {
+            return _readHiddenLineSync(in_question);
+        } catch (e) {
+            // Ignore error
+        }
     }
 
     return _readHiddenLineSyncInClear(in_question);
@@ -58,7 +71,7 @@ function readHiddenLineSync (in_question, in_username) {
 
 function _readHiddenLineSync (in_question) {
     const readlineSync = require('readline-sync');
-    const input = readlineSync.question(cprint.toMagenta(in_question + ': '), {
+    const input = readlineSync.question(cprint.toWhite(in_question + ': '), {
         hideEchoBack: true
     });
     return input;
@@ -71,7 +84,7 @@ function _readHiddenLineSyncWindows (in_question, in_username) {
     const fs = require('./filesystem');
     const path = require('path');
 
-    print.out(cprint.toMagenta(in_question) + ' ' + cprint.toYellow('(in Windows Credential Window)') + '\n');
+    print.out(cprint.toWhite(in_question) + ' ' + cprint.toYellow('(in Windows Credential Window)') + '\n');
 
     const bundledScriptPath = path.join(__dirname, 'readPassword.ps1');
     const copiedScriptPath = path.join(env.getTemp(), 'svr-read-password.ps1');
@@ -89,7 +102,7 @@ function _readHiddenLineSyncWindows (in_question, in_username) {
 // ******************************
 
 function _readHiddenLineSyncInClear (in_question) {
-    return _readLineSync(cprint.toMagenta(in_question) + cprint.toYellow(' (due to shell incompatibility, the input cannot be hidden): '));
+    return _readLineSync(cprint.toWhite(in_question) + cprint.toRed(' (WARNING: due to shell incompatibility, the input cannot be hidden):') + cprint.toBlack(' ', true));
 }
 
 // ******************************
