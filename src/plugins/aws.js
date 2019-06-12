@@ -2679,7 +2679,10 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     print.keyVal('AWS ' + environmentTitle + ' Cluster Service Desired Task Count', desiredTaskCount);
     print.keyVal('AWS ' + environmentTitle + ' Role', role);
 
-    let awsTargetGroupName = cluster.target_group.name;
+    let awsTargetGroupName = aws.getAwsTargetGroupName(in_serviceConfig, {
+        cache: awsCache,
+        cluster: cluster
+    });
     let awsTargetGroupArn;
 
     if (awsTargetGroupName) {

@@ -3451,6 +3451,33 @@ function getAwsAutoScalingGroupName (in_serviceConfig, in_options) {
 
 // ******************************
 
+function getAwsTargetGroupName (in_serviceConfig, in_options) {
+    let opts = in_options || {};
+    let cluster = opts.cluster || {};
+    let awsCache = opts.cache || {};
+
+    let targetGroupName = cluster.target_group.name;
+    targetGroupName = service.replaceConfigReferences(in_serviceConfig, targetGroupName);
+
+    if (targetGroupName.match(/.*-\*/)) {
+        let targetGroup = _getTargetGroupForTargetGroupName(targetGroupName.replace(/\*/,''), {
+            cache: awsCache,
+            profile: cluster.aws.profile,
+            region: cluster.aws.region,
+            partialMatch: true,
+            verbose: true
+        });
+        if (!targetGroup) {
+            return;
+        }
+
+        targetGroupName = targetGroup.TargetGroupName;
+    }
+    return targetGroupName;
+}
+
+// ******************************
+
 function getAwsClusterName(in_serviceConfig, in_options) {
     let opts = in_options || {};
     let cluster = opts.cluster || {};
@@ -3813,6 +3840,50 @@ function _getAutoScalingGroupForAutoScalingGroupName (in_autoScalingGroupName, i
 
 // ******************************
 
+function _getTargetGroupForTargetGroupName (in_targetGroupName, in_options) {
+    let opts = in_options || {};
+
+    let awsCache = opts.cache || {};
+    let cacheKey = `TargetGroup_${opts.profile}_${opts.region}_${in_targetGroupName}`;
+    let cacheItem = awsCache[cacheKey];
+    let cacheVal = (cacheItem || {}).val;
+    if (cacheVal !== undefined) {
+        return cacheVal;
+    }
+
+    if (opts.verbose) {
+        cprint.cyan('Retrieving Target Group Name for Target Group "' + in_targetGroupName + '"...');
+    }
+
+    let targetGroups = getTargetGroups(in_options);
+    if (!targetGroups || !targetGroups.length) {
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find any AWS Target Groups');
+        }
+        return;
+    }
+
+    let targetGroup = targetGroups
+        .filter(obj => opts.partialMatch ? _partialStrMatch(obj.TargetGroupName, in_targetGroupName) : obj.TargetGroupName === in_targetGroupName)
+        .find(() => true);
+
+    if (!targetGroup) {
+        if (!opts.hideWarnings) {
+            cprint.yellow('Couldn\'t find Target Group Name for Target Group "' + in_targetGroupName + '"');
+        }
+        return;
+    }
+
+    awsCache[cacheKey] = {
+        val: targetGroup,
+        expires: date.getTimestamp() + cache.durations.week
+    };
+
+    return targetGroup;
+}
+
+// ******************************
+
 function _getRoleArns (in_options) {
     let opts = in_options || {};
 
@@ -3986,6 +4057,7 @@ module.exports['deregisterTaskDefinition'] = deregisterTaskDefinition;
 module.exports['getAutoScalingGroupForLaunchConfiguration'] = getAutoScalingGroupForLaunchConfiguration;
 module.exports['getAutoScalingGroupInstanceCount'] = getAutoScalingGroupInstanceCount;
 module.exports['getAutoScalingGroups'] = getAutoScalingGroups;
+module.exports['getAwsTargetGroupName'] = getAwsTargetGroupName;
 module.exports['getAwsAutoScalingGroupName'] = getAwsAutoScalingGroupName;
 module.exports['getAwsBucketName'] = getAwsBucketName;
 module.exports['getAwsClusterName'] = getAwsClusterName;

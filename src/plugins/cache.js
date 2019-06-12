@@ -53,6 +53,13 @@ function clearCache (in_serviceConfig, in_key, in_all) {
         if (awsCache[in_key]) {
             cprint.green(`Clearing cache entry for ${in_key}...`);
             delete awsCache[in_key];
+        } else if (in_key.match(/\*/)) {
+            let regExp = new RegExp(in_key.replace(/\*/g, '.*'), 'gi');
+            let keysToRemove = Object.keys(awsCache)
+                .filter(key => key.match(regExp));
+            keysToRemove
+                .forEach(key => delete awsCache[key]);
+            cprint.green(`Clearing cache entry for keys [${keysToRemove.join(', ')}]...`);
         } else {
             cprint.yellow(`No cache entry for ${in_key}`);
         }
