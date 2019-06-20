@@ -2883,10 +2883,15 @@ function getServiceConfig (in_serviceConfig, in_environment) {
 
     let assumeRoleArn = cluster.aws.assume_role || '';
 
-    let awsConfigFile = path.resolve(homeFolder, '.aws', 'config');
+    let awsFolder = path.resolve(homeFolder, '.aws');
+    if (!fs.folderExists(awsFolder)) {
+        fs.createFolder(awsFolder);
+    }
+
+    let awsConfigFile = path.resolve(awsFolder, 'config');
     let awsConfig = ini.parseFile(awsConfigFile);
 
-    let awsCredentialsFile = path.resolve(homeFolder, '.aws', 'credentials');
+    let awsCredentialsFile = path.resolve(awsFolder, 'credentials');
     let awsCredentials = ini.parseFile(awsCredentialsFile) || {};
 
     let awsCache = cache.load(in_serviceConfig.cwd, 'aws') || {};

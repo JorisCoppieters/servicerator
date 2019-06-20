@@ -37,7 +37,10 @@ function readLineSync (in_question) {
 
 function readHiddenLineSync (in_question, in_username) {
     if (env.samlPwd()) {
-        return blob.decrypt(env.samlPwd());
+        let decrypted = blob.decrypt(env.samlPwd());
+        if (decrypted) {
+            return decrypted;
+        }
     }
 
     if (env.isTTY()) {
@@ -48,7 +51,7 @@ function readHiddenLineSync (in_question, in_username) {
         }
     }
 
-    if (env.isWindows()) {
+    if (env.isWindows() && env.allowWindowsCredentialWindow()) {
         try {
             return _readHiddenLineSyncWindows(in_question, in_username);
         } catch (e) {

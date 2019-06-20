@@ -23,7 +23,7 @@ module.exports['decrypt'] = (authBlob) => {
     try {
         return JSON.parse(_decrypt(authBlob));
     } catch (err) {
-        return {};
+        return null;
     }
 };
 

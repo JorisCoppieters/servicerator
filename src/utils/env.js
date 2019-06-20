@@ -34,6 +34,12 @@ function samlPwd () {
 
 // ******************************
 
+function allowWindowsCredentialWindow () {
+    return process.env['SERVICERATOR_ALLOW_WINDOWS_CREDENTIAL_WINDOW'] || false;
+}
+
+// ******************************
+
 function isLinux () {
     let os = require('os');
     return os.platform() === 'linux';
@@ -251,6 +257,7 @@ function getTemp() {
 
 module.exports['SERVICE_CONFIG_FILE_NAME'] = SERVICE_CONFIG_FILE_NAME;
 
+module.exports['allowWindowsCredentialWindow'] = allowWindowsCredentialWindow;
 module.exports['getPlugins'] = getPlugins;
 module.exports['getServiceConfigFile'] = getServiceConfigFile;
 module.exports['getServiceFolder'] = getServiceFolder;
@@ -261,16 +268,16 @@ module.exports['getStoredValue'] = getStoredValue;
 module.exports['getTemp'] = getTemp;
 module.exports['getUserExplorerHome'] = getUserExplorerHome;
 module.exports['getUserHome'] = getUserHome;
+module.exports['isBash'] = isBash;
 module.exports['isDevelopment'] = isDevelopment;
 module.exports['isLinux'] = isLinux;
 module.exports['isMacOSX'] = isMacOSX;
-module.exports['isBash'] = isBash;
 module.exports['isMinGW'] = isMinGW;
-module.exports['isMinGW64'] = isMinGW64;
 module.exports['isMinGW32'] = isMinGW32;
+module.exports['isMinGW64'] = isMinGW64;
 module.exports['isTTY'] = isTTY;
 module.exports['isWindows'] = isWindows;
-module.exports['samlPwd'] = samlPwd;
 module.exports['persistSamlPwd'] = persistSamlPwd;
+module.exports['samlPwd'] = samlPwd;
 
 // ******************************
