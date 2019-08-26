@@ -2596,7 +2596,9 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
                     default: 'BOOLEAN',
                     environment: 'STRING',
                     tasks: {
-                        count: 'NUMBER'
+                        count: 'NUMBER',
+                        minimum_count: 'NUMBER',
+                        maximum_count: 'NUMBER'
                     },
                     load_balancer: {
                         name: 'STRING'
