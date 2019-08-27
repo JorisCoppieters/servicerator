@@ -1839,7 +1839,7 @@ function verifySingleFactorOktaMFA(in_factor, in_stateToken) {
         return pushNotificationResult;
     }
 
-    throw new Error('Incomplete!');
+    throw new Error('MFA verification failed!');
 }
 
 // ******************************
