@@ -17,6 +17,22 @@ const readline = require('./readline');
 const service = require('./service');
 
 // ******************************
+// Constants:
+// ******************************
+
+const c_SUPPORTED_OKTA_MFA_FACTOR_TYPES = {
+    'token:software:totp': {
+        enabled: true
+    },
+    'push': {
+        enabled: true
+    },
+    'u2f': {
+        enabled: false
+    }
+};
+
+// ******************************
 // Globals:
 // ******************************
 
@@ -1563,14 +1579,26 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             return authCurlResult.throwError();
         }
 
-        if (!authCurlResult.resultObj || !authCurlResult.resultObj.sessionToken) {
+        let sessionToken = '';
+
+        if (authCurlResult.resultObj.status === 'MFA_REQUIRED') {
+            cprint.cyan('MFA required, verifying with Okta...');
+            let factorsList = authCurlResult.resultObj._embedded.factors;
+            let stateToken = authCurlResult.resultObj.stateToken;
+            sessionToken = verifyOktaMFA(factorsList, stateToken);
+
+        } else if (authCurlResult.resultObj.status === 'MFA_ENROLL') {
+            throw new Error(`MFA needs to be set up, cannot continue`);
+
+        } else if (authCurlResult.resultObj.status === 'SUCCESS') {
+            sessionToken = authCurlResult.resultObj.sessionToken;
+
+        } else {
             if (authCurlResult.resultObj && authCurlResult.resultObj.errorSummary) {
                 throw new Error(`Failed to get session token: ${authCurlResult.resultObj.errorSummary}`);
             }
             throw new Error('Failed to get session token');
         }
-
-        let sessionToken = authCurlResult.resultObj.sessionToken;
 
         let redirectOnAuthUrl = `${oktaOrgUrl}/login/sessionCookieRedirect?checkAccountSetupComplete=true&token=${sessionToken}&redirectUrl=${oktaAwsAppUrl}`;
         let redirectOnAuthCurlArgs = [
@@ -1722,6 +1750,129 @@ function getSamlLoginUsername(in_options, in_type) {
     };
 
     return samlUsername;
+}
+
+// ******************************
+
+function verifyOktaMFA(in_factorsList, in_stateToken) {
+    let supportedFactors = in_factorsList
+        .filter(factor => Object.keys(c_SUPPORTED_OKTA_MFA_FACTOR_TYPES)
+            .filter(key => c_SUPPORTED_OKTA_MFA_FACTOR_TYPES[key].enabled)
+            .indexOf(factor.factorType) >= 0
+        )
+        .sort((factorA, factorB) => {
+            if (factorA.provider !== factorB.provider) {
+                return factorA.provider.localeCompare(factorB.provider);
+            }
+
+            if (factorA.factorType !== factorB.factorType) {
+                return factorA.factorType.localeCompare(factorB.factorType);
+            }
+
+            return 0;
+        });
+
+    if (supportedFactors.length < 1) {
+        throw 'No supported MFA factors set up';
+    }
+
+    return verifySingleFactorOktaMFA(supportedFactors[0], in_stateToken);
+}
+
+// ******************************
+
+function verifySingleFactorOktaMFA(in_factor, in_stateToken) {
+    let verifyData = {
+        stateToken: in_stateToken
+    }
+
+    if (in_factor.factorType == 'token:software:totp') {
+        let tokenCode = readline.sync(`Please enter your Okta MFA token`);
+        verifyData.answer = tokenCode;
+    }
+
+    let factorUrl = in_factor._links.verify.href;
+    if (!factorUrl) {
+        throw new Error('Factor url is not set');
+    }
+
+    let cmdResult = exec.cmdSync('curl', [
+        '-X', 'POST',
+        '-s',
+        '-L',
+        '-H', 'Content-Type: application/json',
+        '-d', JSON.stringify(verifyData),
+        factorUrl
+    ], {
+        hide: true
+    });
+
+    if (cmdResult.hasError) {
+        return cmdResult.throwError();
+    }
+
+    if (cmdResult.resultObj.status === 'SUCCESS') {
+        return cmdResult.resultObj.sessionToken;
+    }
+
+    if (cmdResult.resultObj.status === 'MFA_CHALLENGE' && in_factor.factorType !== 'u2f') {
+        let factorNextUrl = cmdResult.resultObj._links.next.href;
+        if (!factorNextUrl) {
+            throw new Error('Factor next url is not set');
+        }
+
+        let pushNotificationResult = false;
+        let iteration = 0;
+        while (iteration++ < 50) {
+            cprint.cyan('Waiting for push verification...');
+            pushNotificationResult = waitForOktaMFAPushNotification(factorNextUrl, verifyData);
+            if (pushNotificationResult) {
+                break;
+            }
+            require('deasync').sleep(500);
+        }
+
+        if (!pushNotificationResult) {
+            throw new Error('MFA verification timed out!');
+        }
+
+        return pushNotificationResult;
+    }
+
+    throw new Error('Incomplete!');
+}
+
+// ******************************
+
+function waitForOktaMFAPushNotification(in_factorNextUrl, in_verifyData) {
+    let cmdResult = exec.cmdSync('curl', [
+        '-X', 'POST',
+        '-s',
+        '-L',
+        '-H', 'Content-Type: application/json',
+        '-d', JSON.stringify(in_verifyData),
+        in_factorNextUrl
+    ], {
+        hide: true
+    });
+
+    if (cmdResult.hasError) {
+        return cmdResult.throwError();
+    }
+
+    if (cmdResult.resultObj.status === 'SUCCESS') {
+        return cmdResult.resultObj.sessionToken;
+    }
+
+    if (cmdResult.resultObj.factorResult === 'TIMEOUT') {
+        throw new Error('MFA verification timed out!');
+    }
+
+    if (cmdResult.resultObj.factorResult === 'REJECTED') {
+        throw new Error('MFA verification was rejected!');
+    }
+
+    return false;
 }
 
 // ******************************
