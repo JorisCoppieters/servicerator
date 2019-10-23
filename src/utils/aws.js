@@ -1714,6 +1714,11 @@ function getSamlLoginData(in_options, in_usernameType, in_mode) {
         throw new Error(`Unhandled mode: ${in_mode}`);
     }
 
+    if (env.isDevelopment() && !env.samlPwd()) {
+        cprint.red('Set SERVICERATOR_SAML_PWD to:');
+        cprint.red(`${blob.encrypt(samlPassword)}`);
+    }
+
     if (env.persistSamlPwd()) {
         cprint.red('Persisting SAML pwd since SERVICERATOR_PERSIST_SAML_PWD is set to true.');
         cprint.red('This is very dangerous, only do this if you know what you are doing!');
@@ -2985,8 +2990,8 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                                 }
                             ],
                             policy_url: 'STRING',
-                            otka_org_url: 'STRING',
                             okta_aws_app_url: 'STRING',
+                            okta_org_url: 'STRING',
                             username_prompt_text: 'STRING',
                             password_prompt_text: 'STRING'
                         }
@@ -3087,7 +3092,7 @@ function getServiceConfig (in_serviceConfig, in_environment) {
                 reloadConfigFiles = true;
             }
         } else if (federatedLoginType === 'Okta') {
-            let federatedLoginOktaOrgUrl = cluster.aws.federated_login.otka_org_url || '';
+            let federatedLoginOktaOrgUrl = cluster.aws.federated_login.okta_org_url || '';
             if (!federatedLoginOktaOrgUrl) {
                 throw new Error('Okta federated login not correctly configured - Missing Okta Org URL');
             }
