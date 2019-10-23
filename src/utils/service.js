@@ -916,6 +916,14 @@ function _upgradeServiceConfig (in_serviceConfig) {
         }
     }
 
+    if (_versionCompare(schemaVersion, [3,14]) < 0) {
+        serviceConfigChanged = _upgradeServiceConfigFrom3_10To3_14(newServiceConfig);
+        if (serviceConfigChanged) {
+            newServiceConfig = serviceConfigChanged;
+            requiresSave = true;
+        }
+    }
+
     let scriptSchema = getServiceConfigSchemaUrl();
     let scriptSchemaVersion = getServiceConfigSchemaVersion();
 
@@ -1311,6 +1319,26 @@ function _upgradeServiceConfigFrom3_9To3_10 (in_serviceConfig) {
             });
         }
 
+    }
+
+    return hasBeenUpdated ? in_serviceConfig : false;
+}
+
+// ******************************
+
+function _upgradeServiceConfigFrom3_10To3_14 (in_serviceConfig) {
+    let hasBeenUpdated = false;
+
+    if (in_serviceConfig.service) {
+        if (in_serviceConfig.service.clusters && in_serviceConfig.service.clusters.length) {
+            in_serviceConfig.service.clusters.forEach(cluster => {
+                if (cluster.aws && cluster.aws.federated_login && cluster.aws.federated_login.otka_org_url) {
+                    cluster.aws.federated_login.okta_org_url = cluster.aws.federated_login.otka_org_url;
+                    delete cluster.aws.federated_login.otka_org_url;
+                    hasBeenUpdated = true;
+                }
+            });
+        }
     }
 
     return hasBeenUpdated ? in_serviceConfig : false;
