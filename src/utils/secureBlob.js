@@ -35,7 +35,7 @@ function _encrypt(in_text){
     const iv = Buffer.from(crypto.randomBytes(16));
     const cipher = crypto.createCipheriv('aes-256-ctr', _getSecretKey(), iv);
 
-    let encrypted = cipher.update(in_text, 'utf8', 'hex');
+    let encrypted = cipher.update(in_text);
     encrypted += cipher.final('hex');
 
     return `${iv.toString('hex')}:${encrypted.toString()}`;
@@ -50,7 +50,7 @@ function _decrypt(in_encrypted){
 
     const encryptedText = Buffer.from(textParts.join(':'), 'hex');
 
-    let decrypted = decipher.update(encryptedText,  'hex', 'utf8');
+    let decrypted = decipher.update(encryptedText);
     decrypted += decipher.final('utf8');
 
     return decrypted.toString();

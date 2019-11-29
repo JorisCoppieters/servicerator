@@ -1693,7 +1693,10 @@ function getSamlLoginData(in_options, in_usernameType, in_mode) {
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
         if (env.persistSamlPwd()) {
-            return blob.decrypt(cacheVal);
+            let data = blob.decrypt(cacheVal);
+            if (data) {
+                return data;
+            }
         } else {
             clearSamlLoginData(awsCache);
         }
@@ -1744,7 +1747,10 @@ function getSamlLoginUsername(in_options, in_type) {
     let cacheItem = awsCache[cacheKey];
     let cacheVal = (cacheItem || {}).val;
     if (cacheVal !== undefined) {
-        return blob.decrypt(cacheVal);
+        let samlUsername = blob.decrypt(cacheVal);
+        if (samlUsername) {
+            return samlUsername;
+        }
     }
 
     let samlUsername = readline.sync(usernamePromptText);
