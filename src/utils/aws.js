@@ -1618,7 +1618,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
 
         cprint.cyan(`Redirecting to AWS app (${oktaAwsAppUrl})...`);
         let redirectOnAuthCurlResult = exec.cmdSync('curl', redirectOnAuthCurlArgs, {
-            hide: true
+            hide: !env.isDevelopment()
         });
 
         if (redirectOnAuthCurlResult.hasError) {
@@ -1631,17 +1631,20 @@ function getSamlAssertion (in_options, in_retryAttempts) {
                 .map(line => line.trim())
                 .filter(line => line && !line.match(/^#.*/));
 
-        let samlLocation = reponseRows.find(row => row.match(/Location: .*sso\/saml/));
+        let samlLocation = reponseRows.find(row => row.match(/Location: .*sso\/saml/i));
         if (!samlLocation) {
+            if (env.isDevelopment()) {
+                cprint.white('Response Rows:\n' + reponseRows.join('\n'));
+            }
             throw new Error('Failed to extract SAML location');
         }
         samlLocation = samlLocation.replace('Location: ', '');
 
-        let sid = reponseRows.find(row => row.match(/Set-Cookie: sid=[^"]+;.*/));
+        let sid = reponseRows.find(row => row.match(/Set-Cookie: sid=[^"]+;.*/i));
         if (!sid) {
             throw new Error('Failed to extract sid');
         }
-        sid = sid.match(/Set-Cookie: sid=([^"]+?);.*/)[1];
+        sid = sid.match(/Set-Cookie: sid=([^"]+?);.*/i)[1];
 
         cprint.cyan('Extracting SAML response...');
         let cmdResult = exec.cmdSync('curl', [
@@ -1650,7 +1653,7 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             '--cookie', `sid=${sid}`,
             samlLocation
         ], {
-            hide: true
+            hide: !env.isDevelopment()
         });
 
         if (cmdResult.hasError) {
@@ -1660,6 +1663,9 @@ function getSamlAssertion (in_options, in_retryAttempts) {
         let samlRegExp = new RegExp(/name="SAMLResponse".*? value="(.+?)"/, 'i');
         let samlRegExpMatch = cmdResult.result.match(samlRegExp);
         if (!samlRegExpMatch) {
+            if (env.isDevelopment()) {
+                cprint.white('Command result:\n' + cmdResult.result);
+            }
             throw new Error('Failed to parse SAML response');
         }
 
