@@ -1638,13 +1638,14 @@ function getSamlAssertion (in_options, in_retryAttempts) {
             }
             throw new Error('Failed to extract SAML location');
         }
-        samlLocation = samlLocation.replace('Location: ', '');
+        samlLocation = samlLocation.replace(/Location: /i, '');
 
-        let sid = reponseRows.find(row => row.match(/Set-Cookie: sid=[^"]+;.*/i));
+        let cookieRegExp = new RegExp(/Set-Cookie: sid=([^"';]+);.*/, 'i');
+        let sid = reponseRows.find(row => row.match(cookieRegExp));
         if (!sid) {
             throw new Error('Failed to extract sid');
         }
-        sid = sid.match(/Set-Cookie: sid=([^"]+?);.*/i)[1];
+        sid = sid.match(cookieRegExp)[1];
 
         cprint.cyan('Extracting SAML response...');
         let cmdResult = exec.cmdSync('curl', [
