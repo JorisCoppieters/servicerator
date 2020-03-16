@@ -114,6 +114,7 @@ function generateAuthFiles (in_serviceConfig) {
     fs.createFolder(tmpAuthFolder);
 
     let caSignDB = path.resolve(tmpAuthFolder, 'tmp-db');
+    let caSignDBAttr = path.resolve(tmpAuthFolder, 'tmp-db.attr');
     let caSignSerial = path.resolve(tmpAuthFolder, 'tmp-serial');
     let caSignConfig = path.resolve(tmpAuthFolder, 'ca-sign-config.cnf');
     let caSignExtConfig = path.resolve(tmpAuthFolder, 'ca-sign-ext-config.cnf');
@@ -136,6 +137,7 @@ function generateAuthFiles (in_serviceConfig) {
     cprint.cyan('Setting up certificate configuration...');
 
     fs.writeFile(caSignDB, '');
+    fs.writeFile(caSignDBAttr, 'unique_subject = yes');
     fs.writeFile(caSignSerial, '01');
 
     let urls = serviceConfig.service.clusters
