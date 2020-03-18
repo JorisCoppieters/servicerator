@@ -582,7 +582,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
     cprint.magenta('-- Deploy --');
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
-    print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
+    print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);    
 
     print.keyVal('AWS Task Definition', '...', true);
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
@@ -700,6 +700,7 @@ function awsGetDockerCommand (in_serviceConfig, in_environment) {
             },
             organization: 'STRING',
             container: {
+                container_name: 'STRING',
                 memory_limit: 'NUMBER',
                 ports: [
                     {
@@ -2090,6 +2091,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         },
         docker: {
             container: {
+                container_name: 'STRING',
                 commands: [
                     {
                         local: 'BOOLEAN',
@@ -2170,7 +2172,11 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         throw new Error('AWS docker image name not set');
     }
 
+    print.keyVal('ServiceConfig', serviceConfig);
+    print.keyVal('in_serviceConfig', in_serviceConfig);
+
     let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
+    let dockerContainerName = serviceConfig.docker.container.container_name || 'service';
 
     let awsTaskDefinitionName = aws.getAwsTaskDefinitionName(in_serviceConfig, {
         cluster: cluster
@@ -2194,7 +2200,8 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
 
     cprint.magenta('-- Task Definition --');
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
-    print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
+    print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
+    print.keyVal('AWS Task Definition Container Name', dockerContainerName);
 
     print.keyVal('AWS Task Definition Role', '...', true);
 
@@ -2225,7 +2232,7 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         'essential': true,
         'image': awsTaskDefinitionImagePath,
         'memoryReservation': awsTaskDefinitionMemoryLimit,
-        'name': 'service',
+        'name': dockerContainerName,
         'volumesFrom': []
     };
 
@@ -2568,7 +2575,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
         docker: {
-            container: {
+            container: { 
+                container_name: 'STRING',
                 ports: [
                     {
                         container: 'NUMBER',
@@ -2704,8 +2712,11 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let loadBalancers = [];
 
+    print.keyVal('>ServiceConfig', serviceConfig);
+    print.keyVal('>in_serviceConfig', in_serviceConfig);
+
     let awsLoadBalancerName = cluster.load_balancer.name;
-    let awsContainerName = 'service';
+    let awsContainerName = serviceConfig.docker.container.container_name || 'service';    
 
     if (awsTargetGroupArn || awsLoadBalancerName) {
         serviceConfig.docker.container.ports.forEach(port => {
