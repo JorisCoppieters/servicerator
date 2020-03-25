@@ -582,7 +582,7 @@ function awsDeploy (in_serviceConfig, in_stopTasks, in_environment) {
 
     cprint.magenta('-- Deploy --');
     print.keyVal('AWS Task Definition Name', awsTaskDefinitionName);
-    print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);    
+    print.keyVal('AWS Task Definition Image Path', awsTaskDefinitionImagePath);
 
     print.keyVal('AWS Task Definition', '...', true);
     let taskDefinitionArn = aws.getLatestTaskDefinitionArnForTaskDefinition(awsTaskDefinitionName, {
@@ -2172,9 +2172,6 @@ function awsCreateTaskDefinition (in_serviceConfig, in_forceModelUpdate, in_envi
         throw new Error('AWS docker image name not set');
     }
 
-    print.keyVal('ServiceConfig', serviceConfig);
-    print.keyVal('in_serviceConfig', in_serviceConfig);
-
     let dockerImageVersion = serviceConfig.docker.image.version || 'latest';
     let dockerContainerName = serviceConfig.docker.container.container_name || 'service';
 
@@ -2575,7 +2572,7 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
     let serviceConfig = service.accessConfig(aws.getMergedServiceConfig(in_serviceConfig, in_environment), {
         cwd: 'STRING',
         docker: {
-            container: { 
+            container: {
                 container_name: 'STRING',
                 ports: [
                     {
@@ -2712,11 +2709,8 @@ function awsCreateClusterService (in_serviceConfig, in_environment) {
 
     let loadBalancers = [];
 
-    print.keyVal('>ServiceConfig', serviceConfig);
-    print.keyVal('>in_serviceConfig', in_serviceConfig);
-
     let awsLoadBalancerName = cluster.load_balancer.name;
-    let awsContainerName = serviceConfig.docker.container.container_name || 'service';    
+    let awsContainerName = serviceConfig.docker.container.container_name || 'service';
 
     if (awsTargetGroupArn || awsLoadBalancerName) {
         serviceConfig.docker.container.ports.forEach(port => {
